@@ -74,6 +74,7 @@ enum TrackingRecommendationEngine {
     private static func shouldShow(_ card: TrackingCard) -> Bool {
         // Non-onTrack cards always show.
         guard card.urgency == .onTrack else { return true }
+        // Non-onTrack health items still show — surfacing them IS the reminder to open Health.
         // Health-backed domains with truly good, fresh data add no value in "You're Good".
         if healthBackedDomains.contains(card.item.domain) {
             return card.item.status != .good || card.item.dataIsStale
@@ -96,7 +97,7 @@ enum TrackingRecommendationEngine {
     private static func computeUrgency(item: PriorityItem, dueInDays: Int?) -> TrackingUrgency {
         if item.status == .urgent || item.status == .missing { return .trackNow }
         guard let days = dueInDays else {
-            return (item.status == .bad || item.dataIsStale) ? .trackNow : .onTrack
+            return (item.status == .bad || item.status == .borderline || item.dataIsStale) ? .trackNow : .onTrack
         }
         switch days {
         case ...0:  return .trackNow
