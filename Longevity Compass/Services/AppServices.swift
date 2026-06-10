@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 enum AppTab: Hashable {
-    case today
+    case focus
     case track
     case train
     case nutrition
@@ -24,7 +24,7 @@ final class AppServices {
     private(set) var hasBootstrapped: Bool = false
 
     /// Cross-view navigation hint. Views observe this and update their TabView selection.
-    var selectedTab: AppTab = .today
+    var selectedTab: AppTab = .focus
 
     init(context: ModelContext) {
         self.store = LocalDataStore(context: context)

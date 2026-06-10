@@ -6,9 +6,9 @@ struct ContentView: View {
     var body: some View {
         @Bindable var bindable = services
         TabView(selection: $bindable.selectedTab) {
-            NavigationStack { DashboardView() }
-                .tabItem { Label("Today", systemImage: "compass.drawing") }
-                .tag(AppTab.today)
+            NavigationStack { FocusView() }
+                .tabItem { Label("Focus", systemImage: "scope") }
+                .tag(AppTab.focus)
 
             NavigationStack { TrackView() }
                 .tabItem { Label("Track", systemImage: "square.and.pencil") }
