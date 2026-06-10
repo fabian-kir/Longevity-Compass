@@ -147,14 +147,14 @@ struct TrackingCardView: View {
             HStack {
                 Label("Flossed", systemImage: "mouth").font(.subheadline)
                 Spacer()
-                pillButton(title: flossedToday ? "Logged ✓" : "Log", filled: flossedToday, tint: .green) {
+                pillButton(title: flossedToday ? "Logged" : "Log", filled: flossedToday, tint: .green) {
                     onLogDentalFloss()
                 }
             }
             HStack {
                 Label("Fluoride gel", systemImage: "drop").font(.subheadline)
                 Spacer()
-                pillButton(title: fluorideToday ? "Logged ✓" : "Log", filled: fluorideToday, tint: .green) {
+                pillButton(title: fluorideToday ? "Logged" : "Log", filled: fluorideToday, tint: .green) {
                     onLogDentalFluoride()
                 }
             }
@@ -164,14 +164,16 @@ struct TrackingCardView: View {
     // MARK: - Helpers
 
     private func hasTodayEntry(type: ManualEntryType, value: Bool) -> Bool {
-        let start = Calendar.current.startOfDay(for: .now)
-        return todaysEntries.contains { $0.entryType == type && $0.date >= start && $0.booleanValue == value }
+        todaysEntries.contains {
+            $0.entryType == type
+            && Calendar.current.isDateInToday($0.date)
+            && $0.booleanValue == value
+        }
     }
 
     private func todaysAlcoholLevel() -> AlcoholLevel? {
-        let start = Calendar.current.startOfDay(for: .now)
-        return todaysEntries
-            .filter { $0.entryType == .alcohol && $0.date >= start }
+        todaysEntries
+            .filter { $0.entryType == .alcohol && Calendar.current.isDateInToday($0.date) }
             .sorted { $0.date > $1.date }
             .first?.alcoholLevel
     }
