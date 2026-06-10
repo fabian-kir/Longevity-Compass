@@ -164,11 +164,11 @@ struct TrackingCardView: View {
     // MARK: - Helpers
 
     private func hasTodayEntry(type: ManualEntryType, value: Bool) -> Bool {
-        todaysEntries.contains {
-            $0.entryType == type
-            && Calendar.current.isDateInToday($0.date)
-            && $0.booleanValue == value
-        }
+        let mostRecent = todaysEntries
+            .filter { $0.entryType == type && Calendar.current.isDateInToday($0.date) }
+            .sorted { $0.date > $1.date }
+            .first
+        return mostRecent?.booleanValue == value
     }
 
     private func todaysAlcoholLevel() -> AlcoholLevel? {
