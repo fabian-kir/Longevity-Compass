@@ -180,8 +180,8 @@ struct TrackingCardView: View {
 
     private var urgencyColor: Color {
         switch card.urgency {
-        case .trackNow:   card.item.status == .urgent ? .red : .orange
-        case .comingSoon: .yellow
+        case .trackNow:   card.item.status == .urgent ? .red : AppTab.track.tint
+        case .comingSoon: AppTab.track.tint
         case .onTrack:    .green
         }
     }

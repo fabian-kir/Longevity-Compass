@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 enum AppTab: Hashable {
     case focus
@@ -8,6 +9,16 @@ enum AppTab: Hashable {
     case nutrition
     case trends
     case data
+
+    var tint: Color {
+        switch self {
+        case .focus:     return .purple
+        case .track:     return Color(red: 0.55, green: 0.07, blue: 0.07)
+        case .train:     return .orange
+        case .nutrition: return .green
+        case .trends, .data: return .accentColor
+        }
+    }
 }
 
 @Observable
@@ -57,7 +68,7 @@ final class AppServices {
         )
         currentResult = result
         store.recordPriorityHistory(result.allItems)
-        await notifications.scheduleReminders(for: result, manualEntries: entries)
+        await notifications.scheduleReminders(for: result, manualEntries: entries, nutritionEntries: nutrition)
     }
 
     func recordManualEntry(_ entry: ManualEntry) async {

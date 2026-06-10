@@ -100,11 +100,11 @@ struct AddEditExerciseView: View {
                                     .frame(width: 44, height: 44)
                                     .background(
                                         selectedSymbol == symbol
-                                            ? Color.accentColor.opacity(0.18)
-                                            : Color.clear,
+                                            ? AnyShapeStyle(.tint.opacity(0.18))
+                                            : AnyShapeStyle(Color.clear),
                                         in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     )
-                                    .foregroundStyle(selectedSymbol == symbol ? Color.accentColor : Color.secondary)
+                                    .foregroundStyle(selectedSymbol == symbol ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                             }
                             .buttonStyle(.plain)
                         }

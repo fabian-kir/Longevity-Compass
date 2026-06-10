@@ -251,10 +251,8 @@ private struct CompactPriorityRow: View {
 
 private func statusTint(_ status: DomainStatus) -> Color {
     switch status {
-    case .urgent, .bad:    .red
-    case .borderline:      .orange
-    case .good:            .green
-    case .missing:         .blue
-    case .unknown:         .gray
+    case .urgent, .bad:                       .red
+    case .good:                               .green
+    case .borderline, .missing, .unknown:     AppTab.focus.tint
     }
 }

@@ -62,9 +62,9 @@ struct ExerciseDefRow: View {
             } else {
                 Image(systemName: def.sfSymbol)
                     .font(.title3)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                     .frame(width: 38, height: 38)
-                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             Text(def.name)
         }

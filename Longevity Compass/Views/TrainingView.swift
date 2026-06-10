@@ -47,7 +47,7 @@ struct TrainingView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(.tint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .foregroundStyle(.white)
             }
             .padding(.horizontal)
@@ -103,7 +103,7 @@ struct ExerciseEntryRow: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Image(systemName: entry.exerciseSymbol)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                     .frame(width: 20)
                 Text(entry.exerciseName)
                     .font(.headline)

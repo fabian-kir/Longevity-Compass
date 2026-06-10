@@ -10,6 +10,10 @@ final class NotificationManager {
     private let center = UNUserNotificationCenter.current()
     private let identifierPrefix = "lc."
 
+    private static let nutritionDomains: Set<HealthDomain> = [.protein, .fiber, .omega3]
+    private static let habitNutritionTypes: Set<ManualEntryType> = [.proteinHabit, .fiberHabit, .omega3Habit]
+    private static let scheduleHorizonDays = 3
+
     func requestAuthorization() async {
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -28,11 +32,10 @@ final class NotificationManager {
         center.removeAllPendingNotificationRequests()
     }
 
-    private static let nutritionEntryTypes: Set<ManualEntryType> = [.proteinHabit, .fiberHabit, .omega3Habit]
-
     func scheduleReminders(
         for result: PriorityEngine.Result,
         manualEntries: [ManualEntry],
+        nutritionEntries: [NutritionEntry],
         now: Date = .now
     ) async {
         await refreshAuthorizationStatus()
@@ -40,35 +43,36 @@ final class NotificationManager {
 
         cancelAll()
 
-        await schedulePriorityDigests(for: result, now: now)
+        await schedulePriorityReminders(for: result, now: now)
         await scheduleWeeklyReview(result: result)
-        await scheduleNutritionReminders(entries: manualEntries, now: now)
+        await scheduleNutritionReminders(
+            result: result,
+            manualEntries: manualEntries,
+            nutritionEntries: nutritionEntries,
+            now: now
+        )
     }
 
-    // MARK: - Priority digests
+    // MARK: - Priority reminders (one notification per item)
 
-    private func schedulePriorityDigests(for result: PriorityEngine.Result, now: Date) async {
+    private func schedulePriorityReminders(for result: PriorityEngine.Result, now: Date) async {
         let cal = Calendar.current
-        var byDay: [Date: [PriorityItem]] = [:]
+        let today = cal.startOfDay(for: now)
+        guard let horizon = cal.date(byAdding: .day, value: Self.scheduleHorizonDays, to: today) else { return }
+        let iso = ISO8601DateFormatter()
+
         for item in result.topItems {
             guard item.reminderFrequency != .never else { continue }
             guard let next = item.nextTrackingDate else { continue }
             let day = cal.startOfDay(for: next)
-            if day >= cal.startOfDay(for: now) {
-                byDay[day, default: []].append(item)
-            }
-        }
+            guard day >= today, day <= horizon else { continue }
 
-        let sortedDays = byDay.keys.sorted().prefix(14)
-        let iso = ISO8601DateFormatter()
-        for day in sortedDays {
-            let items = byDay[day] ?? []
             let content = UNMutableNotificationContent()
-            content.title = items.count == 1 ? "Quick health check" : "Today's health check"
-            content.body  = bodyText(items: items)
+            content.title = item.title
+            content.body  = singleItemBody(item)
             content.sound = .default
             let req = UNNotificationRequest(
-                identifier: "\(identifierPrefix)daily.\(iso.string(from: day))",
+                identifier: "\(identifierPrefix)priority.\(item.domain.rawValue).\(iso.string(from: day))",
                 content: content,
                 trigger: makeTrigger(for: day, hour: 9, minute: 0)
             )
@@ -96,50 +100,48 @@ final class NotificationManager {
         try? await center.add(req)
     }
 
-    // MARK: - Nutrition reminders (20:00 daily + conditional 23:00)
+    // MARK: - Nutrition reminder (20:00, only when nutrition is off-track)
 
-    private func scheduleNutritionReminders(entries: [ManualEntry], now: Date) async {
+    private func scheduleNutritionReminders(
+        result: PriorityEngine.Result,
+        manualEntries: [ManualEntry],
+        nutritionEntries: [NutritionEntry],
+        now: Date
+    ) async {
+        let nutritionNeedsAttention = result.allItems.contains { item in
+            Self.nutritionDomains.contains(item.domain) &&
+            (item.status == .bad || item.status == .borderline || item.status == .missing)
+        }
+        guard nutritionNeedsAttention else { return }
+
         let cal = Calendar.current
-        let loggedDays: Set<Date> = Set(
-            entries
-                .filter { Self.nutritionEntryTypes.contains($0.entryType) }
-                .map { cal.startOfDay(for: $0.date) }
-        )
         let today = cal.startOfDay(for: now)
         let iso = ISO8601DateFormatter()
 
-        for offset in 0..<14 {
+        var loggedDays: Set<Date> = []
+        for entry in manualEntries where Self.habitNutritionTypes.contains(entry.entryType) {
+            loggedDays.insert(cal.startOfDay(for: entry.date))
+        }
+        for entry in nutritionEntries {
+            loggedDays.insert(cal.startOfDay(for: entry.date))
+        }
+
+        for offset in 0..<Self.scheduleHorizonDays {
             guard let day = cal.date(byAdding: .day, value: offset, to: today) else { continue }
-            let dayKey = iso.string(from: day)
+            // Skip today if the user already logged nutrition today; future days can't be checked yet.
+            if offset == 0, loggedDays.contains(day) { continue }
+            guard let trigger = forwardTrigger(for: day, hour: 20, minute: 0, now: now) else { continue }
 
-            // 20:00 every day (unconditional nudge)
-            if let trigger = forwardTrigger(for: day, hour: 20, minute: 0, now: now) {
-                let twenty = UNMutableNotificationContent()
-                twenty.title = "Nutrition check"
-                twenty.body  = "Quick tap: protein, fibre, and omega-3 today?"
-                twenty.sound = .default
-                let req = UNNotificationRequest(
-                    identifier: "\(identifierPrefix)nutrition.20.\(dayKey)",
-                    content: twenty,
-                    trigger: trigger
-                )
-                try? await center.add(req)
-            }
-
-            // 23:00 only if nothing logged that day (always true for future days; recheck on every refresh)
-            if !loggedDays.contains(day),
-               let trigger = forwardTrigger(for: day, hour: 23, minute: 0, now: now) {
-                let late = UNMutableNotificationContent()
-                late.title = "Last call"
-                late.body  = "Nothing logged today — five seconds: protein, fibre, omega-3?"
-                late.sound = .default
-                let req = UNNotificationRequest(
-                    identifier: "\(identifierPrefix)nutrition.23.\(dayKey)",
-                    content: late,
-                    trigger: trigger
-                )
-                try? await center.add(req)
-            }
+            let content = UNMutableNotificationContent()
+            content.title = "Nutrition check"
+            content.body  = "Quick tap: protein, fibre, and omega-3 today?"
+            content.sound = .default
+            let req = UNNotificationRequest(
+                identifier: "\(identifierPrefix)nutrition.20.\(iso.string(from: day))",
+                content: content,
+                trigger: trigger
+            )
+            try? await center.add(req)
         }
     }
 
@@ -152,21 +154,13 @@ final class NotificationManager {
         return UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
     }
 
-    /// Like makeTrigger but returns nil if the target wall-clock has already passed (avoids scheduling notifications in the past).
+    /// Like makeTrigger but returns nil if the target wall-clock has already passed.
     private func forwardTrigger(for day: Date, hour: Int, minute: Int, now: Date) -> UNCalendarNotificationTrigger? {
         var dc = Calendar.current.dateComponents([.year, .month, .day], from: day)
         dc.hour = hour
         dc.minute = minute
         guard let fireDate = Calendar.current.date(from: dc), fireDate > now else { return nil }
         return UNCalendarNotificationTrigger(dateMatching: dc, repeats: false)
-    }
-
-    private func bodyText(items: [PriorityItem]) -> String {
-        if items.count == 1, let item = items.first {
-            return singleItemBody(item)
-        }
-        let labels = items.map { "• \($0.title)" }.joined(separator: "\n")
-        return "A few items to look at today:\n\(labels)"
     }
 
     private func singleItemBody(_ item: PriorityItem) -> String {
