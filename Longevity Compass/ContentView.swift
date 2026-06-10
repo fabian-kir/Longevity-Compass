@@ -1,61 +1,34 @@
-//
-//  ContentView.swift
-//  Longevity Compass
-//
-//  Created by Kirschenmann Fabian on 10.06.26.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(AppServices.self) private var services
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+        @Bindable var bindable = services
+        TabView(selection: $bindable.selectedTab) {
+            NavigationStack { DashboardView() }
+                .tabItem { Label("Today", systemImage: "compass.drawing") }
+                .tag(AppTab.today)
+
+            NavigationStack { TrackView() }
+                .tabItem { Label("Track", systemImage: "square.and.pencil") }
+                .tag(AppTab.track)
+
+            NavigationStack { TrainingView() }
+                .tabItem { Label("Train", systemImage: "dumbbell") }
+                .tag(AppTab.train)
+
+            NavigationStack { NutritionTabView() }
+                .tabItem { Label("Nutrition", systemImage: "fork.knife") }
+                .tag(AppTab.nutrition)
+
+            NavigationStack { TrendsView() }
+                .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
+                .tag(AppTab.trends)
+
+            NavigationStack { DataExportView() }
+                .tabItem { Label("Data", systemImage: "externaldrive") }
+                .tag(AppTab.data)
         }
     }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

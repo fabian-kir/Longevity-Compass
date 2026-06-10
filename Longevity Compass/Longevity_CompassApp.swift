@@ -1,32 +1,40 @@
-//
-//  Longevity_CompassApp.swift
-//  Longevity Compass
-//
-//  Created by Kirschenmann Fabian on 10.06.26.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct Longevity_CompassApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    let modelContainer: ModelContainer
+    @State private var services: AppServices
 
+    init() {
+        let schema = Schema([
+            ManualEntry.self,
+            HealthMetricSnapshot.self,
+            PriorityHistoryEntry.self,
+            NutritionEntry.self,
+            ExerciseDef.self,
+            ExerciseEntry.self,
+        ])
+        let config = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .none
+        )
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(for: schema, configurations: [config])
+            self.modelContainer = container
+            self._services = State(initialValue: AppServices(context: container.mainContext))
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(services)
+                .task { await services.bootstrap() }
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(modelContainer)
     }
 }
