@@ -26,15 +26,10 @@ struct ContentView: View {
                 .tabItem { Label("Nutrition", systemImage: "fork.knife") }
                 .tag(AppTab.nutrition)
 
-            NavigationStack { TrendsView() }
-                .tint(AppTab.trends.tint)
-                .tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }
-                .tag(AppTab.trends)
-
-            NavigationStack { DataExportView() }
-                .tint(AppTab.data.tint)
-                .tabItem { Label("Data", systemImage: "externaldrive") }
-                .tag(AppTab.data)
+            NavigationStack { BloodworkView() }
+                .tint(AppTab.bloodwork.tint)
+                .tabItem { Label("Bloodwork", systemImage: "drop.fill") }
+                .tag(AppTab.bloodwork)
         }
         .tint(bindable.selectedTab.tint)
     }

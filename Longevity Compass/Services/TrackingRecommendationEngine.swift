@@ -31,6 +31,8 @@ enum TrackActionType: Equatable {
     case nicotine
     case alcohol
     case dental
+    case bloodwork
+    case train
     case openHealth
 }
 
@@ -38,12 +40,12 @@ enum TrackingRecommendationEngine {
     // Protein, fiber, omega3 intentionally excluded — they live in the Nutrition tab.
     static let relevantDomains: [HealthDomain] = [
         .bloodPressure, .nicotine, .cardio, .strength,
-        .bodyComposition, .sleep, .alcohol, .dental,
+        .bodyComposition, .sleep, .alcohol, .dental, .bloodwork,
     ]
 
     // Auto-tracked by Apple Health — only surface when attention is needed.
     private static let healthBackedDomains: Set<HealthDomain> = [
-        .cardio, .sleep, .strength, .bodyComposition,
+        .cardio, .sleep, .bodyComposition,
     ]
 
     /// Returns cards sorted by urgency (Track Now first), then by priorityScore descending.
@@ -65,6 +67,8 @@ enum TrackingRecommendationEngine {
         case .nicotine:      return .nicotine
         case .alcohol:       return .alcohol
         case .dental:        return .dental
+        case .bloodwork:     return .bloodwork
+        case .strength:      return .train
         default:             return .openHealth
         }
     }

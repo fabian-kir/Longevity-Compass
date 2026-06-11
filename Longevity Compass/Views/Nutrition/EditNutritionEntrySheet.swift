@@ -1,0 +1,220 @@
+import SwiftUI
+
+/// Edit a previously logged nutrition entry. Photo entries expose the AI fingerprint
+/// (categories, plant ingredients, notes) so the user can fix miscategorisations.
+/// Barcode entries only allow editing the display name and date — macro rescaling
+/// from the original per-100 g values isn't worth the bookkeeping.
+struct EditNutritionEntrySheet: View {
+    @Environment(AppServices.self) private var services
+    @Environment(\.dismiss) private var dismiss
+    let entry: NutritionEntry
+
+    @State private var date: Date = .now
+    @State private var productName: String = ""
+    @State private var items: [MealFingerprint.Item] = []
+    @State private var plantIngredients: [String] = []
+    @State private var notes: String = ""
+    @State private var newPlantText: String = ""
+    @State private var isSaving = false
+
+    private var isFingerprint: Bool { entry.fingerprint != nil }
+
+    private var availableCategoriesToAdd: [MealCategory] {
+        let present = Set(items.map(\.category))
+        return MealCategory.allCases.filter { !present.contains($0) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Date") {
+                    DatePicker(
+                        "Logged at",
+                        selection: $date,
+                        in: ...Date.now,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
+
+                Section("Title") {
+                    TextField("Meal name", text: $productName)
+                }
+                if isFingerprint {
+                    fingerprintSections
+                }
+            }
+            .navigationTitle("Edit entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .disabled(isSaving)
+                }
+            }
+            .onAppear { load() }
+        }
+    }
+
+    // MARK: - Fingerprint editor
+
+    @ViewBuilder
+    private var fingerprintSections: some View {
+        Section {
+            if items.isEmpty {
+                Text("No categories. Add one below.")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+            } else {
+                ForEach(items, id: \.category) { item in
+                    CategoryEditRow(
+                        category: item.category,
+                        fraction: binding(for: item.category)
+                    )
+                }
+                .onDelete { offsets in
+                    items.remove(atOffsets: offsets)
+                }
+            }
+            if !availableCategoriesToAdd.isEmpty {
+                Menu {
+                    ForEach(availableCategoriesToAdd) { cat in
+                        Button {
+                            items.append(MealFingerprint.Item(category: cat, plateFraction: 0.1))
+                        } label: {
+                            Label(cat.displayLabel, systemImage: cat.systemImage)
+                        }
+                    }
+                } label: {
+                    Label("Add category", systemImage: "plus.circle")
+                }
+            }
+        } header: {
+            Text("Categories on plate")
+        } footer: {
+            Text("Plate fractions don't need to sum to 100%. They're a coarse estimate.")
+        }
+
+        Section {
+            ForEach(plantIngredients, id: \.self) { name in
+                Text(name)
+            }
+            .onDelete { offsets in
+                plantIngredients.remove(atOffsets: offsets)
+            }
+            HStack {
+                TextField("Add ingredient", text: $newPlantText)
+                    .textInputAutocapitalization(.never)
+                    .onSubmit { addPlant() }
+                Button("Add") { addPlant() }
+                    .disabled(newPlantText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        } header: {
+            Text("Plant ingredients (\(plantIngredients.count))")
+        } footer: {
+            Text("Distinct plant names — drives the \"30 plants per week\" tally.")
+        }
+
+        Section("AI notes") {
+            TextEditor(text: $notes)
+                .frame(minHeight: 80)
+        }
+    }
+
+    private func binding(for category: MealCategory) -> Binding<Double> {
+        Binding(
+            get: { items.first(where: { $0.category == category })?.plateFraction ?? 0 },
+            set: { newValue in
+                if let idx = items.firstIndex(where: { $0.category == category }) {
+                    items[idx] = MealFingerprint.Item(category: category, plateFraction: newValue)
+                }
+            }
+        )
+    }
+
+    // MARK: - Logic
+
+    private func load() {
+        date = entry.date
+        productName = entry.productName ?? ""
+        if let fp = entry.fingerprint {
+            items = fp.items
+            plantIngredients = fp.plantIngredients
+            notes = fp.aiNotes ?? entry.aiNotes ?? ""
+        } else {
+            notes = entry.aiNotes ?? ""
+        }
+    }
+
+    private func addPlant() {
+        let trimmed = newPlantText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if !plantIngredients.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            plantIngredients.append(trimmed)
+        }
+        newPlantText = ""
+    }
+
+    private func save() {
+        guard !isSaving else { return }
+        isSaving = true
+        entry.date = date
+
+        if isFingerprint {
+            let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleanedFraction = items.map {
+                MealFingerprint.Item(
+                    category: $0.category,
+                    plateFraction: max(0, min(1, $0.plateFraction))
+                )
+            }
+            let trimmedTitle = productName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let updated = MealFingerprint(
+                items: cleanedFraction,
+                plantIngredients: plantIngredients,
+                aiNotes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+                confidence: entry.fingerprint?.confidence,
+                title: trimmedTitle.isEmpty ? nil : trimmedTitle
+            )
+            entry.productName = trimmedTitle.isEmpty ? nil : trimmedTitle
+            if let data = try? JSONEncoder().encode(updated),
+               let json = String(data: data, encoding: .utf8) {
+                entry.fingerprintJSON = json
+            }
+            entry.aiNotes = updated.aiNotes
+        } else {
+            let trimmedName = productName.trimmingCharacters(in: .whitespacesAndNewlines)
+            entry.productName = trimmedName.isEmpty ? nil : trimmedName
+        }
+
+        Task {
+            await services.refreshAfterEdit()
+            dismiss()
+        }
+    }
+}
+
+private struct CategoryEditRow: View {
+    let category: MealCategory
+    @Binding var fraction: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Image(systemName: category.systemImage)
+                    .frame(width: 22)
+                    .foregroundStyle(category.isAvoid ? .orange : .secondary)
+                Text(category.displayLabel)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(Int(round(fraction * 100)))%")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $fraction, in: 0...1, step: 0.05)
+        }
+        .padding(.vertical, 2)
+    }
+}

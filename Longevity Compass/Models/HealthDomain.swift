@@ -12,6 +12,7 @@ enum HealthDomain: String, Codable, CaseIterable, Identifiable {
     case fiber
     case omega3
     case dental
+    case bloodwork
 
     var id: String { rawValue }
 
@@ -28,6 +29,7 @@ enum HealthDomain: String, Codable, CaseIterable, Identifiable {
         case .fiber:            "Fiber"
         case .omega3:           "Omega-3 / Fatty Fish"
         case .dental:           "Dental Routine"
+        case .bloodwork:        "Bloodwork"
         }
     }
 
@@ -44,6 +46,7 @@ enum HealthDomain: String, Codable, CaseIterable, Identifiable {
         case .fiber:            "leaf"
         case .omega3:           "fish"
         case .dental:           "mouth"
+        case .bloodwork:        "drop.fill"
         }
     }
 
@@ -71,6 +74,8 @@ enum HealthDomain: String, Codable, CaseIterable, Identifiable {
             return "Regular intake of long-chain omega-3 (oily fish) is associated with lower cardiovascular risk."
         case .dental:
             return "Oral health correlates with cardiovascular and systemic inflammation. Low-effort, surfaces only when bigger items are handled."
+        case .bloodwork:
+            return "Periodic bloodwork (lipids, glucose, inflammation, organ markers) catches silent risk early. Expensive, so checked rarely — yearly at most, less often when results are clean."
         }
     }
 }
@@ -128,6 +133,9 @@ enum ReminderFrequency: String, Codable, CaseIterable {
     case monthly
     case quarterly
     case rare
+    case annual
+    case biennial
+    case triennial
     case never
 
     var days: Int? {
@@ -139,6 +147,9 @@ enum ReminderFrequency: String, Codable, CaseIterable {
         case .monthly:    30
         case .quarterly:  90
         case .rare:       180
+        case .annual:     365
+        case .biennial:   730
+        case .triennial:  1095
         case .never:      nil
         }
     }
@@ -152,6 +163,9 @@ enum ReminderFrequency: String, Codable, CaseIterable {
         case .monthly:    "Monthly"
         case .quarterly:  "Every ~3 months"
         case .rare:       "Rarely"
+        case .annual:     "Yearly"
+        case .biennial:   "Every 2 years"
+        case .triennial:  "Every 3 years"
         case .never:      "Off"
         }
     }

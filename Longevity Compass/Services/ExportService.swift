@@ -6,6 +6,7 @@ struct ExportPayload: Encodable {
     let manualEntries: [ManualEntryDTO]
     let snapshots: [SnapshotDTO]
     let priorityHistory: [PriorityDTO]
+    let bloodworkPanels: [BloodworkPanelDTO]
 
     struct ManualEntryDTO: Encodable {
         let id: UUID
@@ -37,6 +38,24 @@ struct ExportPayload: Encodable {
         let trend: String
         let priorityScore: Double
         let reason: String
+    }
+
+    struct BloodworkPanelDTO: Encodable {
+        let id: UUID
+        let date: Date
+        let labName: String?
+        let notes: String?
+        let worstFlag: String
+        let markers: [BloodworkMarkerDTO]
+    }
+
+    struct BloodworkMarkerDTO: Encodable {
+        let id: UUID
+        let name: String
+        let value: String
+        let unit: String?
+        let referenceRange: String?
+        let flag: String
     }
 }
 
@@ -78,13 +97,33 @@ enum ExportService {
                 reason: $0.reason
             )
         }
+        let bloodwork = store.fetchAllBloodworkPanels().map { panel in
+            ExportPayload.BloodworkPanelDTO(
+                id: panel.id,
+                date: panel.date,
+                labName: panel.labName,
+                notes: panel.notes,
+                worstFlag: panel.worstFlag.rawValue,
+                markers: panel.markers.map { marker in
+                    ExportPayload.BloodworkMarkerDTO(
+                        id: marker.id,
+                        name: marker.name,
+                        value: marker.value,
+                        unit: marker.unit,
+                        referenceRange: marker.referenceRange,
+                        flag: marker.flagRaw
+                    )
+                }
+            )
+        }
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
         return ExportPayload(
             exportedAt: .now,
             appVersion: version,
             manualEntries: entries,
             snapshots: snaps,
-            priorityHistory: history
+            priorityHistory: history,
+            bloodworkPanels: bloodwork
         )
     }
 

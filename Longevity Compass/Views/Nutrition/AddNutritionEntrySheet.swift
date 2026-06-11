@@ -1,236 +1,150 @@
 import SwiftUI
 import UIKit
 
-struct AddNutritionEntrySheet: View {
+/// Presented after a meal photo is captured. Runs the analysis pipeline,
+/// shows the result, and saves the entry — or queues it if offline.
+struct PostCaptureSheet: View {
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
 
-    enum Screen {
-        case picker
-        case barcode
-        case barcodeConfirm
-        case camera
-        case library
-        case photoAnalysis
-        case text
-        case textAnalysis
+    let image: UIImage
+    let capturedAt: Date
+    let onFinish: (Outcome) -> Void
+
+    enum Outcome {
+        case saved(title: String)
+        case queued
+        case cancelled
+        case failed(String)
     }
 
-    @State private var screen: Screen = .picker
-    @State private var scannedProduct: OpenFoodFactsProduct?
-    @State private var pickedImage: UIImage?
-    @State private var enteredText: String = ""
-    @State private var error: String?
+    private enum Phase {
+        case analyzing
+        case barcode(OpenFoodFactsProduct)
+        case aiFingerprint(MealFingerprintAnalysis)
+        case offline(String)
+        case failed(String)
+    }
+
+    @State private var phase: Phase = .analyzing
+    @State private var portionGrams: Double?
+    @State private var isSaving = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch screen {
-                case .picker:
-                    ModePicker(
-                        canScanBarcode: BarcodeScannerView.isSupported,
-                        hasAPIKey: services.openRouter.hasAPIKey,
-                        onSelect: handleSelect
-                    )
-                case .barcode:
-                    BarcodeStep(
-                        onScanned: { product in
-                            scannedProduct = product
-                            screen = .barcodeConfirm
-                        },
-                        onError: { msg in error = msg; screen = .picker }
-                    )
-                case .barcodeConfirm:
-                    if let product = scannedProduct {
-                        BarcodeConfirmStep(product: product) { entry in save(entry) }
-                    } else {
-                        ProgressView()
-                    }
-                case .camera:
-                    CapturePhotoStep(mode: .camera) { image in
-                        if let image { pickedImage = image; screen = .photoAnalysis }
-                        else { screen = .picker }
-                    }
-                case .library:
-                    CapturePhotoStep(mode: .library) { image in
-                        if let image { pickedImage = image; screen = .photoAnalysis }
-                        else { screen = .picker }
-                    }
-                case .photoAnalysis:
-                    if let img = pickedImage {
-                        AnalyzeStep(text: "", image: img) { entry in save(entry) }
-                    } else {
-                        ProgressView()
-                    }
-                case .text:
-                    TextStep(text: $enteredText) {
-                        screen = .textAnalysis
-                    }
-                case .textAnalysis:
-                    AnalyzeStep(text: enteredText, image: nil) { entry in save(entry) }
-                }
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if screen != .picker {
-                        Button("Back") { screen = .picker }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .alert("Error", isPresented: .constant(error != nil), presenting: error) { _ in
-                Button("OK", role: .cancel) { error = nil }
-            } message: { msg in
-                Text(msg)
-            }
-        }
-    }
-
-    private var title: String {
-        switch screen {
-        case .picker:           "Add nutrition entry"
-        case .barcode:          "Scan barcode"
-        case .barcodeConfirm:   "Confirm portion"
-        case .camera:           "Take photo"
-        case .library:          "Pick photo"
-        case .photoAnalysis:    "Estimate"
-        case .text:             "Describe meal"
-        case .textAnalysis:     "Estimate"
-        }
-    }
-
-    private func handleSelect(_ next: Screen) {
-        screen = next
-    }
-
-    private func save(_ entry: NutritionEntry) {
-        Task {
-            await services.recordNutritionEntry(entry)
-            dismiss()
-        }
-    }
-}
-
-// MARK: - Step 1: pick a mode
-
-private struct ModePicker: View {
-    let canScanBarcode: Bool
-    let hasAPIKey: Bool
-    let onSelect: (AddNutritionEntrySheet.Screen) -> Void
-
-    var body: some View {
-        List {
-            Section {
-                Button { onSelect(.barcode) } label: {
-                    AddRow(systemImage: "barcode.viewfinder", title: "Scan barcode",
-                           subtitle: "Packaged foods via Open Food Facts (free).")
-                }
-                .disabled(!canScanBarcode)
-            } footer: {
-                if !canScanBarcode {
-                    Text("Barcode scanning needs a device camera. The simulator does not support it.")
-                        .font(.caption2)
-                }
-            }
-            Section {
-                Button { onSelect(.camera) } label: {
-                    AddRow(systemImage: "camera", title: "Take photo",
-                           subtitle: "Snap a meal — AI estimates the nutrition.")
-                }
-                Button { onSelect(.library) } label: {
-                    AddRow(systemImage: "photo", title: "Pick from photos",
-                           subtitle: "Choose an existing photo.")
-                }
-                Button { onSelect(.text) } label: {
-                    AddRow(systemImage: "text.bubble", title: "Describe in text",
-                           subtitle: "Type what you ate — fast for things you remember.")
-                }
-            } footer: {
-                if !hasAPIKey {
-                    Text("Photo and text analysis need an OpenRouter API key. Add it in the Data tab.")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
-            }
-        }
-    }
-}
-
-private struct AddRow: View {
-    let systemImage: String
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .frame(width: 32)
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Barcode flow
-
-private struct BarcodeStep: View {
-    let onScanned: (OpenFoodFactsProduct) -> Void
-    let onError: (String) -> Void
-    @State private var isLoading = false
-
-    var body: some View {
-        ZStack {
-            if BarcodeScannerView.isSupported {
-                BarcodeScannerView { payload in
-                    guard !isLoading else { return }
-                    isLoading = true
-                    Task {
-                        do {
-                            let product = try await OpenFoodFactsClient.lookup(barcode: payload)
-                            await MainActor.run { onScanned(product) }
-                        } catch {
-                            await MainActor.run {
-                                onError(error.localizedDescription)
-                                isLoading = false
-                            }
+            content
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            onFinish(.cancelled)
+                            dismiss()
                         }
                     }
                 }
-            } else {
-                ContentUnavailableView(
-                    "Camera unavailable",
-                    systemImage: "camera.metering.unknown",
-                    description: Text("Barcode scanning needs a device camera.")
-                )
-            }
-            if isLoading {
-                ProgressView("Looking up product…")
-                    .padding(20)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            }
+        }
+        .task { await analyze() }
+    }
+
+    private var title: String {
+        switch phase {
+        case .analyzing:        "Analysing meal…"
+        case .barcode:          "Confirm portion"
+        case .aiFingerprint:    "Confirm meal"
+        case .offline:          "Saved for later"
+        case .failed:           "Could not analyse"
         }
     }
-}
 
-private struct BarcodeConfirmStep: View {
-    let product: OpenFoodFactsProduct
-    let onSave: (NutritionEntry) -> Void
+    // MARK: - Content per phase
 
-    @State private var portionInput: Double?
-    @FocusState private var focused: Bool
+    @ViewBuilder
+    private var content: some View {
+        switch phase {
+        case .analyzing:
+            analyzingView
+        case .barcode(let product):
+            barcodeConfirm(product: product)
+        case .aiFingerprint(let analysis):
+            fingerprintConfirm(analysis: analysis)
+        case .offline(let message):
+            offlineView(message: message)
+        case .failed(let message):
+            failedView(message: message)
+        }
+    }
 
-    var body: some View {
+    private var analyzingView: some View {
+        VStack(spacing: 16) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxHeight: 220)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal)
+            ProgressView()
+            Text("Checking for a barcode, then handing off to AI if needed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            Spacer()
+        }
+        .padding(.top, 12)
+    }
+
+    private func offlineView(message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            Spacer()
+            Button("Done") {
+                onFinish(.queued)
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.bottom)
+        }
+        .padding(.top, 40)
+    }
+
+    private func failedView(message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32))
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            HStack(spacing: 10) {
+                Button("Retry") {
+                    Task { await analyze() }
+                }
+                .buttonStyle(.bordered)
+                Button("Save for later") {
+                    services.pendingMeals.enqueue(image: image, capturedAt: capturedAt)
+                    onFinish(.queued)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            Spacer()
+        }
+        .padding(.top, 40)
+    }
+
+    // MARK: - Barcode confirm
+
+    private func barcodeConfirm(product: OpenFoodFactsProduct) -> some View {
         Form {
             Section("Product") {
                 HStack(alignment: .top) {
@@ -258,12 +172,11 @@ private struct BarcodeConfirmStep: View {
                     Spacer()
                     TextField(
                         product.servingSizeGrams.map { "\(Int($0))" } ?? "100",
-                        value: $portionInput,
+                        value: $portionGrams,
                         format: .number
                     )
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .focused($focused)
                     .frame(maxWidth: 120)
                 }
                 if let s = product.servingSizeGrams {
@@ -271,7 +184,7 @@ private struct BarcodeConfirmStep: View {
                 }
             }
 
-            Section("Per-100 g (from Open Food Facts)") {
+            Section("Per-100 g (Open Food Facts)") {
                 if let v = product.protein100g { row("Protein", String(format: "%.1f g", v)) }
                 if let v = product.fiber100g   { row("Fibre",   String(format: "%.1f g", v)) }
                 if let v = product.carbs100g   { row("Carbs",   String(format: "%.1f g", v)) }
@@ -284,210 +197,71 @@ private struct BarcodeConfirmStep: View {
 
             Section {
                 Button {
-                    let portion = portionInput ?? product.servingSizeGrams ?? 100
-                    let scaled  = product.scaled(toGrams: portion)
-                    let entry = NutritionEntry(
-                        date: .now,
-                        source: .barcode,
-                        rawInput: product.barcode,
-                        productName: product.name,
-                        portionGrams: scaled.portionGrams,
-                        proteinGrams: scaled.protein,
-                        fiberGrams: scaled.fiber,
-                        carbsGrams: scaled.carbs,
-                        fatGrams: scaled.fat,
-                        saturatedFatGrams: scaled.saturatedFat,
-                        addedSugarGrams: scaled.addedSugar,
-                        sodiumMilligrams: scaled.sodiumMg,
-                        isFattyFish: nil,
-                        leafyGreenServings: nil,
-                        ultraProcessedScore: product.ultraProcessedScore,
-                        aiNotes: nil,
-                        modelUsed: "openfoodfacts",
-                        inputTokens: nil,
-                        outputTokens: nil,
-                        costUSD: 0
-                    )
-                    onSave(entry)
+                    saveBarcode(product: product)
                 } label: {
                     Label("Save entry", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
             }
         }
-        .onAppear { focused = true }
     }
 
-    private func row(_ label: String, _ value: String) -> some View {
-        HStack { Text(label); Spacer(); Text(value).foregroundStyle(.secondary).monospacedDigit() }
-    }
-}
-
-// MARK: - Camera / library
-
-private struct CapturePhotoStep: View {
-    let mode: CameraPickerView.SourceMode
-    let onPick: (UIImage?) -> Void
-
-    var body: some View {
-        CameraPickerView(mode: mode) { image in
-            onPick(image)
-        }
-        .ignoresSafeArea()
-    }
-}
-
-// MARK: - Text input
-
-private struct TextStep: View {
-    @Binding var text: String
-    let onSubmit: () -> Void
-
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        Form {
-            Section("Describe what you ate") {
-                TextField(
-                    "e.g. Big bowl of pasta carbonara with side salad",
-                    text: $text,
-                    axis: .vertical
-                )
-                .lineLimit(3...8)
-                .focused($focused)
-            }
+    private func fingerprintConfirm(analysis: MealFingerprintAnalysis) -> some View {
+        let fp = analysis.fingerprint
+        let sortedItems = fp.items.sorted { $0.plateFraction > $1.plateFraction }
+        return Form {
             Section {
-                Button {
-                    onSubmit()
-                } label: {
-                    Label("Estimate nutrition", systemImage: "sparkles").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
-            } footer: {
-                Text("Text is sent to OpenRouter using the model configured in the Data tab.")
-                    .font(.caption2)
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-        }
-        .onAppear { focused = true }
-    }
-}
-
-// MARK: - Analyze (photo or text)
-
-private struct AnalyzeStep: View {
-    @Environment(AppServices.self) private var services
-
-    let text: String
-    let image: UIImage?
-    let onSave: (NutritionEntry) -> Void
-
-    @State private var isLoading = true
-    @State private var error: String?
-    @State private var completed: CompletedAnalysis?
-
-    var body: some View {
-        Group {
-            if isLoading {
-                VStack(spacing: 12) {
-                    ProgressView()
-                    Text("Estimating nutrition…")
-                        .font(.subheadline)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            if let title = fp.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                Section("Meal") {
+                    Text(title).font(.headline)
+                }
+            }
+            Section("Categories on plate") {
+                if sortedItems.isEmpty {
+                    Text("No categories detected.")
                         .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error {
-                ContentUnavailableView(
-                    "Could not analyse",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(error)
-                )
-            } else if let completed {
-                resultView(completed)
-            } else {
-                ProgressView()
-            }
-        }
-        .task { await analyze() }
-    }
-
-    private func analyze() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let jpeg = image?.jpegForAnalysis()
-            let result = try await services.openRouter.analyzeMeal(imageJPEG: jpeg, freeText: text)
-            completed = result
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    @ViewBuilder
-    private func resultView(_ c: CompletedAnalysis) -> some View {
-        Form {
-            if let img = image {
-                Section {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .font(.subheadline)
+                } else {
+                    ForEach(sortedItems, id: \.category) { item in
+                        HStack {
+                            Image(systemName: item.category.systemImage)
+                                .frame(width: 22)
+                                .foregroundStyle(item.category.isAvoid ? .orange : .secondary)
+                            Text(item.category.displayLabel)
+                            Spacer()
+                            Text("\(Int(round(item.plateFraction * 100)))%")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
                 }
             }
-            Section("Estimated") {
-                if let name = c.result.productName { row("Meal", name) }
-                row("Portion",        c.result.portionGrams.map { String(format: "%.0f g", $0) })
-                row("Protein",        c.result.proteinGrams.map { String(format: "%.0f g", $0) })
-                row("Fibre",          c.result.fiberGrams.map { String(format: "%.0f g", $0) })
-                row("Carbs",          c.result.carbsGrams.map { String(format: "%.0f g", $0) })
-                row("Fat",            c.result.fatGrams.map { String(format: "%.0f g", $0) })
-                row("Saturated fat",  c.result.saturatedFatGrams.map { String(format: "%.0f g", $0) })
-                row("Added sugar",    c.result.addedSugarGrams.map { String(format: "%.0f g", $0) })
-                row("Sodium",         c.result.sodiumMilligrams.map { String(format: "%.0f mg", $0) })
-                row("Fatty fish",     c.result.isFattyFish.map { $0 ? "yes" : "no" })
-                row("Leafy greens",   c.result.leafyGreenServings.map { String(format: "%.1f svg", $0) })
-                row("Ultra-processed",c.result.ultraProcessedScore.map { String(format: "%.2f / 1.0", $0) })
-                if let conf = c.result.confidence { row("Confidence", conf) }
+            if !fp.plantIngredients.isEmpty {
+                Section("Plant ingredients (\(fp.plantIngredients.count))") {
+                    Text(fp.plantIngredients.joined(separator: ", "))
+                        .font(.subheadline)
+                }
             }
-            if let notes = c.result.aiNotes, !notes.isEmpty {
-                Section("AI assumptions") { Text(notes).font(.footnote) }
-            }
-            Section("Cost") {
-                row("Tokens", "\(c.inputTokens) in / \(c.outputTokens) out")
-                row("Cost",   String(format: "$%.4f", c.costUSD))
-                row("Model",  c.model)
+            if let notes = fp.aiNotes, !notes.isEmpty {
+                Section("AI notes") { Text(notes).font(.footnote) }
             }
             Section {
                 Button {
-                    let r = c.result
-                    let entry = NutritionEntry(
-                        date: .now,
-                        source: image != nil ? .photo : .text,
-                        rawInput: text,
-                        productName: r.productName,
-                        portionGrams: r.portionGrams,
-                        proteinGrams: r.proteinGrams,
-                        fiberGrams: r.fiberGrams,
-                        carbsGrams: r.carbsGrams,
-                        fatGrams: r.fatGrams,
-                        saturatedFatGrams: r.saturatedFatGrams,
-                        addedSugarGrams: r.addedSugarGrams,
-                        sodiumMilligrams: r.sodiumMilligrams,
-                        isFattyFish: r.isFattyFish,
-                        leafyGreenServings: r.leafyGreenServings,
-                        ultraProcessedScore: r.ultraProcessedScore,
-                        aiNotes: r.aiNotes,
-                        modelUsed: c.model,
-                        inputTokens: c.inputTokens,
-                        outputTokens: c.outputTokens,
-                        costUSD: c.costUSD
-                    )
-                    onSave(entry)
+                    saveFingerprint(analysis: analysis)
                 } label: {
                     Label("Save entry", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
             }
         }
     }
@@ -497,6 +271,100 @@ private struct AnalyzeStep: View {
             Text(label)
             Spacer()
             Text(value ?? "—").foregroundStyle(.secondary).monospacedDigit()
+        }
+    }
+
+    // MARK: - Pipeline
+
+    private func analyze() async {
+        phase = .analyzing
+        do {
+            let outcome = try await MealAnalysisPipeline.analyze(image: image, openRouter: services.openRouter)
+            switch outcome {
+            case .barcode(let product):
+                phase = .barcode(product)
+                portionGrams = product.servingSizeGrams
+            case .aiFingerprint(let analysis):
+                phase = .aiFingerprint(analysis)
+            }
+        } catch {
+            if isNetworkRelated(error) {
+                services.pendingMeals.enqueue(image: image, capturedAt: capturedAt)
+                phase = .offline("No network — we’ll analyse this when you’re back online.")
+            } else {
+                phase = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func isNetworkRelated(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain { return true }
+        if let mae = error as? MealAnalysisError {
+            switch mae {
+            case .noNetwork: return true
+            case .noUsableResult(let underlying):
+                let u = underlying as NSError
+                return u.domain == NSURLErrorDomain
+            }
+        }
+        return false
+    }
+
+    // MARK: - Save
+
+    private func saveBarcode(product: OpenFoodFactsProduct) {
+        guard !isSaving else { return }
+        isSaving = true
+        Task {
+            let portion = portionGrams ?? product.servingSizeGrams ?? 100
+            let scaled  = product.scaled(toGrams: portion)
+            let imageFileName = MealImageStore.save(image: image)
+            let entry = NutritionEntry(
+                date: capturedAt,
+                source: .barcode,
+                rawInput: product.barcode,
+                productName: product.name,
+                portionGrams: scaled.portionGrams,
+                proteinGrams: scaled.protein,
+                fiberGrams: scaled.fiber,
+                carbsGrams: scaled.carbs,
+                fatGrams: scaled.fat,
+                saturatedFatGrams: scaled.saturatedFat,
+                addedSugarGrams: scaled.addedSugar,
+                sodiumMilligrams: scaled.sodiumMg,
+                isFattyFish: nil,
+                leafyGreenServings: nil,
+                ultraProcessedScore: product.ultraProcessedScore,
+                aiNotes: nil,
+                modelUsed: "openfoodfacts",
+                inputTokens: nil,
+                outputTokens: nil,
+                costUSD: 0,
+                imageFileName: imageFileName
+            )
+            await services.recordNutritionEntry(entry)
+            onFinish(.saved(title: product.name ?? "barcode"))
+            dismiss()
+        }
+    }
+
+    private func saveFingerprint(analysis: MealFingerprintAnalysis) {
+        guard !isSaving else { return }
+        isSaving = true
+        Task {
+            let imageFileName = MealImageStore.save(image: image)
+            let entry = NutritionEntry.fromFingerprint(
+                analysis,
+                capturedAt: capturedAt,
+                imageFileName: imageFileName
+            )
+            await services.recordNutritionEntry(entry)
+            let aiTitle = analysis.fingerprint.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let fallback = analysis.fingerprint.plantIngredients.prefix(3).joined(separator: ", ")
+            let title = !aiTitle.isEmpty ? aiTitle : (fallback.isEmpty ? "meal" : fallback)
+            onFinish(.saved(title: title))
+            dismiss()
         }
     }
 }

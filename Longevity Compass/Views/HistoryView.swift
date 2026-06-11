@@ -5,6 +5,8 @@ struct HistoryView: View {
     @Environment(AppServices.self) private var services
     @Query(sort: \ManualEntry.date, order: .reverse) private var entries: [ManualEntry]
 
+    @State private var editingEntry: ManualEntry?
+
     var body: some View {
         List {
             if entries.isEmpty {
@@ -15,7 +17,12 @@ struct HistoryView: View {
                 )
             } else {
                 ForEach(entries) { entry in
-                    HistoryRow(entry: entry)
+                    Button {
+                        editingEntry = entry
+                    } label: {
+                        HistoryRow(entry: entry)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .onDelete { offsets in
                     Task {
@@ -28,6 +35,9 @@ struct HistoryView: View {
         }
         .navigationTitle("History")
         .toolbar { EditButton() }
+        .sheet(item: $editingEntry) { entry in
+            EditManualEntrySheet(entry: entry)
+        }
     }
 }
 
@@ -49,6 +59,7 @@ private struct HistoryRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
+        .contentShape(Rectangle())
     }
 
     private var icon: String {

@@ -52,6 +52,16 @@ struct TrackView: View {
             }
         }
         .navigationTitle("Track")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    TrendsView()
+                } label: {
+                    Image(systemName: "chart.xyaxis.line")
+                }
+                .accessibilityLabel("Trends")
+            }
+        }
         .sheet(isPresented: $showBPSheet) {
             BloodPressureEntrySheet()
         }
@@ -69,12 +79,29 @@ struct TrackView: View {
 
     // MARK: - Card row
 
+    private var latestBPReading: BloodPressureReading? {
+        services.healthSnapshot.bloodPressureReadings
+            .sorted { $0.date > $1.date }
+            .first
+    }
+
     private func cardRow(_ card: TrackingCard) -> some View {
         TrackingCardView(
             card: card,
             expandedDomain: $expandedDomain,
             todaysEntries: allEntries,
-            onMeasureBP: {
+            latestBP: latestBPReading,
+            onLogBP: { sys, dia in
+                Task {
+                    do {
+                        try await services.logBloodPressure(systolic: sys, diastolic: dia, date: .now)
+                        flash("Logged BP \(Int(sys))/\(Int(dia))")
+                    } catch {
+                        flash("Could not save to Apple Health")
+                    }
+                }
+            },
+            onOpenBPSheet: {
                 showBPSheet = true
             },
             onLogNicotine: { used in
@@ -95,6 +122,12 @@ struct TrackView: View {
             },
             onOpenHealth: {
                 openURL(AppleHealthLink.url)
+            },
+            onOpenBloodwork: {
+                services.selectedTab = .bloodwork
+            },
+            onOpenTrain: {
+                services.selectedTab = .train
             }
         )
     }

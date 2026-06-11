@@ -7,29 +7,25 @@ struct FocusView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if let result = services.currentResult {
-                    if result.topItems.isEmpty {
+                    if let bio = services.bioAge {
+                        BioAgePanel(estimate: bio)
+                    }
+
+                    let winItems = PriorityEngine.wins(from: result.allItems)
+                    if !winItems.isEmpty {
+                        WinsStrip(items: winItems)
+                    }
+
+                    if result.topItems.isEmpty && winItems.isEmpty && services.bioAge == nil {
                         allClearState
-                    } else {
-                        FocusHeroCard(item: result.topItems[0])
+                    } else if !result.topItems.isEmpty {
+                        focusSection(topItems: result.topItems)
+                    } else if winItems.isEmpty == false || services.bioAge != nil {
+                        allClearInline
+                    }
 
-                        if result.topItems.count > 1 {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Also on the radar")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .textCase(.uppercase)
-                                    .padding(.horizontal, 4)
-
-                                VStack(spacing: 8) {
-                                    ForEach(Array(result.topItems.dropFirst())) { item in
-                                        NavigationLink(value: item) {
-                                            CompactPriorityRow(item: item)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-                        }
+                    if let bio = services.bioAge, !(bio.wins.isEmpty && bio.opportunities.isEmpty) {
+                        ContributorsSection(estimate: bio)
                     }
                 } else if services.isRefreshing {
                     ProgressView("Reading your data…")
@@ -57,6 +53,14 @@ struct FocusView: View {
         }
         .refreshable { await services.refresh() }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink {
+                    DataExportView()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("Settings")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     Task { await services.refresh() }
@@ -64,6 +68,25 @@ struct FocusView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .accessibilityLabel("Refresh")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func focusSection(topItems: [PriorityItem]) -> some View {
+        FocusHeroCard(item: topItems[0])
+
+        if topItems.count > 1 {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "Also worth attention")
+                VStack(spacing: 8) {
+                    ForEach(Array(topItems.dropFirst())) { item in
+                        NavigationLink(value: item) {
+                            CompactPriorityRow(item: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
     }
@@ -84,6 +107,294 @@ struct FocusView: View {
         .padding(.vertical, 56)
         .padding(.horizontal, 24)
         .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var allClearInline: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Nothing urgent today")
+                    .font(.subheadline.weight(.semibold))
+                Text("Keep the good habits going.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+// MARK: - Bio age panel
+
+private struct BioAgePanel: View {
+    let estimate: BioAgeEstimate
+
+    private var tint: Color { AppTab.focus.tint }
+
+    private var deltaTint: Color {
+        if estimate.delta <= -0.5 { return .green }
+        if estimate.delta >=  0.5 { return .orange }
+        return .secondary
+    }
+
+    private var deltaLabel: String {
+        let abs = abs(estimate.delta)
+        let unit = abs >= 2 ? "yrs" : "yr"
+        if estimate.delta <= -0.25 {
+            return String(format: "−%.1f %@ younger", abs, unit)
+        }
+        if estimate.delta >= 0.25 {
+            return String(format: "+%.1f %@ older", abs, unit)
+        }
+        return "On par with your age"
+    }
+
+    private var trendLabel: String {
+        switch estimate.trend {
+        case .improving:  "Trending younger"
+        case .worsening:  "Aging faster"
+        case .stable:     "Holding steady"
+        case .unknown:    "Building trend…"
+        }
+    }
+
+    private var trendTint: Color {
+        switch estimate.trend {
+        case .improving:  .green
+        case .worsening:  .orange
+        case .stable:     .secondary
+        case .unknown:    .secondary
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Biological age")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(tint)
+                        .textCase(.uppercase)
+                    Text(String(format: "%.1f", estimate.biologicalAge))
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(String(format: "Chronological %.1f", estimate.chronologicalAge))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "hourglass")
+                    .font(.system(size: 30, weight: .semibold))
+                    .frame(width: 56, height: 56)
+                    .foregroundStyle(.white)
+                    .background(tint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+
+            HStack(spacing: 8) {
+                chip(text: deltaLabel,
+                     icon: estimate.delta <= -0.25 ? "arrow.down.right" :
+                           estimate.delta >=  0.25 ? "arrow.up.right" : "equal",
+                     color: deltaTint)
+                chip(text: trendLabel,
+                     icon: estimate.trend.arrowSymbol == "questionmark" ? "clock" : estimate.trend.arrowSymbol,
+                     color: trendTint)
+            }
+
+            if estimate.confidence < 0.7 {
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(confidenceCopy)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(tint.opacity(0.40), lineWidth: 1.5)
+        )
+    }
+
+    private var confidenceCopy: String {
+        let pct = Int((estimate.confidence * 100).rounded())
+        if estimate.confidence < 0.4 {
+            return "Estimate from \(pct)% of inputs — log bloodwork & wear-time to sharpen it."
+        }
+        return "Estimate from \(pct)% of inputs — add bloodwork to sharpen it."
+    }
+
+    private func chip(text: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption.weight(.bold))
+            Text(text)
+                .font(.caption.weight(.semibold))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .foregroundStyle(color)
+        .background(color.opacity(0.15), in: Capsule())
+    }
+}
+
+// MARK: - Wins strip
+
+private struct WinsStrip: View {
+    let items: [PriorityItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: "You're crushing it")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) {
+                            WinPill(item: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+            .padding(.horizontal, -4)
+        }
+    }
+}
+
+private struct WinPill: View {
+    let item: PriorityItem
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: item.systemImageName)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 30, height: 30)
+                .foregroundStyle(.white)
+                .background(Color.green, in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(item.currentValueDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            if item.trend == .improving {
+                Image(systemName: "arrow.up.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.green)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 260, alignment: .leading)
+        .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.green.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Contributors section
+
+private struct ContributorsSection: View {
+    let estimate: BioAgeEstimate
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: "What's shaping your age")
+            VStack(spacing: 10) {
+                if !estimate.wins.isEmpty {
+                    ContributorList(
+                        title: "Working in your favor",
+                        accent: .green,
+                        items: Array(estimate.wins.prefix(3))
+                    )
+                }
+                if !estimate.opportunities.isEmpty {
+                    ContributorList(
+                        title: "Biggest opportunities",
+                        accent: .orange,
+                        items: Array(estimate.opportunities.prefix(3))
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct ContributorList: View {
+    let title: String
+    let accent: Color
+    let items: [BioAgeContributor]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Circle().fill(accent).frame(width: 6, height: 6)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+            }
+            VStack(spacing: 6) {
+                ForEach(items) { ContributorRow(item: $0, accent: accent) }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct ContributorRow: View {
+    let item: BioAgeContributor
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: item.domain.systemImageName)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 26, height: 26)
+                .foregroundStyle(accent)
+                .background(accent.opacity(0.15), in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.label)
+                    .font(.subheadline.weight(.semibold))
+                Text(item.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text(yearsBadge)
+                .font(.caption.weight(.bold))
+                .monospacedDigit()
+                .foregroundStyle(accent)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(accent.opacity(0.15), in: Capsule())
+        }
+    }
+
+    private var yearsBadge: String {
+        let sign = item.years < 0 ? "−" : "+"
+        let abs = abs(item.years)
+        return String(format: "%@%.1f yr", sign, abs)
     }
 }
 
@@ -112,6 +423,8 @@ private struct FocusHeroCard: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+
+            whyItMatters
 
             if !item.recommendedActions.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -151,7 +464,7 @@ private struct FocusHeroCard: View {
                 .background(tint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Top priority")
+                Text("Focus here first")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(tint)
                     .textCase(.uppercase)
@@ -164,6 +477,19 @@ private struct FocusHeroCard: View {
                     .foregroundStyle(tint)
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    private var whyItMatters: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Why it matters")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+            Text(item.rationale)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -244,6 +570,19 @@ private struct CompactPriorityRow: View {
 
     private var tint: Color {
         statusTint(item.status)
+    }
+}
+
+// MARK: - Shared section label
+
+private struct SectionLabel: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.horizontal, 4)
     }
 }
 

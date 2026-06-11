@@ -49,6 +49,13 @@ final class NutritionEntry {
     var outputTokens: Int?
     var costUSD: Double?
 
+    /// JSON-encoded `MealFingerprint`. Photo-source entries set this; barcode and legacy entries leave it nil.
+    var fingerprintJSON: String?
+
+    /// Filename of the persisted meal photo inside `MealImageStore`. Nil for legacy entries
+    /// and any entry the user logged without saving the source image.
+    var imageFileName: String?
+
     init(
         id: UUID = UUID(),
         date: Date = .now,
@@ -70,7 +77,9 @@ final class NutritionEntry {
         modelUsed: String? = nil,
         inputTokens: Int? = nil,
         outputTokens: Int? = nil,
-        costUSD: Double? = nil
+        costUSD: Double? = nil,
+        fingerprintJSON: String? = nil,
+        imageFileName: String? = nil
     ) {
         self.id = id
         self.date = date
@@ -93,11 +102,19 @@ final class NutritionEntry {
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
         self.costUSD = costUSD
+        self.fingerprintJSON = fingerprintJSON
+        self.imageFileName = imageFileName
     }
 
     var source: NutritionSource { NutritionSource(rawValue: sourceRaw) ?? .text }
 
     var displayTitle: String {
         productName ?? (rawInput.isEmpty ? source.displayLabel : rawInput)
+    }
+
+    var fingerprint: MealFingerprint? {
+        guard let json = fingerprintJSON,
+              let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(MealFingerprint.self, from: data)
     }
 }

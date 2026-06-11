@@ -7,8 +7,7 @@ enum AppTab: Hashable {
     case track
     case train
     case nutrition
-    case trends
-    case data
+    case bloodwork
 
     var tint: Color {
         switch self {
@@ -16,21 +15,25 @@ enum AppTab: Hashable {
         case .track:     return Color(red: 0.55, green: 0.07, blue: 0.07)
         case .train:     return .orange
         case .nutrition: return .green
-        case .trends, .data: return .accentColor
+        case .bloodwork: return .red
         }
     }
 }
 
 @Observable
+@MainActor
 final class AppServices {
     let store: LocalDataStore
     let healthKit: HealthKitManager
     let notifications: NotificationManager
     let openRouter: OpenRouterClient
+    let mealCapture: MealCaptureCoordinator
+    var pendingMeals: PendingMealQueue!
 
     private(set) var healthSnapshot: HealthKitSnapshot = HealthKitSnapshot()
     private(set) var currentResult: PriorityEngine.Result?
     private(set) var nutritionDigest: NutritionDigest?
+    private(set) var bioAge: BioAgeEstimate?
     private(set) var isRefreshing: Bool = false
     private(set) var hasBootstrapped: Bool = false
 
@@ -42,6 +45,11 @@ final class AppServices {
         self.healthKit = HealthKitManager()
         self.notifications = NotificationManager()
         self.openRouter = OpenRouterClient()
+        self.mealCapture = MealCaptureCoordinator()
+        self.pendingMeals = nil
+        self.pendingMeals = PendingMealQueue(openRouter: openRouter) { [weak self] entry in
+            await self?.recordNutritionEntry(entry)
+        }
     }
 
     func bootstrap() async {
@@ -59,14 +67,22 @@ final class AppServices {
         healthSnapshot = await healthKit.refreshSnapshot()
         let entries = store.fetchAllManualEntries()
         let nutrition = store.fetchAllNutritionEntries()
+        let bloodwork = store.fetchAllBloodworkPanels()
         nutritionDigest = NutritionEngine.digest(nutrition)
 
         let result = PriorityEngine.evaluate(
             manualEntries: entries,
             nutritionEntries: nutrition,
-            healthSnapshot: healthSnapshot
+            healthSnapshot: healthSnapshot,
+            bloodworkPanels: bloodwork
         )
         currentResult = result
+        bioAge = BiologicalAgeEngine.evaluate(
+            manualEntries: entries,
+            nutritionDigest: nutritionDigest,
+            healthSnapshot: healthSnapshot,
+            bloodworkPanels: bloodwork
+        )
         store.recordPriorityHistory(result.allItems)
         await notifications.scheduleReminders(for: result, manualEntries: entries, nutritionEntries: nutrition)
     }
@@ -82,6 +98,7 @@ final class AppServices {
     }
 
     func deleteNutritionEntry(_ entry: NutritionEntry) async {
+        MealImageStore.delete(fileName: entry.imageFileName)
         store.deleteNutritionEntry(entry)
         await refresh()
     }
@@ -96,8 +113,45 @@ final class AppServices {
         await refresh()
     }
 
+    func recordBloodworkPanel(_ panel: BloodworkPanel) async {
+        store.insertBloodworkPanel(panel)
+        await syncSupportedMarkersToHealthKit(panel)
+        await refresh()
+    }
+
+    /// HealthKit only supports a handful of blood-lab quantity types natively; lipids,
+    /// inflammation markers, hormones, and most others have no HK type. We sync the ones
+    /// we can (currently: blood glucose) and silently skip the rest.
+    private func syncSupportedMarkersToHealthKit(_ panel: BloodworkPanel) async {
+        for marker in panel.markers {
+            let lowered = marker.name.lowercased()
+            guard lowered.contains("glucose"),
+                  let value = Double(marker.value.replacingOccurrences(of: ",", with: "."))
+            else { continue }
+            let fasting = lowered.contains("fasting")
+            _ = try? await healthKit.saveBloodGlucose(
+                value: value,
+                unit: marker.unit,
+                date: panel.date,
+                fasting: fasting
+            )
+        }
+    }
+
+    func deleteBloodworkPanel(_ panel: BloodworkPanel) async {
+        store.deleteBloodworkPanel(panel)
+        await refresh()
+    }
+
+    /// Re-runs the engine without inserting anything new (use after in-place edits).
+    func refreshAfterEdit() async {
+        store.saveContext()
+        await refresh()
+    }
+
     func deleteAllLocalData() async {
         store.deleteAllLocalData()
+        MealImageStore.wipeAll()
         notifications.cancelAll()
         await refresh()
     }

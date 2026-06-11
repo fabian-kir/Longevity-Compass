@@ -6,12 +6,22 @@ struct TrackingCardView: View {
     let card: TrackingCard
     @Binding var expandedDomain: HealthDomain?
     let todaysEntries: [ManualEntry]
-    let onMeasureBP: () -> Void
+    let latestBP: BloodPressureReading?
+    let onLogBP: (Double, Double) -> Void
+    let onOpenBPSheet: () -> Void
     let onLogNicotine: (Bool) -> Void
     let onLogAlcohol: (AlcoholLevel) -> Void
     let onLogDentalFloss: () -> Void
     let onLogDentalFluoride: () -> Void
     let onOpenHealth: () -> Void
+    let onOpenBloodwork: () -> Void
+    let onOpenTrain: () -> Void
+
+    @State private var bpSystolicText: String = ""
+    @State private var bpDiastolicText: String = ""
+    @FocusState private var bpFocus: BPField?
+
+    private enum BPField { case systolic, diastolic }
 
     private var domain: HealthDomain { card.item.domain }
     private var isExpanded: Bool { expandedDomain == domain }
@@ -58,11 +68,21 @@ struct TrackingCardView: View {
     private var primaryActionButton: some View {
         switch actionType {
         case .bloodPressure:
-            Button("Measure") { onMeasureBP() }
-                .buttonStyle(TrackPillButtonStyle(tint: urgencyColor))
+            Button(isExpanded ? "Done" : "Log") {
+                withAnimation(.spring(duration: 0.25)) {
+                    expandedDomain = isExpanded ? nil : domain
+                }
+            }
+            .buttonStyle(TrackPillButtonStyle(tint: isExpanded ? Color(.secondaryLabel) : urgencyColor))
         case .openHealth:
             Button("Open Health") { onOpenHealth() }
                 .buttonStyle(TrackPillButtonStyle(tint: .secondary))
+        case .train:
+            Button("Log workout") { onOpenTrain() }
+                .buttonStyle(TrackPillButtonStyle(tint: urgencyColor))
+        case .bloodwork:
+            Button(card.item.status == .missing ? "Log panel" : "Open") { onOpenBloodwork() }
+                .buttonStyle(TrackPillButtonStyle(tint: urgencyColor))
         case .nicotine, .alcohol, .dental:
             Button(isExpanded ? "Done" : "Log today") {
                 withAnimation(.spring(duration: 0.25)) {
@@ -77,8 +97,8 @@ struct TrackingCardView: View {
 
     @ViewBuilder
     private var onTrackBadge: some View {
-        if actionType == .openHealth {
-            // Non-tappable — nothing useful to expand for auto-tracked metrics in good state.
+        if actionType == .openHealth || actionType == .bloodwork || actionType == .train {
+            // Non-tappable — nothing useful to expand inline; primary action lives elsewhere.
             HStack(spacing: 4) {
                 Image(systemName: "checkmark.circle.fill").font(.caption)
                 Text(nextDueLabel).font(.caption)
@@ -113,11 +133,68 @@ struct TrackingCardView: View {
     @ViewBuilder
     private var inlineControls: some View {
         switch actionType {
-        case .nicotine:   nicotineControls
-        case .alcohol:    alcoholControls
-        case .dental:     dentalControls
-        case .bloodPressure, .openHealth: EmptyView()
+        case .bloodPressure: bloodPressureControls
+        case .nicotine:      nicotineControls
+        case .alcohol:       alcoholControls
+        case .dental:        dentalControls
+        case .openHealth, .bloodwork, .train: EmptyView()
         }
+    }
+
+    private var bloodPressureControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                bpField(text: $bpSystolicText, placeholder: latestBP.map { String(Int($0.systolic)) } ?? "Sys", field: .systolic)
+                Text("/").foregroundStyle(.secondary)
+                bpField(text: $bpDiastolicText, placeholder: latestBP.map { String(Int($0.diastolic)) } ?? "Dia", field: .diastolic)
+                Text("mmHg").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Save") { saveBP() }
+                    .buttonStyle(TrackPillButtonStyle(tint: bpIsValid ? .green : .secondary))
+                    .disabled(!bpIsValid)
+            }
+            HStack(spacing: 8) {
+                if let last = latestBP {
+                    Text("Last: \(Int(last.systolic))/\(Int(last.diastolic)) · \(relativeTime(last.date))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Past reading…") { onOpenBPSheet() }
+                    .font(.caption)
+            }
+        }
+        .onAppear { bpFocus = .systolic }
+    }
+
+    private func bpField(text: Binding<String>, placeholder: String, field: BPField) -> some View {
+        TextField(placeholder, text: text)
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .focused($bpFocus, equals: field)
+            .frame(width: 56)
+            .padding(.vertical, 6)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var bpIsValid: Bool {
+        guard let s = Double(bpSystolicText), let d = Double(bpDiastolicText) else { return false }
+        return (60...250).contains(s) && (40...150).contains(d)
+    }
+
+    private func saveBP() {
+        guard let s = Double(bpSystolicText), let d = Double(bpDiastolicText) else { return }
+        onLogBP(s, d)
+        bpSystolicText = ""
+        bpDiastolicText = ""
+        bpFocus = nil
+        withAnimation(.spring(duration: 0.25)) { expandedDomain = nil }
+    }
+
+    private func relativeTime(_ date: Date) -> String {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f.localizedString(for: date, relativeTo: .now)
     }
 
     private var nicotineControls: some View {

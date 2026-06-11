@@ -1,64 +1,73 @@
 import Foundation
 import SwiftUI
 
+/// Weekly nutrition signals derived from meal-photo fingerprints.
+/// Aim, "behaviour pattern precision, not false gram precision."
 enum NutrientBucket: String, CaseIterable, Identifiable {
-    case protein
-    case fiber
-    case addedSugar
-    case saturatedFat
-    case sodium
-    case fattyFish
-    case leafyGreens
-    case ultraProcessed
-    case eatingOccasions
+    case plantVariety
+    case leafyGreenDays
+    case omega3Days
+    case fermentedDays
+    case legumeDays
+    case ultraProcessedMeals
+    case processedMeatMeals
+    case friedMeals
 
     var id: String { rawValue }
 
     var displayLabel: String {
         switch self {
-        case .protein:          "Protein"
-        case .fiber:            "Fibre"
-        case .addedSugar:       "Added sugar"
-        case .saturatedFat:     "Saturated fat"
-        case .sodium:           "Sodium"
-        case .fattyFish:        "Fatty fish"
-        case .leafyGreens:      "Leafy greens"
-        case .ultraProcessed:   "Ultra-processed"
-        case .eatingOccasions:  "Eating occasions"
+        case .plantVariety:        "Plant variety"
+        case .leafyGreenDays:      "Leafy greens"
+        case .omega3Days:          "Omega-3 sources"
+        case .fermentedDays:       "Fermented foods"
+        case .legumeDays:          "Legumes"
+        case .ultraProcessedMeals: "Ultra-processed"
+        case .processedMeatMeals:  "Processed meat"
+        case .friedMeals:          "Fried"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .protein:          "fork.knife"
-        case .fiber:            "leaf"
-        case .addedSugar:       "cube"
-        case .saturatedFat:     "drop"
-        case .sodium:           "drop.triangle"
-        case .fattyFish:        "fish"
-        case .leafyGreens:      "carrot"
-        case .ultraProcessed:   "shippingbox"
-        case .eatingOccasions:  "clock"
+        case .plantVariety:        "leaf.circle"
+        case .leafyGreenDays:      "leaf"
+        case .omega3Days:          "fish"
+        case .fermentedDays:       "bubbles.and.sparkles"
+        case .legumeDays:          "circle.grid.2x2"
+        case .ultraProcessedMeals: "shippingbox"
+        case .processedMeatMeals:  "exclamationmark.octagon"
+        case .friedMeals:          "flame"
         }
     }
 
-    /// True when the metric should be minimised (e.g., added sugar, sodium).
+    /// True when the metric should be minimised. We want more plant variety, fewer fried meals.
     var lowerIsBetter: Bool {
         switch self {
-        case .addedSugar, .saturatedFat, .sodium, .ultraProcessed: true
-        case .eatingOccasions: true  // we treat constant snacking as worse
+        case .ultraProcessedMeals, .processedMeatMeals, .friedMeals: true
         default: false
+        }
+    }
+
+    /// Per-week target (or upper limit if `lowerIsBetter`).
+    var weeklyTarget: Double {
+        switch self {
+        case .plantVariety:        HealthThresholds.Nutrition.plantsPerWeekTarget
+        case .leafyGreenDays:      HealthThresholds.Nutrition.leafyGreenDaysPerWeekTarget
+        case .omega3Days:          HealthThresholds.Nutrition.omega3DaysPerWeekTarget
+        case .fermentedDays:       HealthThresholds.Nutrition.fermentedDaysPerWeekTarget
+        case .legumeDays:          HealthThresholds.Nutrition.legumeDaysPerWeekTarget
+        case .ultraProcessedMeals: HealthThresholds.Nutrition.ultraProcessedMealsPerWeekLimit
+        case .processedMeatMeals:  HealthThresholds.Nutrition.processedMeatMealsPerWeekLimit
+        case .friedMeals:          HealthThresholds.Nutrition.friedMealsPerWeekLimit
         }
     }
 
     var unitSuffix: String {
         switch self {
-        case .protein, .fiber, .addedSugar, .saturatedFat:  "g/day"
-        case .sodium:                                       "mg/day"
-        case .fattyFish:                                    "/week"
-        case .leafyGreens:                                  "/day"
-        case .ultraProcessed:                               ""
-        case .eatingOccasions:                              "/day"
+        case .plantVariety:        "/wk"
+        case .leafyGreenDays, .omega3Days, .fermentedDays, .legumeDays: "d/wk"
+        case .ultraProcessedMeals, .processedMeatMeals, .friedMeals:    "/wk"
         }
     }
 }

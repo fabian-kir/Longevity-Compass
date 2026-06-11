@@ -19,13 +19,17 @@ struct HealthKitSnapshot {
     var strengthWorkoutsLast28Days: Int?
     var restingHeartRateAverage28d: Double?
     var restingHeartRateAverage90d: Double?
+    var restingHeartRateSeries: [(date: Date, value: Double)] = []
     var hrvAverage28d: Double?
     var sleepHoursAverage7d: Double?
     var sleepHoursAverage28d: Double?
     var latestBodyMass: (value: Double, date: Date)?
     var bodyMassSeries: [(date: Date, value: Double)] = []
     var latestVO2Max: (value: Double, date: Date)?
+    var vo2MaxSeries: [(date: Date, value: Double)] = []
     var bloodPressureReadings: [BloodPressureReading] = []
+    var dateOfBirth: Date?
+    var biologicalSex: HKBiologicalSex = .notSet
     var sampledAt: Date = .now
 }
 
@@ -69,6 +73,8 @@ final class HealthKitManager {
         }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { set.insert(sleep) }
         set.insert(HKObjectType.workoutType())
+        if let dob = HKObjectType.characteristicType(forIdentifier: .dateOfBirth) { set.insert(dob) }
+        if let sex = HKObjectType.characteristicType(forIdentifier: .biologicalSex) { set.insert(sex) }
         return set
     }
 
@@ -76,6 +82,7 @@ final class HealthKitManager {
         var set: Set<HKSampleType> = []
         if let sys = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic) { set.insert(sys) }
         if let dia = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) { set.insert(dia) }
+        if let glu = HKObjectType.quantityType(forIdentifier: .bloodGlucose) { set.insert(glu) }
         return set
     }
 
@@ -94,6 +101,32 @@ final class HealthKitManager {
     }
 
     // MARK: - Write
+
+    /// Writes a blood glucose sample. `unit` accepts "mg/dL" (default) or "mmol/L".
+    /// Returns true if the sample was written, false if HealthKit is unavailable or the type
+    /// can't be resolved. Throws on save failure.
+    @discardableResult
+    func saveBloodGlucose(value: Double, unit: String?, date: Date, fasting: Bool) async throws -> Bool {
+        guard isAvailable,
+              let type = HKQuantityType.quantityType(forIdentifier: .bloodGlucose) else { return false }
+        let hkUnit: HKUnit = (unit?.lowercased() == "mmol/l")
+            ? HKUnit.moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter())
+            : HKUnit.gramUnit(with: .milli).unitDivided(by: .literUnit(with: .deci))
+        let quantity = HKQuantity(unit: hkUnit, doubleValue: value)
+        var metadata: [String: Any] = [:]
+        if fasting {
+            metadata[HKMetadataKeyBloodGlucoseMealTime] = HKBloodGlucoseMealTime.preprandial.rawValue
+        }
+        let sample = HKQuantitySample(
+            type: type,
+            quantity: quantity,
+            start: date,
+            end: date,
+            metadata: metadata.isEmpty ? nil : metadata
+        )
+        try await healthStore.save(sample)
+        return true
+    }
 
     func saveBloodPressure(systolic: Double, diastolic: Double, date: Date) async throws {
         guard
@@ -132,11 +165,28 @@ final class HealthKitManager {
         snapshot.latestBodyMass              = try? await latestSample(.bodyMass, unit: .gramUnit(with: .kilo))
         snapshot.bodyMassSeries              = (try? await bodyMassSeries(days: 180)) ?? []
         snapshot.latestVO2Max                = try? await latestSample(.vo2Max, unit: HKUnit(from: "ml/(kg*min)"))
+        snapshot.vo2MaxSeries                = (try? await vo2MaxSeries(days: 365)) ?? []
+        snapshot.restingHeartRateSeries      = (try? await restingHeartRateSeries(days: 120)) ?? []
         snapshot.bloodPressureReadings       = (try? await bloodPressureSamples(days: 365)) ?? []
+        snapshot.dateOfBirth                 = dateOfBirth()
+        snapshot.biologicalSex               = biologicalSex()
         snapshot.sampledAt                   = .now
 
         lastSyncDate = snapshot.sampledAt
         return snapshot
+    }
+
+    // MARK: - Characteristics (DOB, biological sex)
+
+    private func dateOfBirth() -> Date? {
+        guard isAvailable else { return nil }
+        let components = try? healthStore.dateOfBirthComponents()
+        return components?.date
+    }
+
+    private func biologicalSex() -> HKBiologicalSex {
+        guard isAvailable else { return .notSet }
+        return (try? healthStore.biologicalSex().biologicalSex) ?? .notSet
     }
 
     static let strengthActivityTypes: Set<HKWorkoutActivityType> = [
@@ -266,18 +316,8 @@ final class HealthKitManager {
         guard let samples = try? await descriptor.result(for: healthStore), !samples.isEmpty else {
             return (nil, nil)
         }
-        let asleepValues: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-        ]
+        let perNight = Self.nightlyAsleepDurations(from: samples)
         let cal = Calendar.current
-        var perNight: [Date: TimeInterval] = [:]
-        for s in samples where asleepValues.contains(s.value) {
-            let bucket = cal.startOfDay(for: s.startDate)
-            perNight[bucket, default: 0] += s.endDate.timeIntervalSince(s.startDate)
-        }
         let cutoff7 = cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         let last7 = perNight.filter { $0.key >= cutoff7 }.values
         let last28 = perNight.values
@@ -287,6 +327,53 @@ final class HealthKitManager {
             return vals.reduce(0, +) / Double(vals.count) / 3600.0
         }
         return (hours(last7), hours(last28))
+    }
+
+    /// Buckets asleep samples into per-night totals. For each night, picks the highest-trust
+    /// source present (Apple Watch > iPhone/iPad > other) and ignores the rest, so that overlapping
+    /// coverage from multiple devices doesn't double-count. Within the chosen source, overlapping
+    /// or adjacent intervals are merged before summing.
+    private static func nightlyAsleepDurations(from samples: [HKCategorySample]) -> [Date: TimeInterval] {
+        let asleepValues: Set<Int> = [
+            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+        ]
+        let cal = Calendar.current
+        var byNight: [Date: [HKCategorySample]] = [:]
+        for s in samples where asleepValues.contains(s.value) {
+            let bucket = cal.startOfDay(for: s.startDate)
+            byNight[bucket, default: []].append(s)
+        }
+
+        var perNight: [Date: TimeInterval] = [:]
+        for (bucket, nightSamples) in byNight {
+            guard let bestTier = nightSamples.map(sleepSourceTier(for:)).min() else { continue }
+            let chosen = nightSamples.filter { sleepSourceTier(for: $0) == bestTier }
+            let intervals = chosen
+                .map { (start: $0.startDate, end: $0.endDate) }
+                .sorted { $0.start < $1.start }
+
+            var merged: [(start: Date, end: Date)] = []
+            for iv in intervals {
+                if let last = merged.last, iv.start <= last.end {
+                    merged[merged.count - 1] = (last.start, max(last.end, iv.end))
+                } else {
+                    merged.append(iv)
+                }
+            }
+            perNight[bucket] = merged.reduce(0) { $0 + $1.end.timeIntervalSince($1.start) }
+        }
+        return perNight
+    }
+
+    /// Lower tier = higher trust. Apple Watch wins when worn; iPhone/iPad is fallback.
+    private static func sleepSourceTier(for sample: HKCategorySample) -> Int {
+        let product = sample.sourceRevision.productType ?? ""
+        if product.hasPrefix("Watch") { return 0 }
+        if product.hasPrefix("iPhone") || product.hasPrefix("iPad") { return 1 }
+        return 2
     }
 
     // MARK: - Historical series (for Trends view)
@@ -326,19 +413,7 @@ final class HealthKitManager {
             sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
         )
         let samples = try await descriptor.result(for: healthStore)
-        let asleepValues: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-        ]
-        let cal = Calendar.current
-        var perNight: [Date: TimeInterval] = [:]
-        for s in samples where asleepValues.contains(s.value) {
-            let bucket = cal.startOfDay(for: s.startDate)
-            perNight[bucket, default: 0] += s.endDate.timeIntervalSince(s.startDate)
-        }
-        return perNight
+        return Self.nightlyAsleepDurations(from: samples)
             .map { (date: $0.key, value: $0.value / 3600.0) }
             .sorted { $0.date < $1.date }
     }
@@ -418,7 +493,7 @@ final class HealthKitManager {
         async let diaSamples = diaDesc.result(for: healthStore)
         let (sys, dia) = try await (sysSamples, diaSamples)
 
-        let diaByDate = Dictionary(uniqueKeysWithValues: dia.map { ($0.startDate, $0) })
+        let diaByDate = Dictionary(dia.map { ($0.startDate, $0) }, uniquingKeysWith: { first, _ in first })
         let unit = HKUnit.millimeterOfMercury()
         return sys.compactMap { s in
             guard let d = diaByDate[s.startDate] else { return nil }

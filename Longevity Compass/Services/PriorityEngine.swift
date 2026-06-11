@@ -15,6 +15,7 @@ enum PriorityEngine {
         manualEntries: [ManualEntry],
         nutritionEntries: [NutritionEntry] = [],
         healthSnapshot: HealthKitSnapshot,
+        bloodworkPanels: [BloodworkPanel] = [],
         now: Date = .now
     ) -> Result {
 
@@ -29,10 +30,11 @@ enum PriorityEngine {
             case .bodyComposition:  evaluateBodyComposition(healthSnapshot, now: now)
             case .sleep:            evaluateSleep(healthSnapshot, now: now)
             case .alcohol:          evaluateAlcohol(manualEntries, now: now)
-            case .protein:          evaluateNutritionDomain(.protein, bucket: .protein, digest: digest, fallbackEntries: manualEntries, fallbackType: .proteinHabit, now: now)
-            case .fiber:            evaluateNutritionDomain(.fiber, bucket: .fiber, digest: digest, fallbackEntries: manualEntries, fallbackType: .fiberHabit, now: now)
-            case .omega3:           evaluateNutritionDomain(.omega3, bucket: .fattyFish, digest: digest, fallbackEntries: manualEntries, fallbackType: .omega3Habit, now: now)
+            case .protein:          evaluateHabit(manualEntries, domain: .protein, type: .proteinHabit, now: now)
+            case .fiber:            evaluateNutritionDomain(.fiber, bucket: .legumeDays, digest: digest, fallbackEntries: manualEntries, fallbackType: .fiberHabit, now: now)
+            case .omega3:           evaluateNutritionDomain(.omega3, bucket: .omega3Days, digest: digest, fallbackEntries: manualEntries, fallbackType: .omega3Habit, now: now)
             case .dental:           evaluateDental(manualEntries, now: now)
+            case .bloodwork:        evaluateBloodwork(bloodworkPanels, now: now)
             }
         }
 
@@ -65,6 +67,23 @@ enum PriorityEngine {
         }
 
         return Array(warranted.prefix(HealthThresholds.Dashboard.topPriorityCount))
+    }
+
+    /// Surfaces "doing great" items: high-impact domains where status is good and the trend isn't
+    /// going the wrong way. Used by the Focus dashboard's wins strip.
+    static func wins(from items: [PriorityItem], limit: Int = 3) -> [PriorityItem] {
+        let highImpact = HealthThresholds.Dashboard.highImpactDomains
+        let candidates = items.filter { item in
+            guard item.status == .good, !item.dataIsStale else { return false }
+            guard highImpact.contains(item.domain) || item.trend == .improving else { return false }
+            return item.trend != .worsening
+        }
+        let ranked = candidates.sorted { lhs, rhs in
+            let l = lhs.impactWeight + (lhs.trend == .improving ? 30 : 0)
+            let r = rhs.impactWeight + (rhs.trend == .improving ? 30 : 0)
+            return l > r
+        }
+        return Array(ranked.prefix(limit))
     }
 
     private static func computeOverallStatus(items: [PriorityItem]) -> OverallStatus {
@@ -157,7 +176,7 @@ enum PriorityEngine {
         var status: DomainStatus = .missing
         var reason = "No blood-pressure readings yet."
         var currentDesc = "No readings"
-        var hasBaseline = recent.count >= HealthThresholds.BP.baselineReadingsNeeded
+        let hasBaseline = recent.count >= HealthThresholds.BP.baselineReadingsNeeded
 
         let avgSys = TrendAnalyzer.mean(recent.map(\.systolic))
         let avgDia = TrendAnalyzer.mean(recent.map(\.diastolic))
@@ -647,55 +666,48 @@ enum PriorityEngine {
         fallbackType: ManualEntryType,
         now: Date
     ) -> PriorityItem {
-        // If the rollup has enough data, drive the priority from it.
         if let rollup = digest.rollup(for: bucket), rollup.status != .unknown {
             let status: DomainStatus = {
                 switch rollup.status {
                 case .veryLow:           return .bad
                 case .low:               return .borderline
                 case .ok:                return .good
-                case .high, .veryHigh:   return .good     // "more is better" for these buckets
+                case .high, .veryHigh:   return .good
                 case .unknown:           return .missing
                 }
             }()
 
-            let reason: String = {
-                switch status {
-                case .good:       return rollup.summary
-                case .borderline: return rollup.summary
-                case .bad:        return rollup.summary
-                default:          return rollup.summary
+            let currentDesc: String = {
+                guard let v = rollup.weeklyValue else { return "—" }
+                switch bucket {
+                case .plantVariety:        return "\(Int(v)) plants/wk"
+                case .leafyGreenDays, .omega3Days, .fermentedDays, .legumeDays:
+                    return "\(Int(v)) d/wk"
+                case .ultraProcessedMeals, .processedMeatMeals, .friedMeals:
+                    return "\(Int(v))/wk"
                 }
             }()
 
-            let currentDesc: String = {
-                guard let avg = rollup.dailyAverage else { return "—" }
-                if bucket == .fattyFish { return String(format: "%.1f servings/wk", avg) }
-                return String(format: "%.0f %@", avg, bucket.unitSuffix.replacingOccurrences(of: "/day", with: "g/day"))
-            }()
-
-            let trendDesc = trendDescription(rollup.trend, hasRecent: rollup.daysWithData >= 3, hasPrior: rollup.daysWithData >= 5)
+            let trend: TrendDirection = .unknown
             let frequency: ReminderFrequency = (status == .bad || status == .borderline) ? .weekly : .never
-            let lastDate = now
-            let nextDate = nextTrackingDate(from: lastDate, frequency: frequency, status: status, now: now)
-            let priorityScore = score(domain: domain, status: status, trend: rollup.trend, isStableGoodLongTerm: false, isStale: false)
+            let nextDate = nextTrackingDate(from: now, frequency: frequency, status: status, now: now)
+            let priorityScore = score(domain: domain, status: status, trend: trend, isStableGoodLongTerm: false, isStale: false)
 
             return PriorityItem(
                 domain: domain,
                 status: status,
-                trend: rollup.trend,
+                trend: trend,
                 priorityScore: priorityScore,
                 impactWeight: HealthThresholds.impactWeight(domain),
-                reason: reason,
+                reason: rollup.summary,
                 currentValueDescription: currentDesc,
-                trendDescription: trendDesc,
+                trendDescription: "—",
                 recommendedActions: RecommendationEngine.actions(for: domain, status: status),
                 nextTrackingDate: nextDate,
                 reminderFrequency: frequency,
                 dataIsStale: false
             )
         }
-        // Fallback: habit-toggle logic from v0.
         switch domain {
         case .omega3:
             return evaluateOmega3(fallbackEntries, now: now)
@@ -848,6 +860,103 @@ enum PriorityEngine {
             currentValueDescription: currentDesc,
             trendDescription: trendDesc,
             recommendedActions: RecommendationEngine.actions(for: .dental, status: status),
+            nextTrackingDate: nextDate,
+            reminderFrequency: frequency,
+            dataIsStale: isStale
+        )
+    }
+
+    // MARK: - Bloodwork
+
+    private static func evaluateBloodwork(_ panels: [BloodworkPanel], now: Date) -> PriorityItem {
+        let sorted = panels.sorted { $0.date > $1.date }
+        let mostRecent = sorted.first
+        let lastDate = mostRecent?.date
+
+        var status: DomainStatus = .missing
+        var reason = "No bloodwork on file. A baseline panel catches silent risk early."
+        var currentDesc = "No panels logged"
+        var trend: TrendDirection = .unknown
+        var trendDesc = "—"
+        var worstFlag: BloodworkFlag = .unknown
+
+        if let latest = mostRecent {
+            worstFlag = latest.worstFlag
+            status = worstFlag.domainStatus
+            let when = latest.date.formatted(date: .abbreviated, time: .omitted)
+            let markerCount = latest.markers.count
+            let flagged = latest.markers.filter { $0.flag == .bad || $0.flag == .borderline }.count
+            currentDesc = "\(markerCount) marker\(markerCount == 1 ? "" : "s") · \(when)"
+            switch worstFlag {
+            case .bad:
+                reason = "\(flagged) marker\(flagged == 1 ? "" : "s") flagged as bad on the most recent panel. Discuss with a clinician."
+            case .borderline:
+                reason = "\(flagged) borderline marker\(flagged == 1 ? "" : "s") on the most recent panel."
+            case .good:
+                reason = "All markers on the most recent panel are in range."
+            case .unknown:
+                reason = "Markers logged but not flagged yet — open Bloodwork to flag each result."
+            }
+
+            if let prior = sorted.dropFirst().first {
+                let priorWorst = prior.worstFlag
+                if worstFlag == .good && (priorWorst == .borderline || priorWorst == .bad) {
+                    trend = .improving
+                    trendDesc = "Improving vs previous panel"
+                } else if (worstFlag == .borderline || worstFlag == .bad) && priorWorst == .good {
+                    trend = .worsening
+                    trendDesc = "Worsening vs previous panel"
+                } else {
+                    trend = .stable
+                    trendDesc = "Stable vs previous panel"
+                }
+            } else {
+                trendDesc = "Need more history"
+            }
+        }
+
+        let frequency: ReminderFrequency = switch status {
+        case .bad:        HealthThresholds.Reminders.bloodworkBad
+        case .borderline: HealthThresholds.Reminders.bloodworkBorderline
+        case .good:       HealthThresholds.Reminders.bloodworkGood
+        case .missing, .unknown, .urgent: HealthThresholds.Reminders.bloodworkMissing
+        }
+
+        // Next due: based on last draw date + frequency. If we've never had one, surface now (but
+        // cap urgency — bloodwork is never an emergency).
+        let nextDate: Date? = {
+            guard let last = lastDate, let days = frequency.days else {
+                return status == .missing ? now : nil
+            }
+            // Hard cap: never recommend a recheck sooner than the minimum window, even on bad.
+            let minDays = max(days, HealthThresholds.Bloodwork.minDaysBetweenDraws)
+            return Calendar.current.date(byAdding: .day, value: minDays, to: last)
+        }()
+
+        // Stale = we're past the recommended next-draw date.
+        let isStale: Bool = {
+            guard let next = nextDate else { return false }
+            return next <= now && status != .missing
+        }()
+
+        let priorityScore = score(
+            domain: .bloodwork,
+            status: status,
+            trend: trend,
+            isStableGoodLongTerm: false,
+            isStale: isStale
+        )
+
+        return PriorityItem(
+            domain: .bloodwork,
+            status: status,
+            trend: trend,
+            priorityScore: priorityScore,
+            impactWeight: HealthThresholds.impactWeight(.bloodwork),
+            reason: reason,
+            currentValueDescription: currentDesc,
+            trendDescription: trendDesc,
+            recommendedActions: RecommendationEngine.actions(for: .bloodwork, status: status),
             nextTrackingDate: nextDate,
             reminderFrequency: frequency,
             dataIsStale: isStale

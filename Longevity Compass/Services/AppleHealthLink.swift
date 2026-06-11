@@ -11,9 +11,9 @@ enum AppleHealthLink {
     /// Where a "Track now" tap should route, given a domain.
     static func destination(for domain: HealthDomain) -> Destination {
         switch domain {
-        case .bloodPressure, .bodyComposition, .sleep, .cardio, .strength:
+        case .bodyComposition, .sleep, .cardio:
             return .appleHealth
-        case .protein, .fiber, .omega3, .alcohol, .nicotine, .dental:
+        case .bloodPressure, .strength, .protein, .fiber, .omega3, .alcohol, .nicotine, .dental, .bloodwork:
             return .trackTab
         }
     }
@@ -23,7 +23,6 @@ enum AppleHealthLink {
     /// so we open Health to its root and tell the user where to go.
     static func healthLocationHint(for domain: HealthDomain) -> String? {
         switch domain {
-        case .bloodPressure:    "Browse → Vitals → Blood Pressure"
         case .bodyComposition:  "Browse → Body Measurements → Weight"
         case .sleep:            "Browse → Sleep"
         case .cardio:           "Browse → Activity → Workouts"

@@ -242,6 +242,35 @@ enum RecommendationEngine {
                 "Tap floss/fluoride on days you do them — low effort.",
             ]
 
+        // MARK: Bloodwork
+
+        case (.bloodwork, .bad):
+            return [
+                "Review flagged markers with a clinician — don't self-treat from a single panel.",
+                "Address the lifestyle levers that move the flagged numbers (e.g. LDL/ApoB → saturated fat, fibre, cardio).",
+                "Plan the next draw about a year out, sooner only if clinically advised.",
+            ]
+        case (.bloodwork, .borderline):
+            return [
+                "Confirm borderline markers with a follow-up panel in ~12 months.",
+                "Tighten the related lifestyle inputs in the meantime (diet, activity, sleep, alcohol).",
+            ]
+        case (.bloodwork, .good):
+            return [
+                "All markers in range — recheck in ~3 years unless something changes.",
+                "Keep the habits that produced the result.",
+            ]
+        case (.bloodwork, .missing):
+            return [
+                "Book a baseline panel: lipids (ApoB, LDL, HDL, triglycerides), HbA1c, fasting glucose, hs-CRP, kidney + liver, vitamin D, TSH.",
+                "Ask the lab for a printed/digital copy and enter the numbers in the Bloodwork tab.",
+                "Once a year is typical; less often when results are clean.",
+            ]
+        case (.bloodwork, .unknown):
+            return [
+                "Open the most recent panel and flag each marker as good, borderline, or bad.",
+            ]
+
         // Fallbacks
         case (_, .unknown):
             return ["Not enough data yet."]

@@ -187,6 +187,8 @@ final class NotificationManager {
             return "Floss today."
         case .bodyComposition:
             return "Weight is trending. Log a fresh reading in Apple Health when convenient."
+        case .bloodwork:
+            return "Bloodwork is due. Book a panel and log the results in the Bloodwork tab."
         }
     }
 

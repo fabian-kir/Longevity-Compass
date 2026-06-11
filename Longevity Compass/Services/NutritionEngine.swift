@@ -4,18 +4,17 @@ struct NutritionBucketRollup: Identifiable {
     let id = UUID()
     let bucket: NutrientBucket
     let status: BucketStatus
-    let dailyAverage: Double?
-    let target: Double?
+    let weeklyValue: Double?          // count: plants, days, or meals
+    let target: Double
     let percentOfTarget: Double?
     let daysWithData: Int
     let lookbackDays: Int
-    let trend: TrendDirection
     let summary: String
 }
 
 struct NutritionDigest {
     let rollups: [NutritionBucketRollup]
-    let coverageDays: Int          // distinct days with at least one entry in lookback
+    let coverageDays: Int
     let lookbackDays: Int
     let totalEntries: Int
     let costThisMonthUSD: Double
@@ -36,14 +35,17 @@ enum NutritionEngine {
         let cal = Calendar.current
         let start = cal.date(byAdding: .day, value: -lookback, to: now) ?? now
         let recent = entries.filter { $0.date >= start && $0.date <= now }
+        let fingerprinted = recent.compactMap { entry -> (entry: NutritionEntry, fingerprint: MealFingerprint)? in
+            guard let f = entry.fingerprint else { return nil }
+            return (entry, f)
+        }
 
         let coverageDays = Set(recent.map { cal.startOfDay(for: $0.date) }).count
 
         let rollups: [NutritionBucketRollup] = NutrientBucket.allCases.map {
-            rollup(for: $0, entries: recent, lookbackDays: lookback, now: now)
+            rollup(for: $0, fingerprinted: fingerprinted, coverageDays: coverageDays, lookbackDays: lookback)
         }
 
-        // Cost
         let monthStart: Date = {
             var comps = cal.dateComponents([.year, .month], from: now)
             comps.day = 1
@@ -66,164 +68,62 @@ enum NutritionEngine {
 
     private static func rollup(
         for bucket: NutrientBucket,
-        entries: [NutritionEntry],
-        lookbackDays: Int,
-        now: Date
+        fingerprinted: [(entry: NutritionEntry, fingerprint: MealFingerprint)],
+        coverageDays: Int,
+        lookbackDays: Int
     ) -> NutritionBucketRollup {
-        let cal = Calendar.current
-        let daysWithData = Set(entries.map { cal.startOfDay(for: $0.date) }).count
-        let denomDays = Double(lookbackDays)
+        let value = weeklyValue(for: bucket, fingerprinted: fingerprinted)
+        let target = bucket.weeklyTarget
+        let percent = target > 0 ? value / target : nil
+        let status = bucketStatus(percent: percent, daysWithData: coverageDays, lowerIsBetter: bucket.lowerIsBetter)
 
-        switch bucket {
-        case .protein:
-            return summed(
-                bucket: bucket,
-                entries: entries,
-                value: { $0.proteinGrams },
-                target: HealthThresholds.Nutrition.proteinGramsTarget,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                denomDays: denomDays,
-                now: now
-            )
-        case .fiber:
-            return summed(
-                bucket: bucket,
-                entries: entries,
-                value: { $0.fiberGrams },
-                target: HealthThresholds.Nutrition.fiberGramsTarget,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                denomDays: denomDays,
-                now: now
-            )
-        case .addedSugar:
-            return summed(
-                bucket: bucket,
-                entries: entries,
-                value: { $0.addedSugarGrams },
-                target: HealthThresholds.Nutrition.addedSugarGramsLimit,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                denomDays: denomDays,
-                now: now
-            )
-        case .saturatedFat:
-            return summed(
-                bucket: bucket,
-                entries: entries,
-                value: { $0.saturatedFatGrams },
-                target: HealthThresholds.Nutrition.saturatedFatGramsLimit,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                denomDays: denomDays,
-                now: now
-            )
-        case .sodium:
-            return summed(
-                bucket: bucket,
-                entries: entries,
-                value: { $0.sodiumMilligrams },
-                target: HealthThresholds.Nutrition.sodiumMilligramsLimit,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                denomDays: denomDays,
-                now: now
-            )
-        case .leafyGreens:
-            return summed(
-                bucket: bucket,
-                entries: entries,
-                value: { $0.leafyGreenServings },
-                target: HealthThresholds.Nutrition.leafyGreensServingsTarget,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                denomDays: denomDays,
-                now: now
-            )
-        case .fattyFish:
-            // Weekly: count servings (entries flagged isFattyFish=true) in lookback, scale to weekly.
-            let weeks = max(1.0, Double(lookbackDays) / 7.0)
-            let total = entries.filter { $0.isFattyFish == true }.count
-            let perWeek = Double(total) / weeks
-            let target = HealthThresholds.Nutrition.fattyFishServingsPerWeekTarget
-            let pct = target > 0 ? perWeek / target : nil
-            let status = bucketStatus(percent: pct, daysWithData: daysWithData, lowerIsBetter: false)
-            return NutritionBucketRollup(
-                bucket: bucket,
-                status: status,
-                dailyAverage: perWeek,        // reused as "per-week" for display
-                target: target,
-                percentOfTarget: pct,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                trend: .unknown,
-                summary: summary(bucket: bucket, status: status, average: perWeek, target: target, daysWithData: daysWithData, lookbackDays: lookbackDays)
-            )
-        case .ultraProcessed:
-            // Average of per-entry score across entries (0..1 unitless). Lower is better.
-            let scores = entries.compactMap { $0.ultraProcessedScore }
-            let avg = scores.isEmpty ? nil : scores.reduce(0, +) / Double(scores.count)
-            let target = HealthThresholds.Nutrition.ultraProcessedTargetMax
-            let pct = avg.flatMap { target > 0 ? $0 / target : nil }
-            let status = bucketStatus(percent: pct, daysWithData: daysWithData, lowerIsBetter: true)
-            return NutritionBucketRollup(
-                bucket: bucket,
-                status: status,
-                dailyAverage: avg,
-                target: target,
-                percentOfTarget: pct,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                trend: .unknown,
-                summary: summary(bucket: bucket, status: status, average: avg, target: target, daysWithData: daysWithData, lookbackDays: lookbackDays)
-            )
-        case .eatingOccasions:
-            let perDay = denomDays > 0 ? Double(entries.count) / denomDays : 0
-            let limit  = HealthThresholds.Nutrition.eatingOccasionsPerDayMax
-            let pct = limit > 0 ? perDay / limit : nil
-            let status = bucketStatus(percent: pct, daysWithData: daysWithData, lowerIsBetter: true)
-            return NutritionBucketRollup(
-                bucket: bucket,
-                status: status,
-                dailyAverage: perDay,
-                target: limit,
-                percentOfTarget: pct,
-                daysWithData: daysWithData,
-                lookbackDays: lookbackDays,
-                trend: .unknown,
-                summary: summary(bucket: bucket, status: status, average: perDay, target: limit, daysWithData: daysWithData, lookbackDays: lookbackDays)
-            )
-        }
-    }
-
-    // Per-day summed buckets (gram-style nutrients) → average over lookback days.
-    private static func summed(
-        bucket: NutrientBucket,
-        entries: [NutritionEntry],
-        value: (NutritionEntry) -> Double?,
-        target: Double,
-        daysWithData: Int,
-        lookbackDays: Int,
-        denomDays: Double,
-        now: Date
-    ) -> NutritionBucketRollup {
-        let sumAll = entries.compactMap(value).reduce(0, +)
-        let dailyAvg = denomDays > 0 ? sumAll / denomDays : 0
-        let percent = target > 0 ? dailyAvg / target : nil
-        let status = bucketStatus(percent: percent, daysWithData: daysWithData, lowerIsBetter: bucket.lowerIsBetter)
-        let trend = simpleTrend(bucket: bucket, entries: entries, value: value, now: now)
         return NutritionBucketRollup(
             bucket: bucket,
             status: status,
-            dailyAverage: dailyAvg,
+            weeklyValue: value,
             target: target,
             percentOfTarget: percent,
-            daysWithData: daysWithData,
+            daysWithData: coverageDays,
             lookbackDays: lookbackDays,
-            trend: trend,
-            summary: summary(bucket: bucket, status: status, average: dailyAvg, target: target, daysWithData: daysWithData, lookbackDays: lookbackDays)
+            summary: summary(bucket: bucket, status: status, value: value, target: target, coverageDays: coverageDays, lookbackDays: lookbackDays)
         )
+    }
+
+    private static func weeklyValue(
+        for bucket: NutrientBucket,
+        fingerprinted: [(entry: NutritionEntry, fingerprint: MealFingerprint)]
+    ) -> Double {
+        let cal = Calendar.current
+        switch bucket {
+        case .plantVariety:
+            let unique = Set(fingerprinted.flatMap { $0.fingerprint.plantIngredients.map { $0.lowercased() } })
+            return Double(unique.count)
+        case .leafyGreenDays:
+            return Double(daysWithCategory(.leafyGreens, fingerprinted: fingerprinted, cal: cal))
+        case .omega3Days:
+            return Double(daysWithCategory(.omega3Source, fingerprinted: fingerprinted, cal: cal))
+        case .fermentedDays:
+            return Double(daysWithCategory(.fermented, fingerprinted: fingerprinted, cal: cal))
+        case .legumeDays:
+            return Double(daysWithCategory(.legumes, fingerprinted: fingerprinted, cal: cal))
+        case .ultraProcessedMeals:
+            return Double(fingerprinted.filter { $0.fingerprint.contains(.ultraProcessed) }.count)
+        case .processedMeatMeals:
+            return Double(fingerprinted.filter { $0.fingerprint.contains(.processedMeat) }.count)
+        case .friedMeals:
+            return Double(fingerprinted.filter { $0.fingerprint.contains(.fried) }.count)
+        }
+    }
+
+    private static func daysWithCategory(
+        _ category: MealCategory,
+        fingerprinted: [(entry: NutritionEntry, fingerprint: MealFingerprint)],
+        cal: Calendar
+    ) -> Int {
+        let days = fingerprinted
+            .filter { $0.fingerprint.contains(category) }
+            .map { cal.startOfDay(for: $0.entry.date) }
+        return Set(days).count
     }
 
     private static func bucketStatus(percent: Double?, daysWithData: Int, lowerIsBetter: Bool) -> BucketStatus {
@@ -243,62 +143,40 @@ enum NutritionEngine {
         }
     }
 
-    private static func simpleTrend(
-        bucket: NutrientBucket,
-        entries: [NutritionEntry],
-        value: (NutritionEntry) -> Double?,
-        now: Date
-    ) -> TrendDirection {
-        let cal = Calendar.current
-        let halfDays = HealthThresholds.Nutrition.rollupDays / 2
-        guard let mid = cal.date(byAdding: .day, value: -halfDays, to: now) else { return .unknown }
-        let recent = entries.filter { $0.date >= mid }.compactMap(value)
-        let prior  = entries.filter { $0.date <  mid }.compactMap(value)
-        guard recent.count >= 2, prior.count >= 2 else { return .unknown }
-        let r = recent.reduce(0, +) / Double(max(1, halfDays))
-        let p = prior.reduce(0, +)  / Double(max(1, halfDays))
-        return TrendAnalyzer.direction(recent: r, prior: p, lowerIsBetter: bucket.lowerIsBetter)
-    }
-
     private static func summary(
         bucket: NutrientBucket,
         status: BucketStatus,
-        average: Double?,
-        target: Double?,
-        daysWithData: Int,
+        value: Double,
+        target: Double,
+        coverageDays: Int,
         lookbackDays: Int
     ) -> String {
-        if daysWithData < HealthThresholds.Nutrition.minDaysWithDataForRollup {
-            return "Need a few more days of nutrition entries before this is meaningful."
+        if coverageDays < HealthThresholds.Nutrition.minDaysWithDataForRollup {
+            return "Log a few more days before this becomes meaningful."
         }
-        let avgStr: String = {
-            guard let v = average else { return "—" }
-            if bucket == .ultraProcessed { return String(format: "%.2f / 1.0", v) }
-            if bucket == .sodium         { return String(format: "%.0f mg/day", v) }
-            if bucket == .fattyFish      { return String(format: "%.1f/wk", v) }
-            if bucket == .leafyGreens    { return String(format: "%.1f svg/day", v) }
-            if bucket == .eatingOccasions { return String(format: "%.1f/day", v) }
-            return String(format: "%.0f g/day", v)
-        }()
-        let targetStr: String = {
-            guard let t = target else { return "—" }
-            if bucket == .ultraProcessed { return String(format: "≤ %.2f", t) }
-            if bucket == .sodium         { return String(format: "≤ %.0f mg", t) }
-            if bucket == .fattyFish      { return String(format: "≥ %.0f/wk", t) }
-            if bucket == .leafyGreens    { return String(format: "≥ %.0f/day", t) }
-            if bucket == .eatingOccasions { return String(format: "≤ %.0f/day", t) }
-            return bucket.lowerIsBetter ? String(format: "≤ %.0f g", t) : String(format: "≥ %.0f g", t)
-        }()
-        let stem: String = {
-            switch (bucket, status) {
-            case (_, .veryLow):  return "well below target"
-            case (_, .low):      return "below target"
-            case (_, .ok):       return "on target"
-            case (_, .high):     return "above target"
-            case (_, .veryHigh): return "well above target"
-            case (_, .unknown):  return "uncertain"
+        let valueStr: String = {
+            switch bucket {
+            case .plantVariety:        return "\(Int(value)) plants"
+            case .leafyGreenDays, .omega3Days, .fermentedDays, .legumeDays:
+                return "\(Int(value))d/wk"
+            case .ultraProcessedMeals, .processedMeatMeals, .friedMeals:
+                return "\(Int(value)) meals"
             }
         }()
-        return "\(bucket.displayLabel): \(avgStr) over last \(lookbackDays) d — \(stem) (target \(targetStr))."
+        let targetStr: String = {
+            if bucket.lowerIsBetter { return "≤ \(Int(target))" }
+            return "≥ \(Int(target))"
+        }()
+        let stem: String = {
+            switch status {
+            case .veryLow:  return "well below target"
+            case .low:      return "below target"
+            case .ok:       return "on target"
+            case .high:     return "above limit"
+            case .veryHigh: return "well above limit"
+            case .unknown:  return "uncertain"
+            }
+        }()
+        return "\(valueStr) over last \(lookbackDays)d — \(stem) (target \(targetStr))."
     }
 }

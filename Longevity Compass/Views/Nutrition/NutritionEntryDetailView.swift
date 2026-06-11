@@ -1,14 +1,29 @@
 import SwiftUI
+import UIKit
 
 struct NutritionEntryDetailView: View {
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
-    let entry: NutritionEntry
+    @Bindable var entry: NutritionEntry
 
     @State private var showDeleteConfirm = false
+    @State private var showEditSheet = false
+    @State private var photo: UIImage?
 
     var body: some View {
         Form {
+            if let photo {
+                Section {
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+
             Section("Source") {
                 HStack {
                     Image(systemName: entry.source.systemImage)
@@ -29,28 +44,10 @@ struct NutritionEntryDetailView: View {
                 }
             }
 
-            Section("Estimated nutrients") {
-                row("Portion",         entry.portionGrams.map { String(format: "%.0f g", $0) })
-                row("Protein",         entry.proteinGrams.map { String(format: "%.0f g", $0) })
-                row("Fibre",           entry.fiberGrams.map { String(format: "%.0f g", $0) })
-                row("Carbs",           entry.carbsGrams.map { String(format: "%.0f g", $0) })
-                row("Fat",             entry.fatGrams.map { String(format: "%.0f g", $0) })
-                row("Saturated fat",   entry.saturatedFatGrams.map { String(format: "%.0f g", $0) })
-                row("Added sugar",     entry.addedSugarGrams.map { String(format: "%.0f g", $0) })
-                row("Sodium",          entry.sodiumMilligrams.map { String(format: "%.0f mg", $0) })
-                row("Fatty fish",      entry.isFattyFish.map { $0 ? "yes" : "no" })
-                row("Leafy greens",    entry.leafyGreenServings.map { String(format: "%.1f svg", $0) })
-                row("Ultra-processed", entry.ultraProcessedScore.map { String(format: "%.2f / 1.0", $0) })
-            }
-
-            if entry.modelUsed != nil || entry.costUSD != nil {
-                Section("Model") {
-                    if let m = entry.modelUsed { row("Model", m) }
-                    if let cost = entry.costUSD { row("Cost", String(format: "$%.4f", cost)) }
-                    if let ti = entry.inputTokens, let to = entry.outputTokens {
-                        row("Tokens", "\(ti) in / \(to) out")
-                    }
-                }
+            if let fp = entry.fingerprint {
+                fingerprintSections(fp)
+            } else if hasMacros {
+                macroSection
             }
 
             Section {
@@ -63,6 +60,14 @@ struct NutritionEntryDetailView: View {
         }
         .navigationTitle(entry.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Edit") { showEditSheet = true }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditNutritionEntrySheet(entry: entry)
+        }
         .alert("Delete this entry?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 Task {
@@ -71,6 +76,51 @@ struct NutritionEntryDetailView: View {
                 }
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .task(id: entry.imageFileName) {
+            photo = MealImageStore.image(for: entry.imageFileName)
+        }
+    }
+
+    private var hasMacros: Bool {
+        entry.portionGrams != nil || entry.proteinGrams != nil || entry.fiberGrams != nil
+    }
+
+    @ViewBuilder
+    private func fingerprintSections(_ fp: MealFingerprint) -> some View {
+        Section("Categories on plate") {
+            if fp.items.isEmpty {
+                Text("No categories detected.").foregroundStyle(.secondary).font(.subheadline)
+            } else {
+                ForEach(fp.items.sorted { $0.plateFraction > $1.plateFraction }, id: \.category) { item in
+                    HStack {
+                        Image(systemName: item.category.systemImage).frame(width: 22)
+                        Text(item.category.displayLabel)
+                        Spacer()
+                        Text("\(Int(round(item.plateFraction * 100)))%")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
+        }
+        if !fp.plantIngredients.isEmpty {
+            Section("Plant ingredients (\(fp.plantIngredients.count))") {
+                Text(fp.plantIngredients.joined(separator: ", ")).font(.subheadline)
+            }
+        }
+    }
+
+    private var macroSection: some View {
+        Section("Nutrients") {
+            row("Portion",         entry.portionGrams.map { String(format: "%.0f g", $0) })
+            row("Protein",         entry.proteinGrams.map { String(format: "%.0f g", $0) })
+            row("Fibre",           entry.fiberGrams.map { String(format: "%.0f g", $0) })
+            row("Carbs",           entry.carbsGrams.map { String(format: "%.0f g", $0) })
+            row("Fat",             entry.fatGrams.map { String(format: "%.0f g", $0) })
+            row("Saturated fat",   entry.saturatedFatGrams.map { String(format: "%.0f g", $0) })
+            row("Added sugar",     entry.addedSugarGrams.map { String(format: "%.0f g", $0) })
+            row("Sodium",          entry.sodiumMilligrams.map { String(format: "%.0f mg", $0) })
         }
     }
 

@@ -14,6 +14,8 @@ struct Longevity_CompassApp: App {
             NutritionEntry.self,
             ExerciseDef.self,
             ExerciseEntry.self,
+            BloodworkPanel.self,
+            BloodworkMarker.self,
         ])
         let config = ModelConfiguration(
             schema: schema,

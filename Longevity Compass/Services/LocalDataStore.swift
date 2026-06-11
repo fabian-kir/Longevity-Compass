@@ -85,15 +85,39 @@ final class LocalDataStore {
         try? context.save()
     }
 
+    // MARK: - Bloodwork
+
+    func insertBloodworkPanel(_ panel: BloodworkPanel) {
+        context.insert(panel)
+        try? context.save()
+    }
+
+    func fetchAllBloodworkPanels() -> [BloodworkPanel] {
+        let descriptor = FetchDescriptor<BloodworkPanel>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteBloodworkPanel(_ panel: BloodworkPanel) {
+        context.delete(panel)
+        try? context.save()
+    }
+
+    func saveContext() {
+        try? context.save()
+    }
+
     // MARK: - Wipe
 
     func deleteAllLocalData() {
-        for e in fetchAllManualEntries()     { context.delete(e) }
-        for s in fetchAllSnapshots()         { context.delete(s) }
-        for p in fetchPriorityHistory()      { context.delete(p) }
-        for n in fetchAllNutritionEntries()  { context.delete(n) }
-        for d in fetchAll(ExerciseDef.self)  { context.delete(d) }
+        for e in fetchAllManualEntries()      { context.delete(e) }
+        for s in fetchAllSnapshots()          { context.delete(s) }
+        for p in fetchPriorityHistory()       { context.delete(p) }
+        for n in fetchAllNutritionEntries()   { context.delete(n) }
+        for d in fetchAll(ExerciseDef.self)   { context.delete(d) }
         for e in fetchAll(ExerciseEntry.self) { context.delete(e) }
+        for b in fetchAllBloodworkPanels()    { context.delete(b) }
         try? context.save()
     }
 
