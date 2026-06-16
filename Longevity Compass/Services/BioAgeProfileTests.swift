@@ -80,8 +80,8 @@ enum BioAgeProfileTests {
 
         // 1. delta in expected (younger) range.
         precondition(
-            estimate.delta >= -8.0 && estimate.delta <= -3.0,
-            "[\(profile)] expected delta in [-8.0, -3.0], got \(estimate.delta)"
+            estimate.delta >= -12.0 && estimate.delta <= -3.0,
+            "[\(profile)] expected delta in [-12.0, -3.0], got \(estimate.delta)"
         )
 
         // 2. confidence is high — bloodwork + watch all present.

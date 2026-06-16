@@ -30,11 +30,9 @@ struct Longevity_CompassApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
 
-        // TODO: Wire `BioAgeProfileTests.runAll()` here under #if DEBUG once
-        // the Profile A delta range is reconciled with the engine (see notes
-        // in BioAgeProfileTests.swift). Currently calling it crashes the app
-        // at launch because Profile A's delta lands ~0.25y outside the spec's
-        // expected range — the harness is intentionally manual-run for now.
+        #if DEBUG
+        BioAgeProfileTests.runAll()
+        #endif
     }
 
     var body: some Scene {
