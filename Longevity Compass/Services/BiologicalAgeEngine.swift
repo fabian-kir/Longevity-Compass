@@ -311,7 +311,7 @@ enum BiologicalAgeEngine {
             readings.append(r)
         }
         let hdlValue = numericMarker(latestPanel, matching: ["hdl-c", "hdl"])
-        let triglyceridesValue = numericMarker(latestPanel, matching: ["triglycerides", "tg"])
+        let triglyceridesValue = numericMarker(latestPanel, matching: ["triglycerides", "trig"])
         if let r = hdlReading(value: hdlValue, sex: sex, freshness: bloodworkFreshness) {
             readings.append(r)
         }
@@ -692,36 +692,30 @@ enum BiologicalAgeEngine {
     /// `yearsPerSD` carry over from the insulin slot.
     private static func homaIRReading(glucose: Double, insulin: Double, freshness: Double) -> ReadingTuple? {
         guard freshness > 0 else { return nil }
-        let homaIR = (glucose * insulin) / 405.0
+        let homaIR = (glucose * insulin) / HealthThresholds.BioAge.V2.homaIRDenominator
+        let plausible = homaIR >= HealthThresholds.BioAge.V2.homaIRPlausibilityMin
+            && homaIR <= HealthThresholds.BioAge.V2.homaIRPlausibilityMax
         return makeReading(
             signal: .fastingInsulin, value: homaIR,
             mean: HealthThresholds.BioAge.V2.homaIRMean,
             sd: HealthThresholds.BioAge.V2.homaIRSD,
             freshness: freshness,
             label: "HOMA-IR",
-            detail: String(format: "%.1f ratio", homaIR),
+            detail: String(format: "%.1f", homaIR),
             domain: .bloodwork,
-            qualityOverride: (homaIR >= 0.1 && homaIR <= 50) ? 1 : 0
+            qualityOverride: plausible ? 1 : 0
         )
     }
 
     private static func hdlReading(value: Double?, sex: HKBiologicalSex, freshness: Double) -> ReadingTuple? {
         guard freshness > 0, let value = value else { return nil }
-        let mean: Double
-        let sd: Double
-        switch sex {
-        case .female:
-            mean = HealthThresholds.BioAge.V2.hdlFemaleMean
-            sd   = HealthThresholds.BioAge.V2.hdlFemaleSD
-        case .male:
-            mean = HealthThresholds.BioAge.V2.hdlMaleMean
-            sd   = HealthThresholds.BioAge.V2.hdlMaleSD
-        default:
-            mean = (HealthThresholds.BioAge.V2.hdlMaleMean + HealthThresholds.BioAge.V2.hdlFemaleMean) / 2
-            sd   = (HealthThresholds.BioAge.V2.hdlMaleSD   + HealthThresholds.BioAge.V2.hdlFemaleSD)   / 2
-        }
+        let norm = sexAdjusted(
+            sex,
+            male:   (HealthThresholds.BioAge.V2.hdlMaleMean,   HealthThresholds.BioAge.V2.hdlMaleSD),
+            female: (HealthThresholds.BioAge.V2.hdlFemaleMean, HealthThresholds.BioAge.V2.hdlFemaleSD)
+        )
         return makeReading(
-            signal: .hdl, value: value, mean: mean, sd: sd, freshness: freshness,
+            signal: .hdl, value: value, mean: norm.mean, sd: norm.sd, freshness: freshness,
             label: "HDL-C",
             detail: String(format: "%.0f mg/dL", value),
             domain: .bloodwork
@@ -730,7 +724,9 @@ enum BiologicalAgeEngine {
 
     /// TG:HDL ratio — only emitted when both lipids are present. No standalone
     /// triglycerides reading is created today; TG only contributes through this
-    /// ratio.
+    /// ratio. Note: triglycerides-without-HDL is intentionally dropped silently
+    /// here — TG alone is a noisier predictor than the ratio, and surfacing it
+    /// would double-count with HDL once both are present in a later panel.
     private static func trigHdlReading(hdl: Double?, triglycerides: Double?, freshness: Double) -> ReadingTuple? {
         guard freshness > 0, let hdl = hdl, let tg = triglycerides, hdl > 0 else { return nil }
         let ratio = tg / hdl
@@ -768,7 +764,7 @@ enum BiologicalAgeEngine {
             sd: HealthThresholds.BioAge.V2.eGFRSD,
             freshness: freshness,
             label: "eGFR",
-            detail: String(format: "%.0f mL/min", value),
+            detail: String(format: "%.0f mL/min/1.73m²", value),
             domain: .bloodwork
         )
     }
@@ -776,21 +772,13 @@ enum BiologicalAgeEngine {
     private static func altReading(latestPanel: BloodworkPanel?, sex: HKBiologicalSex, freshness: Double) -> ReadingTuple? {
         guard freshness > 0,
               let value = numericMarker(latestPanel, matching: ["alt", "alanine aminotransferase"]) else { return nil }
-        let mean: Double
-        let sd: Double
-        switch sex {
-        case .female:
-            mean = HealthThresholds.BioAge.V2.altFemaleMean
-            sd   = HealthThresholds.BioAge.V2.altFemaleSD
-        case .male:
-            mean = HealthThresholds.BioAge.V2.altMaleMean
-            sd   = HealthThresholds.BioAge.V2.altMaleSD
-        default:
-            mean = (HealthThresholds.BioAge.V2.altMaleMean + HealthThresholds.BioAge.V2.altFemaleMean) / 2
-            sd   = (HealthThresholds.BioAge.V2.altMaleSD   + HealthThresholds.BioAge.V2.altFemaleSD)   / 2
-        }
+        let norm = sexAdjusted(
+            sex,
+            male:   (HealthThresholds.BioAge.V2.altMaleMean,   HealthThresholds.BioAge.V2.altMaleSD),
+            female: (HealthThresholds.BioAge.V2.altFemaleMean, HealthThresholds.BioAge.V2.altFemaleSD)
+        )
         return makeReading(
-            signal: .alt, value: value, mean: mean, sd: sd, freshness: freshness,
+            signal: .alt, value: value, mean: norm.mean, sd: norm.sd, freshness: freshness,
             label: "ALT",
             detail: String(format: "%.0f U/L", value),
             domain: .bloodwork
@@ -1029,6 +1017,22 @@ enum BiologicalAgeEngine {
 
     // MARK: - Norm helpers
 
+    /// Pick the sex-appropriate `(mean, sd)` pair, falling back to a simple
+    /// average when biological sex is unknown/other. Centralizes the otherwise
+    /// duplicated 3-arm switch used by several bloodwork readings.
+    private static func sexAdjusted(
+        _ sex: HKBiologicalSex,
+        male: (mean: Double, sd: Double),
+        female: (mean: Double, sd: Double)
+    ) -> (mean: Double, sd: Double) {
+        switch sex {
+        case .female: return female
+        case .male:   return male
+        default:
+            return ((male.mean + female.mean) / 2, (male.sd + female.sd) / 2)
+        }
+    }
+
     private static func vo2Norm(age: Double, sex: HKBiologicalSex) -> Double {
         switch sex {
         case .female: return interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.vo2NormsFemale)
@@ -1131,13 +1135,31 @@ enum BiologicalAgeEngine {
 
     // MARK: - Marker / entry helpers
 
+    /// Resolve a numeric bloodwork marker by matching marker names against a
+    /// priority-ordered list of needles. Returns the first numeric value whose
+    /// marker name matches the first matching needle.
+    ///
+    /// Matching rules:
+    /// - Single-token needles (no whitespace, no hyphen) match the marker name
+    ///   as a *whole alphanumeric token* (case-insensitive). This prevents
+    ///   short codes like "tg" or "alt" from colliding with unrelated markers
+    ///   ("TGF-β", "salt", "alt-test").
+    /// - Multi-token / hyphenated needles ("hs-crp", "alanine aminotransferase")
+    ///   keep substring matching against the lowercased marker name.
+    /// - Needles are tried in the order given; the first matching needle wins.
     private static func numericMarker(_ panel: BloodworkPanel?, matching needles: [String]) -> Double? {
         guard let markers = panel?.markers else { return nil }
         let lowered = needles.map { $0.lowercased() }
-        for m in markers {
-            let name = m.name.lowercased()
-            if lowered.contains(where: { name.contains($0) }) {
-                return parseLeadingDouble(m.value)
+        for needle in lowered {
+            let isMultiToken = needle.contains(" ") || needle.contains("-")
+            for m in markers {
+                let name = m.name.lowercased()
+                if isMultiToken {
+                    if name.contains(needle), let v = parseLeadingDouble(m.value) { return v }
+                } else {
+                    let tokens = name.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    if tokens.contains(needle), let v = parseLeadingDouble(m.value) { return v }
+                }
             }
         }
         return nil

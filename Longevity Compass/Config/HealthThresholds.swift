@@ -327,6 +327,12 @@ enum HealthThresholds {
             static let homaIRMean: Double = 1.5
             /// HOMA-IR alternative SD.
             static let homaIRSD: Double = 0.8
+            /// HOMA-IR formula: glucose[mg/dL] × insulin[µU/mL] / 405.
+            static let homaIRDenominator: Double = 405
+            /// HOMA-IR plausibility window (inclusive). Values outside collapse
+            /// `qualityWeight` to 0 so a lab error can't poison the insulin slot.
+            static let homaIRPlausibilityMin: Double = 0.1
+            static let homaIRPlausibilityMax: Double = 50
 
             // MARK: - Reference: Lipids
             /// ApoB midpoint (mg/dL). Source: NHANES adult midpoint.
