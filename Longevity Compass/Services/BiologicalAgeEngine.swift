@@ -288,6 +288,21 @@ enum BiologicalAgeEngine {
         if let r = hba1cReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
             readings.append(r)
         }
+        // Fasting glucose and insulin. When both are present we still emit a
+        // standalone glucose reading, but the insulin slot is replaced by a
+        // HOMA-IR-driven reading (preserves `.fastingInsulin` factor mapping
+        // while using a more clinically meaningful value).
+        let fastingGlucoseValue = numericMarker(latestPanel, matching: ["fasting glucose", "glucose (fasting)", "glucose"])
+        let fastingInsulinValue = numericMarker(latestPanel, matching: ["fasting insulin", "insulin (fasting)", "insulin"])
+        if let r = fastingGlucoseReading(value: fastingGlucoseValue, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
+        if let glucose = fastingGlucoseValue, let insulin = fastingInsulinValue,
+           let r = homaIRReading(glucose: glucose, insulin: insulin, freshness: bloodworkFreshness) {
+            readings.append(r)
+        } else if let r = fastingInsulinReading(value: fastingInsulinValue, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
 
         // Lipids -----------------------------------------------------------
         if let r = apoBReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
@@ -295,9 +310,28 @@ enum BiologicalAgeEngine {
         } else if let r = ldlReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
             readings.append(r)
         }
+        let hdlValue = numericMarker(latestPanel, matching: ["hdl-c", "hdl"])
+        let triglyceridesValue = numericMarker(latestPanel, matching: ["triglycerides", "tg"])
+        if let r = hdlReading(value: hdlValue, sex: sex, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
+        if let r = trigHdlReading(hdl: hdlValue, triglycerides: triglyceridesValue, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
 
         // Inflammation -----------------------------------------------------
         if let r = hsCrpReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
+        if let r = homocysteineReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
+
+        // Organ ------------------------------------------------------------
+        if let r = eGFRReading(latestPanel: latestPanel, chronoYears: chronoYears, freshness: bloodworkFreshness) {
+            readings.append(r)
+        }
+        if let r = altReading(latestPanel: latestPanel, sex: sex, freshness: bloodworkFreshness) {
             readings.append(r)
         }
 
@@ -319,6 +353,10 @@ enum BiologicalAgeEngine {
             readings.append(r)
         }
         if let r = exerciseMinutesReading(snapshot: healthSnapshot) {
+            readings.append(r)
+        } else if let r = dailyStepsReading(snapshot: healthSnapshot) {
+            // Only contribute steps when Apple Exercise Time is missing, to
+            // avoid double-counting cardio behavior in the behavior factor.
             readings.append(r)
         }
         if let r = strengthSessionsReading(snapshot: healthSnapshot) {
@@ -616,6 +654,162 @@ enum BiologicalAgeEngine {
             detail: String(format: "%.1f mg/L", raw),
             domain: .bloodwork,
             plausibilityValue: raw
+        )
+    }
+
+    /// Fasting glucose. Note: the needle list also matches non-fasting glucose
+    /// when the lab report omits the "fasting" qualifier. Acceptable for v1.
+    private static func fastingGlucoseReading(value: Double?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let value = value else { return nil }
+        return makeReading(
+            signal: .fastingGlucose, value: value,
+            mean: HealthThresholds.BioAge.V2.fastingGlucoseMean,
+            sd: HealthThresholds.BioAge.V2.fastingGlucoseSD,
+            freshness: freshness,
+            label: "Fasting glucose",
+            detail: String(format: "%.0f mg/dL", value),
+            domain: .bloodwork
+        )
+    }
+
+    /// Standalone fasting insulin reading. Used only when fasting glucose is
+    /// unavailable — otherwise `homaIRReading` takes the insulin slot.
+    private static func fastingInsulinReading(value: Double?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let value = value else { return nil }
+        return makeReading(
+            signal: .fastingInsulin, value: value,
+            mean: HealthThresholds.BioAge.V2.fastingInsulinMean,
+            sd: HealthThresholds.BioAge.V2.fastingInsulinSD,
+            freshness: freshness,
+            label: "Fasting insulin",
+            detail: String(format: "%.1f µU/mL", value),
+            domain: .bloodwork
+        )
+    }
+
+    /// HOMA-IR replaces the plain insulin reading when both glucose and insulin
+    /// are present. Keeps `.fastingInsulin` as the signal so factor mapping and
+    /// `yearsPerSD` carry over from the insulin slot.
+    private static func homaIRReading(glucose: Double, insulin: Double, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0 else { return nil }
+        let homaIR = (glucose * insulin) / 405.0
+        return makeReading(
+            signal: .fastingInsulin, value: homaIR,
+            mean: HealthThresholds.BioAge.V2.homaIRMean,
+            sd: HealthThresholds.BioAge.V2.homaIRSD,
+            freshness: freshness,
+            label: "HOMA-IR",
+            detail: String(format: "%.1f ratio", homaIR),
+            domain: .bloodwork,
+            qualityOverride: (homaIR >= 0.1 && homaIR <= 50) ? 1 : 0
+        )
+    }
+
+    private static func hdlReading(value: Double?, sex: HKBiologicalSex, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let value = value else { return nil }
+        let mean: Double
+        let sd: Double
+        switch sex {
+        case .female:
+            mean = HealthThresholds.BioAge.V2.hdlFemaleMean
+            sd   = HealthThresholds.BioAge.V2.hdlFemaleSD
+        case .male:
+            mean = HealthThresholds.BioAge.V2.hdlMaleMean
+            sd   = HealthThresholds.BioAge.V2.hdlMaleSD
+        default:
+            mean = (HealthThresholds.BioAge.V2.hdlMaleMean + HealthThresholds.BioAge.V2.hdlFemaleMean) / 2
+            sd   = (HealthThresholds.BioAge.V2.hdlMaleSD   + HealthThresholds.BioAge.V2.hdlFemaleSD)   / 2
+        }
+        return makeReading(
+            signal: .hdl, value: value, mean: mean, sd: sd, freshness: freshness,
+            label: "HDL-C",
+            detail: String(format: "%.0f mg/dL", value),
+            domain: .bloodwork
+        )
+    }
+
+    /// TG:HDL ratio — only emitted when both lipids are present. No standalone
+    /// triglycerides reading is created today; TG only contributes through this
+    /// ratio.
+    private static func trigHdlReading(hdl: Double?, triglycerides: Double?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let hdl = hdl, let tg = triglycerides, hdl > 0 else { return nil }
+        let ratio = tg / hdl
+        return makeReading(
+            signal: .trigHdlRatio, value: ratio,
+            mean: HealthThresholds.BioAge.V2.trigHdlRatioMean,
+            sd: HealthThresholds.BioAge.V2.trigHdlRatioSD,
+            freshness: freshness,
+            label: "TG:HDL ratio",
+            detail: String(format: "%.1f:1", ratio),
+            domain: .bloodwork
+        )
+    }
+
+    private static func homocysteineReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0,
+              let value = numericMarker(latestPanel, matching: ["homocysteine"]) else { return nil }
+        return makeReading(
+            signal: .homocysteine, value: value,
+            mean: HealthThresholds.BioAge.V2.homocysteineMean,
+            sd: HealthThresholds.BioAge.V2.homocysteineSD,
+            freshness: freshness,
+            label: "Homocysteine",
+            detail: String(format: "%.1f µmol/L", value),
+            domain: .bloodwork
+        )
+    }
+
+    private static func eGFRReading(latestPanel: BloodworkPanel?, chronoYears: Double, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0,
+              let value = numericMarker(latestPanel, matching: ["egfr", "gfr"]) else { return nil }
+        let mean = interpolateDecadeNorm(age: chronoYears, table: HealthThresholds.BioAge.V2.eGFRNorms)
+        return makeReading(
+            signal: .eGFR, value: value, mean: mean,
+            sd: HealthThresholds.BioAge.V2.eGFRSD,
+            freshness: freshness,
+            label: "eGFR",
+            detail: String(format: "%.0f mL/min", value),
+            domain: .bloodwork
+        )
+    }
+
+    private static func altReading(latestPanel: BloodworkPanel?, sex: HKBiologicalSex, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0,
+              let value = numericMarker(latestPanel, matching: ["alt", "alanine aminotransferase"]) else { return nil }
+        let mean: Double
+        let sd: Double
+        switch sex {
+        case .female:
+            mean = HealthThresholds.BioAge.V2.altFemaleMean
+            sd   = HealthThresholds.BioAge.V2.altFemaleSD
+        case .male:
+            mean = HealthThresholds.BioAge.V2.altMaleMean
+            sd   = HealthThresholds.BioAge.V2.altMaleSD
+        default:
+            mean = (HealthThresholds.BioAge.V2.altMaleMean + HealthThresholds.BioAge.V2.altFemaleMean) / 2
+            sd   = (HealthThresholds.BioAge.V2.altMaleSD   + HealthThresholds.BioAge.V2.altFemaleSD)   / 2
+        }
+        return makeReading(
+            signal: .alt, value: value, mean: mean, sd: sd, freshness: freshness,
+            label: "ALT",
+            detail: String(format: "%.0f U/L", value),
+            domain: .bloodwork
+        )
+    }
+
+    /// Daily steps reading — only contributes when Apple Exercise Time is
+    /// unavailable (caller enforces this). Prefers the 28d average and falls
+    /// back to the 7d average.
+    private static func dailyStepsReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
+        guard let value = snapshot.dailyStepsAverage28d ?? snapshot.dailyStepsAverage7d else { return nil }
+        return makeReading(
+            signal: .dailySteps, value: value,
+            mean: HealthThresholds.BioAge.V2.dailyStepsMean,
+            sd: HealthThresholds.BioAge.V2.dailyStepsSD,
+            freshness: 1.0,
+            label: "Daily steps",
+            detail: "\(Int(value.rounded())) steps/day avg",
+            domain: .cardio
         )
     }
 
