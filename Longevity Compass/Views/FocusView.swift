@@ -239,6 +239,7 @@ private struct BioAgePanel: View {
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityHint("Opens calculation breakdown")
         .sheet(isPresented: $showCalculationSheet) {
             BioAgeDetailSheet(estimate: estimate)
         }

@@ -64,7 +64,7 @@ struct ZScoreBar: View {
             .frame(height: 12, alignment: .center)
         }
         .frame(width: 88, height: 12)
-        .accessibilityLabel("Z-score \(String(format: "%.1f", zScore)) relative to typical")
+        .accessibilityLabel("z-score \(String(format: "%+.1f", zScore)) — \(zScore > 0 ? "favorable" : "unfavorable")")
     }
 }
 
@@ -274,10 +274,12 @@ private struct LeverRow: View {
                 Text(reading.signal.displayName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                Text(valueDetail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if !valueDetail.isEmpty {
+                    Text(valueDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
@@ -290,10 +292,11 @@ private struct LeverRow: View {
     }
 
     private var valueDetail: String {
-        // Flat-penalty signals (nicotine, alcohol) have zero reference — show
-        // only the years contribution.
+        // Flat-penalty signals (nicotine, alcohol) have no meaningful reference
+        // mean — and the signal name is already shown in the row label, so we
+        // suppress the secondary line entirely.
         if reading.signal == .nicotine || reading.signal == .alcohol {
-            return reading.signal.displayName
+            return ""
         }
         let valueStr = formatValue(reading.value, signal: reading.signal)
         let meanStr = formatValue(reading.referenceMean, signal: reading.signal)
@@ -336,7 +339,7 @@ private struct SuppressedLeversSection: View {
                         Text("Levers")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
-                        Text("Currently not counted because bloodwork is fresh")
+                        Text("Currently not counted because recent measurements already reflect them")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -369,14 +372,11 @@ private struct SuppressedLeverRow: View {
     let reading: BioInputReading
 
     private var explanation: String {
-        // Pick a relevant downstream marker for the explanation, falling back
-        // to a generic message if we can't infer one.
-        let downstreamName = inferDownstreamName(for: reading.signal)
+        // Generic phrasing — Layer A may suppress against bloodwork or fresh
+        // fitness signals (VO2 / RHR / HRV), so we no longer name a specific
+        // downstream marker here.
         let signalName = reading.signal.displayName
-        if let downstreamName {
-            return "\(signalName) — counted in priorities only; \(downstreamName) already reflects the cumulative effect on the bio-age number."
-        }
-        return "\(signalName) — counted in priorities only; your fresh bloodwork already reflects its cumulative effect."
+        return "\(signalName) — your recent measurements already capture the effect of this behavior on your bio-age. It's still worth fixing — see the drivers map for guidance."
     }
 
     var body: some View {
@@ -392,19 +392,6 @@ private struct SuppressedLeverRow: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-    }
-
-    private func inferDownstreamName(for behavior: BioSignal) -> String? {
-        let targetFactors = BiologicalAgeEngine.layerATargetFactorsByBehaviorSignal[behavior] ?? []
-        let downstreamSignals = targetFactors.reduce(into: Set<BioSignal>()) { acc, factor in
-            if let s = BiologicalAgeEngine.layerADownstreamSignalsByFactor[factor] { acc.formUnion(s) }
-        }
-        // Prefer a downstream signal that's actually in the user's readings
-        // (the engine only suppresses when one is fresh, so this should hit).
-        if let match = downstreamSignals.first {
-            return match.displayName
-        }
-        return nil
     }
 }
 
