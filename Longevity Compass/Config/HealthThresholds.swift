@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 
 // All tunable constants for the priority engine live here.
 // Edit values, not call sites — the engine reads from this file only.
@@ -258,91 +259,333 @@ enum HealthThresholds {
     // Each contributor is capped so a single noisy value can't dominate the estimate.
 
     enum BioAge {
+        // LEGACY — removed in Task 3 (kept so the current evaluate() body still compiles).
+        // ============================================================
+        // BEGIN LEGACY BLOCK
+        // ============================================================
+
         // VO2 max age-norms (ml/kg/min), rough midpoints from population reference tables.
         // Keyed by decade-of-life floor (e.g. 30 covers 30–39). Capped at 70.
+        // LEGACY — removed in Task 3 (also reused by V2 yearsPerSD lookup, see V2.vo2NormsMale/Female).
         static let vo2NormsMale: [Int: Double] = [
             20: 48, 30: 44, 40: 40, 50: 36, 60: 32, 70: 28,
         ]
+        // LEGACY — removed in Task 3
         static let vo2NormsFemale: [Int: Double] = [
             20: 40, 30: 37, 40: 34, 50: 31, 60: 28, 70: 25,
         ]
         /// One MET ≈ 3.5 ml/kg/min. ~1 year of biological age per 2 ml/kg/min above/below norm.
+        // LEGACY — removed in Task 3
         static let vo2YearsPerUnitDelta: Double = 0.5
+        // LEGACY — removed in Task 3
         static let vo2MaxDelta: Double = 6
 
         // Resting HR (bpm) → years
+        // LEGACY — removed in Task 3
         static let rhrYearsMap: [(maxValue: Double, years: Double)] = [
             (55, -2), (60, -1), (66, 0), (72, 1), (78, 2), (.infinity, 3),
         ]
 
         // HbA1c (%) → years
+        // LEGACY — removed in Task 3
         static let hba1cYearsMap: [(maxValue: Double, years: Double)] = [
             (5.0, -1), (5.5, 0), (5.7, 1), (6.0, 2), (6.5, 3), (.infinity, 5),
         ]
 
         // hs-CRP (mg/L) → years
+        // LEGACY — removed in Task 3
         static let crpYearsMap: [(maxValue: Double, years: Double)] = [
             (1.0, -1), (3.0, 1), (10.0, 3), (.infinity, 3),
         ]
 
         // ApoB (mg/dL) → years; LDL-C used as fallback with same buckets.
+        // LEGACY — removed in Task 3
         static let apoBYearsMap: [(maxValue: Double, years: Double)] = [
             (70, -1), (90, 0), (110, 1), (130, 2), (.infinity, 3),
         ]
+        // LEGACY — removed in Task 3
         static let ldlYearsMap: [(maxValue: Double, years: Double)] = [
             (80, -1), (100, 0), (130, 1), (160, 2), (.infinity, 3),
         ]
 
         // Blood pressure (systolic, diastolic averages) → years
         // Optimal <120/<80 = -1; elevated 120–129/<80 = +1; stage 1 130–139/80–89 = +2; stage 2 ≥140/≥90 = +3.
+        // LEGACY — removed in Task 3
         static let bpOptimalYears: Double  = -1
+        // LEGACY — removed in Task 3
         static let bpElevatedYears: Double = 1
+        // LEGACY — removed in Task 3
         static let bpStage1Years: Double   = 2
+        // LEGACY — removed in Task 3
         static let bpStage2Years: Double   = 3
+        // LEGACY — removed in Task 3
         static let bpUrgentYears: Double   = 5
 
         // Waist circumference (cm) → years
+        // LEGACY — removed in Task 3
         static let waistMaleLow: Double    = 94
+        // LEGACY — removed in Task 3
         static let waistMaleHigh: Double   = 102
+        // LEGACY — removed in Task 3
         static let waistFemaleLow: Double  = 80
+        // LEGACY — removed in Task 3
         static let waistFemaleHigh: Double = 88
 
         // Sleep (h/night, 7d avg) → years
+        // LEGACY — removed in Task 3
         static let sleepGoodYears: Double      = -1   // 7–9 h
+        // LEGACY — removed in Task 3
         static let sleepBorderlineYears: Double = 0   // 6–7 h or 9–10 h
+        // LEGACY — removed in Task 3
         static let sleepBadYears: Double       = 2   // <6 h chronic
 
         // Weekly exercise minutes → years
+        // LEGACY — removed in Task 3
         static let exerciseGoodMinutes: Double     = 300
+        // LEGACY — removed in Task 3
         static let exerciseAdequateMinutes: Double = 150
+        // LEGACY — removed in Task 3
         static let exerciseLowMinutes: Double      = 75
+        // LEGACY — removed in Task 3
         static let exerciseGoodYears: Double       = -2
+        // LEGACY — removed in Task 3
         static let exerciseAdequateYears: Double   = -1
+        // LEGACY — removed in Task 3
         static let exerciseLowYears: Double        = 1
+        // LEGACY — removed in Task 3
         static let exerciseSedentaryYears: Double  = 2
 
         // Strength sessions per week → years
+        // LEGACY — removed in Task 3
         static let strengthGoodSessions: Int = 2
+        // LEGACY — removed in Task 3
         static let strengthYearsGood: Double = -1
+        // LEGACY — removed in Task 3
         static let strengthYearsNone: Double = 1
 
         // Lifestyle modifiers
+        // LEGACY — removed in Task 3 (replaced by V2.nicotineActiveYears etc.)
         static let nicotineActiveYears: Double = 5
+        // LEGACY — removed in Task 3
         static let alcoholHeavyYears: Double   = 2
+        // LEGACY — removed in Task 3
         static let alcoholFrequentYears: Double = 1
+        // LEGACY — removed in Task 3
         static let alcoholNoneYears: Double    = -0.5
 
         // Nutrition (very small signal — diet effects already partly captured via BP/lipids/HbA1c)
+        // LEGACY — removed in Task 3
         static let nutritionGoodYears: Double = -0.5
+        // LEGACY — removed in Task 3
         static let nutritionPoorYears: Double = 0.5
 
         // Confidence: how many primary inputs are present.
         // Primary set: VO2 max, RHR, BP, HbA1c, hs-CRP, ApoB-or-LDL, waist-or-weight, sleep, exercise.
+        // LEGACY — removed in Task 3
         static let primaryInputCount: Int = 9
 
         // Trend: meaningful 90-day delta in years
+        // LEGACY — removed in Task 3
         static let trendImprovingThreshold: Double = -0.3
+        // LEGACY — removed in Task 3
         static let trendWorseningThreshold: Double = 0.3
+
+        // ============================================================
+        // END LEGACY BLOCK
+        // ============================================================
+
+        // MARK: - V2 (new aggregation engine; wired up in Task 3+)
+        //
+        // Reference means, SDs, freshness windows, per-signal `yearsPerSD`,
+        // and per-factor caps for the rewritten biological-age engine.
+        // Logic helpers (`zScore`, `interpolateDecadeNorm`) live in
+        // `BiologicalAgeEngine.swift` next to the new type scaffolding.
+        enum V2 {
+
+            // MARK: - Reference: VO2 max (ml/kg/min)
+            // Decade-keyed population norms reused from the legacy table above.
+            // Source: Cooper Institute / ACSM population reference tables (rough midpoints).
+            /// Cooper Institute / ACSM male VO2 max population midpoints (approximate).
+            static let vo2NormsMale: [Int: Double] = [
+                20: 48, 30: 44, 40: 40, 50: 36, 60: 32, 70: 28,
+            ]
+            /// Cooper Institute / ACSM female VO2 max population midpoints (approximate).
+            static let vo2NormsFemale: [Int: Double] = [
+                20: 40, 30: 37, 40: 34, 50: 31, 60: 28, 70: 25,
+            ]
+            /// Approximate population SD of VO2 max across adult age decades (ml/kg/min).
+            /// Source: rough pooled SD from ACSM / FRIEND registry tables.
+            static let vo2MaxSD: Double = 7
+
+            // MARK: - Reference: HRV (SDNN, Apple Watch, ms)
+            /// Apple Watch HRV SDNN decade midpoints (male). Approximate — derived from
+            /// published Apple Watch HRV literature (Naschitz et al., Apple Heart Study
+            /// derivatives). Cite as rough population estimate.
+            static let hrvNormsMale: [Int: Double] = [
+                20: 55, 30: 48, 40: 40, 50: 34, 60: 28, 70: 24,
+            ]
+            /// Apple Watch HRV SDNN decade midpoints (female). Approximate — same caveats
+            /// as the male table.
+            static let hrvNormsFemale: [Int: Double] = [
+                20: 52, 30: 45, 40: 38, 50: 32, 60: 27, 70: 23,
+            ]
+            /// Pooled SD across age decades for Apple Watch SDNN (ms). Approximate.
+            static let hrvSD: Double = 14
+
+            // MARK: - Reference: Resting HR (bpm), age-flat
+            /// Healthy-adult RHR population midpoint. Source: NHANES adult means (approximate).
+            static let rhrMean: Double = 65
+            /// Pooled adult RHR SD. Source: NHANES (approximate).
+            static let rhrSD: Double = 10
+
+            // MARK: - Reference: Glycemic
+            /// Non-diabetic adult HbA1c midpoint (%). Source: NHANES (approximate).
+            static let hba1cMean: Double = 5.3
+            /// HbA1c SD in non-diabetic adults. Source: NHANES (approximate).
+            static let hba1cSD: Double = 0.3
+            /// Fasting glucose midpoint (mg/dL). Source: NHANES non-diabetic adults (approximate).
+            static let fastingGlucoseMean: Double = 90
+            /// Fasting glucose SD (mg/dL). Source: NHANES non-diabetic adults (approximate).
+            static let fastingGlucoseSD: Double = 8
+            /// Fasting insulin midpoint (µU/mL) for normo-glycemic adults. Source: clinical reference (approximate).
+            static let fastingInsulinMean: Double = 7
+            /// Fasting insulin SD (µU/mL). Source: clinical reference (approximate).
+            static let fastingInsulinSD: Double = 3
+            /// HOMA-IR alternative midpoint (use when the upstream pipeline feeds HOMA-IR
+            /// in place of raw insulin). Source: clinical reference (approximate).
+            static let homaIRMean: Double = 1.5
+            /// HOMA-IR alternative SD. Source: clinical reference (approximate).
+            static let homaIRSD: Double = 0.8
+
+            // MARK: - Reference: Lipids
+            /// ApoB midpoint (mg/dL). Source: NHANES adult midpoint (approximate).
+            static let apoBMean: Double = 95
+            /// ApoB SD (mg/dL). Source: NHANES (approximate).
+            static let apoBSD: Double = 22
+            /// LDL-C midpoint (mg/dL). Source: NHANES adult midpoint (approximate).
+            static let ldlMean: Double = 115
+            /// LDL-C SD (mg/dL). Source: NHANES (approximate).
+            static let ldlSD: Double = 28
+            /// HDL-C male midpoint (mg/dL). Source: NHANES adult midpoint (approximate).
+            static let hdlMaleMean: Double = 48
+            /// HDL-C male SD (mg/dL). Source: NHANES (approximate).
+            static let hdlMaleSD: Double = 12
+            /// HDL-C female midpoint (mg/dL). Source: NHANES adult midpoint (approximate).
+            static let hdlFemaleMean: Double = 58
+            /// HDL-C female SD (mg/dL). Source: NHANES (approximate).
+            static let hdlFemaleSD: Double = 14
+            /// Triglyceride/HDL ratio midpoint (mg/dL units). Source: clinical reference (approximate).
+            static let trigHdlRatioMean: Double = 2.0
+            /// Triglyceride/HDL ratio SD (mg/dL units). Source: clinical reference (approximate).
+            static let trigHdlRatioSD: Double = 1.2
+
+            // MARK: - Reference: Hemodynamic (BP, mmHg)
+            /// Systolic BP midpoint (mmHg). Source: NHANES adult midpoint (approximate).
+            static let systolicBPMean: Double = 122
+            /// Systolic BP SD. Source: NHANES (approximate).
+            static let systolicBPSD: Double = 12
+            /// Diastolic BP midpoint (mmHg). Source: NHANES adult midpoint (approximate).
+            static let diastolicBPMean: Double = 78
+            /// Diastolic BP SD. Source: NHANES (approximate).
+            static let diastolicBPSD: Double = 8
+
+            // MARK: - Reference: Inflammation
+            /// hs-CRP geometric-mean midpoint expressed in log10(mg/L). 0.0 ↔ 1.0 mg/L.
+            /// Source: Ridker / JUPITER population geometric means (approximate).
+            static let hsCrpLog10Mean: Double = 0.0
+            /// hs-CRP log10(mg/L) SD. Source: Ridker / JUPITER (approximate).
+            static let hsCrpLog10SD: Double = 0.45
+            /// Homocysteine midpoint (µmol/L). Source: NHANES adult midpoint (approximate).
+            static let homocysteineMean: Double = 9
+            /// Homocysteine SD (µmol/L). Source: NHANES (approximate).
+            static let homocysteineSD: Double = 3
+
+            // MARK: - Reference: Organ (eGFR, ALT)
+            /// Age-anchored eGFR norms (mL/min/1.73m²). Decade-keyed midpoints from KDIGO /
+            /// general nephrology references (approximate). Lower values are expected with
+            /// age, so direction handling lives in the engine.
+            static let eGFRNorms: [Int: Double] = [
+                20: 105, 30: 100, 40: 95, 50: 90, 60: 85, 70: 78,
+            ]
+            /// Pooled SD for adult eGFR (mL/min/1.73m²). Source: KDIGO references (approximate).
+            static let eGFRSD: Double = 15
+            /// ALT male midpoint (U/L). Source: NHANES adult midpoint (approximate).
+            static let altMaleMean: Double = 27
+            /// ALT male SD (U/L). Source: NHANES (approximate).
+            static let altMaleSD: Double = 11
+            /// ALT female midpoint (U/L). Source: NHANES adult midpoint (approximate).
+            static let altFemaleMean: Double = 22
+            /// ALT female SD (U/L). Source: NHANES (approximate).
+            static let altFemaleSD: Double = 9
+
+            // MARK: - Reference: Body composition
+            /// Waist circumference male midpoint (cm). Source: NHANES adult midpoint (approximate).
+            static let waistMaleMean: Double = 94
+            /// Waist male SD. Source: NHANES (approximate).
+            static let waistMaleSD: Double = 12
+            /// Waist circumference female midpoint (cm). Source: NHANES adult midpoint (approximate).
+            static let waistFemaleMean: Double = 80
+            /// Waist female SD. Source: NHANES (approximate).
+            static let waistFemaleSD: Double = 11
+            /// Expected 90-day percent weight change for a stable adult (0% mean).
+            /// Source: rough population midpoint — most adults are weight-stable.
+            static let weightTrendMean: Double = 0.0
+            /// 90-day percent weight change SD. Source: rough population estimate.
+            static let weightTrendSD: Double = 2.5
+
+            // MARK: - Reference: Behavior
+            /// Sleep midpoint (h/night). Source: CDC adult averages (approximate).
+            static let sleepMean: Double = 7.5
+            /// Sleep SD (h/night). Source: CDC adult averages (approximate).
+            static let sleepSD: Double = 1.0
+            /// Weekly exercise-minutes midpoint. Source: WHO/ACSM guideline anchor (150 min/wk).
+            static let exerciseMinutesMean: Double = 150
+            /// Weekly exercise-minutes SD. Approximate population spread.
+            static let exerciseMinutesSD: Double = 120
+            /// Strength sessions per week midpoint. Source: rough population midpoint (most adults ~1/wk).
+            static let strengthSessionsMean: Double = 1.0
+            /// Strength sessions per week SD. Rough population estimate.
+            static let strengthSessionsSD: Double = 1.0
+            /// Daily steps midpoint. Source: large smartphone/wearable population studies (approximate).
+            static let dailyStepsMean: Double = 6500
+            /// Daily steps SD. Source: large wearable population studies (approximate).
+            static let dailyStepsSD: Double = 3000
+
+            // MARK: - Lifestyle flat penalties (years; sign handled in aggregation)
+            /// Active nicotine use penalty (years added to bio-age). Source: clinical bio-age literature.
+            static let nicotineActiveYears: Double = 5
+            /// Reward for documented clean nicotine log (years subtracted).
+            static let nicotineCleanYears: Double = -1
+            /// Heavy-drinking pattern penalty (years). Heavy = 2+ heavy days in last 14.
+            static let alcoholHeavyYears: Double = 2
+            /// Frequent-drinking pattern penalty (years). Frequent = 5+ drinking days in last 14.
+            static let alcoholFrequentYears: Double = 1
+            /// Reward for documented alcohol-free 14d window (years subtracted).
+            static let alcoholNoneYears: Double = -0.5
+
+            // MARK: - Freshness windows
+            /// VO2 max full-weight window (days). Linear decay from this point to `vo2DecayDays`.
+            static let vo2FreshDays: Int = 60
+            /// VO2 max zero-weight horizon (days). Beyond this, freshness weight is 0.
+            static let vo2DecayDays: Int = 180
+
+            /// Minimum days of HRV samples in last 28 to count the signal.
+            static let hrvMinDays: Int = 14
+            /// Minimum days of RHR samples in last 28 to count the signal.
+            static let rhrMinDays: Int = 14
+
+            /// Bloodwork freshness: full weight if drawn within this many months.
+            static let bloodworkFullMonths: Int = 6
+            /// Bloodwork freshness: half weight if drawn within this many months.
+            static let bloodworkHalfMonths: Int = 12
+            /// Bloodwork freshness: quarter weight if drawn within this many months.
+            /// Beyond this horizon the signal is dropped.
+            static let bloodworkQuarterMonths: Int = 24
+
+            /// Minimum body-weight measurements within the 90-day window required to
+            /// score the `weightTrend` signal.
+            static let weightSeriesMinPoints: Int = 6
+        }
     }
 
     // MARK: - Dashboard policy

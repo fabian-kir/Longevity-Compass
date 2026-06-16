@@ -108,6 +108,107 @@ struct BioInputReading: Hashable {
     var effectiveWeight: Double { freshnessWeight * qualityWeight }
 }
 
+// MARK: - V2 Logic Helpers (Task 2 — pure math; aggregator wires them up in Task 3)
+
+/// Direction-agnostic z-score. Returns a SIGNED z where `+` always means
+/// "better than typical".
+///
+/// - For `.higherIsBetter`: `(value - mean) / sd`
+/// - For `.lowerIsBetter`:  `(mean - value) / sd`
+/// - If `sd == 0`, returns 0 as a safeguard.
+func bioZScore(value: Double, mean: Double, sd: Double, direction: BioDirection) -> Double {
+    guard sd > 0 else { return 0 }
+    switch direction {
+    case .higherIsBetter: return (value - mean) / sd
+    case .lowerIsBetter:  return (mean - value) / sd
+    }
+}
+
+/// Linearly interpolate a decade-keyed reference table (e.g. age → norm).
+///
+/// Keys are expected to be decade floors (20, 30, 40, …). For an age that
+/// falls between two adjacent decade keys, interpolates linearly. Ages below
+/// the smallest key clamp to that key's value; ages above the largest key
+/// clamp to that key's value. Returns 0 if the table is empty.
+func interpolateDecadeNorm(age: Double, table: [Int: Double]) -> Double {
+    let keys = table.keys.sorted()
+    guard let first = keys.first, let last = keys.last else { return 0 }
+    if age <= Double(first) { return table[first] ?? 0 }
+    if age >= Double(last)  { return table[last]  ?? 0 }
+    // Find the two adjacent decade keys bracketing `age`.
+    for i in 0..<(keys.count - 1) {
+        let lo = keys[i]
+        let hi = keys[i + 1]
+        if age >= Double(lo) && age <= Double(hi) {
+            let loV = table[lo] ?? 0
+            let hiV = table[hi] ?? 0
+            let span = Double(hi - lo)
+            guard span > 0 else { return loV }
+            let t = (age - Double(lo)) / span
+            return loV + (hiV - loV) * t
+        }
+    }
+    return table[last] ?? 0
+}
+
+extension BioSignal {
+    /// How many biological-age years one standard deviation of this signal
+    /// is worth in the aggregator. Used as the multiplier on the (capped)
+    /// z-score in Layer A.
+    ///
+    /// Nicotine and alcohol return 0 — they're handled as flat lifestyle
+    /// penalties (see `HealthThresholds.BioAge.V2.nicotineActiveYears` etc.)
+    /// rather than via z-score scaling.
+    var yearsPerSD: Double {
+        switch self {
+        case .vo2Max:           return 2.0
+        case .rhr:              return 1.0
+        case .hrv:              return 0.8
+        case .hba1c:            return 2.5
+        case .fastingGlucose:   return 1.5
+        case .fastingInsulin:   return 1.5
+        case .apoB:             return 2.5
+        case .ldl:              return 1.5
+        case .hdl:              return 0.8
+        case .trigHdlRatio:     return 1.2
+        case .bloodPressure:    return 2.0
+        case .hsCrp:            return 1.5
+        case .homocysteine:     return 0.6
+        case .eGFR:             return 1.0
+        case .alt:              return 0.6
+        case .waist:            return 1.5
+        case .weightTrend:      return 0.5
+        case .sleep:            return 1.0
+        case .exerciseMinutes:  return 1.0
+        case .strengthSessions: return 0.6
+        case .dailySteps:       return 0.4
+        case .nicotine:         return 0.0   // flat; handled separately
+        case .alcohol:          return 0.0   // flat; handled separately
+        case .nutrition:        return 0.5
+        }
+    }
+}
+
+extension BioFactor {
+    /// Maximum absolute years-impact a single factor's combined signals may
+    /// contribute. For nicotine/alcohol the cap also represents the magnitude
+    /// ceiling of the flat penalty (sign handled by the aggregator).
+    var cap: Double {
+        switch self {
+        case .fitness:      return 6
+        case .glycemic:     return 5
+        case .lipids:       return 5
+        case .hemodynamic:  return 5
+        case .bodyComp:     return 4
+        case .inflammation: return 4
+        case .organ:        return 3
+        case .behavior:     return 6
+        case .nicotine:     return 5   // +5/-1 ceiling; sign handled in aggregation
+        case .alcohol:      return 3   // +3/-0.5 ceiling; sign handled in aggregation
+        }
+    }
+}
+
 // MARK: - Model
 
 struct BioAgeContributor: Identifiable, Hashable {
