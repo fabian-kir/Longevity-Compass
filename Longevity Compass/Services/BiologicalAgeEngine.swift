@@ -93,7 +93,7 @@ struct BioInputReading: Hashable {
     /// when computing `rawYearsImpact` — a positive z-score yields negative
     /// years (younger), and vice versa.
     let zScore: Double
-    let rawYearsImpact: Double      // z × yearsPerSD (sign-flipped), before cap & suppression
+    var rawYearsImpact: Double      // z × yearsPerSD (sign-flipped), before cap & suppression
     let freshnessWeight: Double     // 0...1
     let qualityWeight: Double       // 0...1
     /// Set later by Layer A logic (Task 5). Mutable so Layer A can flip it
@@ -206,6 +206,84 @@ extension BioFactor {
         }
     }
 
+}
+
+// MARK: - Layer A suppression
+//
+// Some signals are downstream physiology (bloodwork & wearables that integrate
+// weeks/months of upstream behavior into a measurable number). Others are
+// upstream behaviors (sleep, exercise, nutrition, etc).
+//
+// When a downstream marker is present at meaningful weight, the upstream
+// behaviors that feed into it are already reflected inside the downstream
+// number. Counting both would double-count in the bio-age estimate.
+//
+// Layer A solves this by zeroing the years contribution of an upstream behavior
+// when a fresh downstream signal for any of its target factors exists. The
+// behavior reading remains in the readings array with `suppressedByDownstream
+// = true` so Layer B (Task 6) can still surface it as a user-facing lever
+// ("your sleep is below typical — improve it") even though it didn't move the
+// bio-age number for this user.
+//
+// Nicotine and alcohol are NOT subject to suppression — they capture acute
+// toxicity that bloodwork doesn't reflect on the same timescale. Likewise the
+// waist and weightTrend signals are themselves downstream, not upstream.
+
+extension BiologicalAgeEngine {
+    /// Threshold on `effectiveWeight` above which a downstream reading is
+    /// considered "fresh enough" to suppress upstream behaviors.
+    static let layerASuppressionThreshold: Double = 0.5
+
+    /// Maps a target factor -> the set of downstream signals that, when present
+    /// with effectiveWeight ≥ `layerASuppressionThreshold`, will zero out the
+    /// upstream-behavior years contribution to that factor.
+    static let layerADownstreamSignalsByFactor: [BioFactor: Set<BioSignal>] = [
+        .glycemic:     [.hba1c, .fastingGlucose, .fastingInsulin],
+        .fitness:      [.vo2Max, .rhr, .hrv],
+        .inflammation: [.hsCrp, .homocysteine],
+        .lipids:       [.apoB, .ldl, .hdl, .trigHdlRatio]
+    ]
+
+    /// Maps an upstream behavior signal -> the set of target factors whose
+    /// downstream signals should suppress this behavior when fresh.
+    static let layerATargetFactorsByBehavior: [BioSignal: Set<BioFactor>] = [
+        .sleep:            [.glycemic, .inflammation, .fitness],
+        .nutrition:        [.glycemic, .lipids, .inflammation],
+        .exerciseMinutes:  [.fitness],
+        .strengthSessions: [.fitness],
+        .dailySteps:       [.fitness]
+    ]
+
+    /// Apply the Layer A suppression pass to `readings` in place. For each
+    /// upstream-behavior reading, if ANY of the relevant downstream signals is
+    /// present in the readings array with effectiveWeight ≥ threshold AND not
+    /// already suppressed, the behavior's `suppressedByDownstream` is set to
+    /// true and its `rawYearsImpact` zeroed. The rest of the reading (value,
+    /// zScore, weights) is preserved so later layers can still surface it.
+    static func applyLayerASuppression(to readings: inout [BioInputReading]) {
+        // Build a set of downstream signals that are currently "fresh" across
+        // the whole readings array. A single pass is enough because the
+        // suppression rule is a logical OR across factors.
+        let freshDownstreamSignals: Set<BioSignal> = Set(
+            readings
+                .filter { !$0.suppressedByDownstream && $0.effectiveWeight >= layerASuppressionThreshold }
+                .map { $0.signal }
+        )
+
+        for index in readings.indices {
+            let signal = readings[index].signal
+            guard let targetFactors = layerATargetFactorsByBehavior[signal] else { continue }
+            // Union of the downstream signals across all target factors this
+            // behavior maps to.
+            let relevantDownstream: Set<BioSignal> = targetFactors.reduce(into: Set<BioSignal>()) { acc, factor in
+                if let set = layerADownstreamSignalsByFactor[factor] { acc.formUnion(set) }
+            }
+            if !relevantDownstream.isDisjoint(with: freshDownstreamSignals) {
+                readings[index].suppressedByDownstream = true
+                readings[index].rawYearsImpact = 0
+            }
+        }
+    }
 }
 
 // MARK: - Model
@@ -373,6 +451,15 @@ enum BiologicalAgeEngine {
         if let r = alcoholReading(manualEntries: manualEntries, now: now) {
             readings.append(r)
         }
+
+        // Layer A: suppress upstream behaviors when a fresh downstream signal
+        // makes their contribution redundant in the bio-age number. The
+        // suppressed readings stay in the array (with suppressedByDownstream
+        // = true and rawYearsImpact = 0) so Layer B can surface them as
+        // lifestyle levers.
+        var bareReadings = readings.map { $0.reading }
+        applyLayerASuppression(to: &bareReadings)
+        for i in readings.indices { readings[i].reading = bareReadings[i] }
 
         // Group by factor, compute weighted-mean years per factor, clamp,
         // and sum to a total years delta.
