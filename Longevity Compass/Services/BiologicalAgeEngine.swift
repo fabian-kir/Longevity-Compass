@@ -228,15 +228,22 @@ extension BioFactor {
 // Nicotine and alcohol are NOT subject to suppression — they capture acute
 // toxicity that bloodwork doesn't reflect on the same timescale. Likewise the
 // waist and weightTrend signals are themselves downstream, not upstream.
+//
+// The single-pass implementation is correct because downstream signals are
+// never themselves behaviors — no signal appears as both a key in the behavior
+// map and a value in the downstream map. If you add a new mapping, preserve
+// that property.
 
 extension BiologicalAgeEngine {
-    /// Threshold on `effectiveWeight` above which a downstream reading is
-    /// considered "fresh enough" to suppress upstream behaviors.
-    static let layerASuppressionThreshold: Double = 0.5
+    /// A downstream reading needs effectiveWeight strictly greater than this to
+    /// suppress its upstream behaviors. We use strict inequality so signals wired
+    /// at exactly 0.5 (e.g. HRV, while its sample-count freshness is still TODO)
+    /// do not single-handedly silence the behavior factor.
+    static let layerASuppressionMinWeight: Double = 0.5
 
     /// Maps a target factor -> the set of downstream signals that, when present
-    /// with effectiveWeight ≥ `layerASuppressionThreshold`, will zero out the
-    /// upstream-behavior years contribution to that factor.
+    /// with effectiveWeight strictly greater than `layerASuppressionMinWeight`,
+    /// will zero out the upstream-behavior years contribution to that factor.
     static let layerADownstreamSignalsByFactor: [BioFactor: Set<BioSignal>] = [
         .glycemic:     [.hba1c, .fastingGlucose, .fastingInsulin],
         .fitness:      [.vo2Max, .rhr, .hrv],
@@ -246,7 +253,7 @@ extension BiologicalAgeEngine {
 
     /// Maps an upstream behavior signal -> the set of target factors whose
     /// downstream signals should suppress this behavior when fresh.
-    static let layerATargetFactorsByBehavior: [BioSignal: Set<BioFactor>] = [
+    static let layerATargetFactorsByBehaviorSignal: [BioSignal: Set<BioFactor>] = [
         .sleep:            [.glycemic, .inflammation, .fitness],
         .nutrition:        [.glycemic, .lipids, .inflammation],
         .exerciseMinutes:  [.fitness],
@@ -256,31 +263,37 @@ extension BiologicalAgeEngine {
 
     /// Apply the Layer A suppression pass to `readings` in place. For each
     /// upstream-behavior reading, if ANY of the relevant downstream signals is
-    /// present in the readings array with effectiveWeight ≥ threshold AND not
-    /// already suppressed, the behavior's `suppressedByDownstream` is set to
-    /// true and its `rawYearsImpact` zeroed. The rest of the reading (value,
-    /// zScore, weights) is preserved so later layers can still surface it.
-    static func applyLayerASuppression(to readings: inout [BioInputReading]) {
+    /// present in the readings array with effectiveWeight strictly greater than
+    /// the threshold AND not already suppressed, the behavior's
+    /// `suppressedByDownstream` is set to true and its `rawYearsImpact` zeroed.
+    /// The rest of the reading (value, zScore, weights) is preserved so later
+    /// layers can still surface it.
+    ///
+    /// Operates directly on the wrapper-tuple array (`ReadingTuple`) to avoid
+    /// any index-aligned parallel-array bookkeeping at the call site.
+    fileprivate static func applyLayerASuppression(to readings: inout [ReadingTuple]) {
         // Build a set of downstream signals that are currently "fresh" across
         // the whole readings array. A single pass is enough because the
-        // suppression rule is a logical OR across factors.
+        // suppression rule is a logical OR across factors, and downstream
+        // signals are never themselves behaviors (so a behavior reading can
+        // never be the source of its own suppression).
         let freshDownstreamSignals: Set<BioSignal> = Set(
             readings
-                .filter { !$0.suppressedByDownstream && $0.effectiveWeight >= layerASuppressionThreshold }
-                .map { $0.signal }
+                .filter { !$0.reading.suppressedByDownstream && $0.reading.effectiveWeight > layerASuppressionMinWeight }
+                .map { $0.reading.signal }
         )
 
         for index in readings.indices {
-            let signal = readings[index].signal
-            guard let targetFactors = layerATargetFactorsByBehavior[signal] else { continue }
+            let signal = readings[index].reading.signal
+            guard let targetFactors = layerATargetFactorsByBehaviorSignal[signal] else { continue }
             // Union of the downstream signals across all target factors this
             // behavior maps to.
             let relevantDownstream: Set<BioSignal> = targetFactors.reduce(into: Set<BioSignal>()) { acc, factor in
                 if let set = layerADownstreamSignalsByFactor[factor] { acc.formUnion(set) }
             }
             if !relevantDownstream.isDisjoint(with: freshDownstreamSignals) {
-                readings[index].suppressedByDownstream = true
-                readings[index].rawYearsImpact = 0
+                readings[index].reading.suppressedByDownstream = true
+                readings[index].reading.rawYearsImpact = 0
             }
         }
     }
@@ -457,9 +470,7 @@ enum BiologicalAgeEngine {
         // suppressed readings stay in the array (with suppressedByDownstream
         // = true and rawYearsImpact = 0) so Layer B can surface them as
         // lifestyle levers.
-        var bareReadings = readings.map { $0.reading }
-        applyLayerASuppression(to: &bareReadings)
-        for i in readings.indices { readings[i].reading = bareReadings[i] }
+        applyLayerASuppression(to: &readings)
 
         // Group by factor, compute weighted-mean years per factor, clamp,
         // and sum to a total years delta.
@@ -528,7 +539,7 @@ enum BiologicalAgeEngine {
     // tuple so the aggregator can both score the reading and project it into
     // a `BioAgeContributor` for the UI.
 
-    private typealias ReadingTuple = (reading: BioInputReading, label: String, detail: String, domain: HealthDomain)
+    fileprivate typealias ReadingTuple = (reading: BioInputReading, label: String, detail: String, domain: HealthDomain)
 
     /// Plausibility range used to drive the `qualityWeight` of a reading.
     /// Values outside this range collapse `qualityWeight` to 0 so the reading
