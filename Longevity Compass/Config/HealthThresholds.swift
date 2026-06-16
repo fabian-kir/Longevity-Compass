@@ -456,6 +456,13 @@ enum HealthThresholds {
             /// Minimum body-weight measurements within the 90-day window required to
             /// score the `weightTrend` signal.
             static let weightSeriesMinPoints: Int = 6
+
+            /// Look-back window for nicotine status (days).
+            static let nicotineWindowDays: Int = 60
+            /// Look-back window for alcohol pattern (days).
+            static let alcoholWindowDays: Int = 14
+            /// 90-day trend window — used for VO2-then, RHR baseline, body-mass drift.
+            static let trendWindowDays: Int = 90
         }
 
         // MARK: - Trend thresholds (still used by the v2 90-day trend mapping)

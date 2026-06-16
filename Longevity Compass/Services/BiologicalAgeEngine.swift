@@ -206,24 +206,6 @@ extension BioFactor {
         }
     }
 
-    /// Default-projection mapping from a factor to a coarse `HealthDomain`
-    /// for backwards-compatible contributor labelling. Behavior is too broad
-    /// for a single mapping — callers should resolve the domain per-signal
-    /// for behavior (see `BiologicalAgeEngine.domain(for:)`).
-    var defaultDomain: HealthDomain {
-        switch self {
-        case .fitness:      return .cardio
-        case .glycemic:     return .bloodwork
-        case .lipids:       return .bloodwork
-        case .hemodynamic:  return .bloodPressure
-        case .bodyComp:     return .bodyComposition
-        case .inflammation: return .bloodwork
-        case .organ:        return .bloodwork
-        case .behavior:     return .cardio
-        case .nicotine:     return .nicotine
-        case .alcohol:      return .alcohol
-        }
-    }
 }
 
 // MARK: - Model
@@ -364,7 +346,7 @@ enum BiologicalAgeEngine {
             guard totalWeight > 0 else { continue }
             let weightedYears = live.reduce(0.0) {
                 $0 + $1.reading.rawYearsImpact * $1.reading.effectiveWeight
-            } / max(totalWeight, 1e-9)
+            } / totalWeight
             let cap = factor.yearsCap
             totalYears += clamp(weightedYears, -cap, cap)
         }
@@ -423,6 +405,109 @@ enum BiologicalAgeEngine {
 
     private typealias ReadingTuple = (reading: BioInputReading, label: String, detail: String, domain: HealthDomain)
 
+    /// Plausibility range used to drive the `qualityWeight` of a reading.
+    /// Values outside this range collapse `qualityWeight` to 0 so the reading
+    /// neither poisons the factor's weighted mean nor inflates coverage.
+    /// Returns `nil` for flat-penalty signals — those bypass `makeReading`.
+    private static func plausibilityRange(for signal: BioSignal) -> ClosedRange<Double>? {
+        switch signal {
+        case .vo2Max:           return 5...90
+        case .rhr:              return 30...200
+        case .hrv:              return 1...300
+        case .hba1c:            return 3.0...20.0
+        case .fastingGlucose:   return 40...500
+        case .fastingInsulin:   return 0.5...100
+        case .apoB:             return 20...300
+        case .ldl:              return 20...400
+        case .hdl:              return 10...150
+        case .trigHdlRatio:     return 0...50
+        case .bloodPressure:    return 60...260   // systolic
+        case .hsCrp:            return 0.05...50  // raw mg/L (engine logs internally)
+        case .homocysteine:     return 3...100
+        case .eGFR:             return 5...200
+        case .alt:              return 1...500
+        case .waist:            return 40...200
+        case .weightTrend:      return -50...50   // pct change
+        case .sleep:            return 0...16
+        case .exerciseMinutes:  return 0...3000
+        case .strengthSessions: return 0...20     // sessions/week
+        case .dailySteps:       return 0...100_000
+        case .nutrition:        return -100...100 // composite score
+        case .nicotine, .alcohol: return nil      // flat penalties
+        }
+    }
+
+    /// Shared z-score → years builder. Each per-signal helper resolves
+    /// `value`, `mean`, `sd`, `freshness`, label, detail, and domain, then
+    /// hands the result here so z-score math, sign-flip, plausibility, and
+    /// struct construction live in exactly one place.
+    ///
+    /// - Parameters:
+    ///   - signal: Drives direction, `yearsPerSD`, and plausibility lookup.
+    ///   - plausibilityValue: Value compared against `plausibilityRange(for:)`.
+    ///     Defaults to `value`; pass the raw (pre-transform) reading when
+    ///     the signal stores a transformed value (e.g. hs-CRP log10).
+    ///   - qualityOverride: When non-nil, replaces the plausibility-derived
+    ///     quality weight (used for manual-entry paths or composite signals).
+    private static func makeReading(
+        signal: BioSignal,
+        value: Double,
+        mean: Double,
+        sd: Double,
+        freshness: Double,
+        label: String,
+        detail: String,
+        domain: HealthDomain,
+        plausibilityValue: Double? = nil,
+        qualityOverride: Double? = nil,
+        zOverride: Double? = nil
+    ) -> ReadingTuple {
+        let z = zOverride ?? BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: signal.direction)
+        let yps = signal.yearsPerSD ?? 0
+        let quality: Double = {
+            if let q = qualityOverride { return q }
+            guard let range = plausibilityRange(for: signal) else { return 1 }
+            return range.contains(plausibilityValue ?? value) ? 1 : 0
+        }()
+        let reading = BioInputReading(
+            signal: signal,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yps,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, label, detail, domain)
+    }
+
+    /// Flat-penalty constructor for signals that bypass z-score math entirely
+    /// (currently nicotine and alcohol). Encodes years directly; `zScore`,
+    /// `referenceMean`, and `referenceSD` are left at 0 by convention.
+    private static func makeFlatPenaltyReading(
+        signal: BioSignal,
+        value: Double,
+        years: Double,
+        label: String,
+        detail: String,
+        domain: HealthDomain
+    ) -> ReadingTuple {
+        let reading = BioInputReading(
+            signal: signal,
+            value: value,
+            referenceMean: 0,
+            referenceSD: 0,
+            zScore: 0,
+            rawYearsImpact: years,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
+        )
+        return (reading, label, detail, domain)
+    }
+
     private static func vo2MaxReading(
         snapshot: HealthKitSnapshot,
         chronoYears: Double,
@@ -433,49 +518,28 @@ enum BiologicalAgeEngine {
         let value = sample.value
         let mean = vo2Norm(age: chronoYears, sex: sex)
         let sd = HealthThresholds.BioAge.V2.vo2MaxSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
-        let yearsPerSD = BioSignal.vo2Max.yearsPerSD ?? 0
         let freshness = freshnessForVO2(sampleDate: sample.date, now: now)
-        let quality: Double = (value >= 5 && value <= 90) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .vo2Max,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .vo2Max, value: value, mean: mean, sd: sd, freshness: freshness,
+            label: "Cardio fitness (VO2 max)",
+            detail: String(format: "%.0f vs ~%.0f norm", value, mean),
+            domain: .cardio
         )
-        return (reading, "Cardio fitness (VO2 max)", String(format: "%.0f vs ~%.0f norm", value, mean), .cardio)
     }
 
     private static func rhrReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
         guard let value = snapshot.restingHeartRateAverage28d else { return nil }
         let mean = HealthThresholds.BioAge.V2.rhrMean
         let sd = HealthThresholds.BioAge.V2.rhrSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.rhr.yearsPerSD ?? 0
-        let freshness: Double = {
-            // If we have <14 days of underlying samples in the recent series, halve it.
-            let recent = snapshot.restingHeartRateSeries.count
-            if recent > 0 && recent < HealthThresholds.BioAge.V2.rhrMinDays { return 0.5 }
-            return 1.0
-        }()
-        let quality: Double = (value >= 30 && value <= 200) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .rhr,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        // If we have <14 days of underlying samples in the recent series, halve it.
+        let recent = snapshot.restingHeartRateSeries.count
+        let freshness: Double = (recent > 0 && recent < HealthThresholds.BioAge.V2.rhrMinDays) ? 0.5 : 1.0
+        return makeReading(
+            signal: .rhr, value: value, mean: mean, sd: sd, freshness: freshness,
+            label: "Resting heart rate",
+            detail: "\(Int(value.rounded())) bpm avg",
+            domain: .cardio
         )
-        return (reading, "Resting heart rate", "\(Int(value.rounded())) bpm avg", .cardio)
     }
 
     private static func hrvReading(
@@ -486,111 +550,73 @@ enum BiologicalAgeEngine {
         guard let value = snapshot.hrvAverage28d else { return nil }
         let mean = hrvNorm(age: chronoYears, sex: sex)
         let sd = HealthThresholds.BioAge.V2.hrvSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
-        let yearsPerSD = BioSignal.hrv.yearsPerSD ?? 0
-        // HRV detail in the legacy view uses ms. There is no underlying sample
-        // count exposed, so default freshness = 1.
-        let freshness: Double = 1.0
-        let quality: Double = (value > 0 && value < 300) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .hrv,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        // TODO(Task 4): surface HRV sample count and apply hrvMinDays threshold.
+        // Reduced weight until Task 4 surfaces underlying-sample-count from HealthKit
+        // so hrvMinDays can be applied — keeps one noisy day from dominating fitness.
+        let freshness: Double = 0.5
+        return makeReading(
+            signal: .hrv, value: value, mean: mean, sd: sd, freshness: freshness,
+            label: "Heart rate variability",
+            detail: String(format: "%.0f ms vs ~%.0f norm", value, mean),
+            domain: .cardio
         )
-        return (reading, "Heart rate variability", String(format: "%.0f ms vs ~%.0f norm", value, mean), .cardio)
     }
 
     private static func hba1cReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
         guard freshness > 0, let value = numericMarker(latestPanel, matching: ["hba1c", "a1c"]) else { return nil }
-        let mean = HealthThresholds.BioAge.V2.hba1cMean
-        let sd = HealthThresholds.BioAge.V2.hba1cSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.hba1c.yearsPerSD ?? 0
-        let quality: Double = (value >= 3.0 && value <= 20.0) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .hba1c,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .hba1c, value: value,
+            mean: HealthThresholds.BioAge.V2.hba1cMean,
+            sd: HealthThresholds.BioAge.V2.hba1cSD,
+            freshness: freshness,
+            label: "HbA1c",
+            detail: String(format: "%.1f%%", value),
+            domain: .bloodwork
         )
-        return (reading, "HbA1c", String(format: "%.1f%%", value), .bloodwork)
     }
 
     private static func apoBReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
         guard freshness > 0, let value = numericMarker(latestPanel, matching: ["apob", "apo b"]) else { return nil }
-        let mean = HealthThresholds.BioAge.V2.apoBMean
-        let sd = HealthThresholds.BioAge.V2.apoBSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.apoB.yearsPerSD ?? 0
-        let quality: Double = (value > 10 && value < 400) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .apoB,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .apoB, value: value,
+            mean: HealthThresholds.BioAge.V2.apoBMean,
+            sd: HealthThresholds.BioAge.V2.apoBSD,
+            freshness: freshness,
+            label: "ApoB",
+            detail: String(format: "%.0f mg/dL", value),
+            domain: .bloodwork
         )
-        return (reading, "ApoB", String(format: "%.0f mg/dL", value), .bloodwork)
     }
 
     private static func ldlReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
         guard freshness > 0, let value = numericMarker(latestPanel, matching: ["ldl-c", "ldl"]) else { return nil }
-        let mean = HealthThresholds.BioAge.V2.ldlMean
-        let sd = HealthThresholds.BioAge.V2.ldlSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.ldl.yearsPerSD ?? 0
-        let quality: Double = (value > 10 && value < 500) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .ldl,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .ldl, value: value,
+            mean: HealthThresholds.BioAge.V2.ldlMean,
+            sd: HealthThresholds.BioAge.V2.ldlSD,
+            freshness: freshness,
+            label: "LDL-C",
+            detail: String(format: "%.0f mg/dL", value),
+            domain: .bloodwork
         )
-        return (reading, "LDL-C", String(format: "%.0f mg/dL", value), .bloodwork)
     }
 
     private static func hsCrpReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
         guard freshness > 0, let raw = numericMarker(latestPanel, matching: ["hs-crp", "hs crp", "crp"]) else { return nil }
         // hs-CRP distributes log-normally; reference mean/SD live in log10 space.
+        // The plausibility check runs against the raw mg/L value via `plausibilityValue`.
         guard raw > 0 else { return nil }
         let logged = log10(raw)
-        let mean = HealthThresholds.BioAge.V2.hsCrpLog10Mean
-        let sd = HealthThresholds.BioAge.V2.hsCrpLog10SD
-        let z = BioInputReading.zScore(value: logged, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.hsCrp.yearsPerSD ?? 0
-        let quality: Double = (raw > 0 && raw < 100) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .hsCrp,
-            value: logged,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: freshness,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .hsCrp, value: logged,
+            mean: HealthThresholds.BioAge.V2.hsCrpLog10Mean,
+            sd: HealthThresholds.BioAge.V2.hsCrpLog10SD,
+            freshness: freshness,
+            label: "Inflammation (hs-CRP)",
+            detail: String(format: "%.1f mg/L", raw),
+            domain: .bloodwork,
+            plausibilityValue: raw
         )
-        return (reading, "Inflammation (hs-CRP)", String(format: "%.1f mg/L", raw), .bloodwork)
     }
 
     private static func bloodPressureReading(
@@ -599,9 +625,9 @@ enum BiologicalAgeEngine {
         now: Date
     ) -> ReadingTuple? {
         guard let bp = recentBpAverage(snapshot: snapshot, manualEntries: manualEntries, now: now) else { return nil }
-        // Score systolic and diastolic z separately, then average to a single
-        // "BP composite z" — keeps the signal as a single reading inside the
-        // hemodynamic factor.
+        // Note: `value`/`referenceMean`/`referenceSD` carry the systolic component
+        // only, while `zScore` is a composite of systolic+diastolic z (averaged) —
+        // chosen so BP stays a single reading inside the hemodynamic factor.
         let sysZ = BioInputReading.zScore(
             value: bp.systolic,
             mean: HealthThresholds.BioAge.V2.systolicBPMean,
@@ -614,22 +640,24 @@ enum BiologicalAgeEngine {
             sd: HealthThresholds.BioAge.V2.diastolicBPSD,
             direction: .lowerIsBetter
         )
-        let z = (sysZ + diaZ) / 2
-        let yearsPerSD = BioSignal.bloodPressure.yearsPerSD ?? 0
-        // Implausible BP ranges fall back to 0 quality so they don't poison.
-        let quality: Double = (bp.systolic >= 60 && bp.systolic <= 260 && bp.diastolic >= 30 && bp.diastolic <= 200) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .bloodPressure,
-            value: bp.systolic,
-            referenceMean: HealthThresholds.BioAge.V2.systolicBPMean,
-            referenceSD: HealthThresholds.BioAge.V2.systolicBPSD,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        let compositeZ = (sysZ + diaZ) / 2
+        // Implausible BP ranges fall back to 0 quality so they don't poison. The
+        // plausibility helper only covers systolic, so guard diastolic explicitly.
+        let sysRange = plausibilityRange(for: .bloodPressure)
+        let sysOk = sysRange?.contains(bp.systolic) ?? true
+        let diaOk = bp.diastolic >= 30 && bp.diastolic <= 200
+        let quality: Double = (sysOk && diaOk) ? 1 : 0
+        return makeReading(
+            signal: .bloodPressure, value: bp.systolic,
+            mean: HealthThresholds.BioAge.V2.systolicBPMean,
+            sd: HealthThresholds.BioAge.V2.systolicBPSD,
+            freshness: 1.0,
+            label: "Blood pressure",
+            detail: "\(Int(bp.systolic.rounded()))/\(Int(bp.diastolic.rounded())) avg",
+            domain: .bloodPressure,
+            qualityOverride: quality,
+            zOverride: compositeZ
         )
-        return (reading, "Blood pressure", "\(Int(bp.systolic.rounded()))/\(Int(bp.diastolic.rounded())) avg", .bloodPressure)
     }
 
     private static func waistReading(
@@ -645,26 +673,17 @@ enum BiologicalAgeEngine {
         guard latest.date >= cutoff else { return nil }
         let mean: Double = (sex == .female) ? HealthThresholds.BioAge.V2.waistFemaleMean : HealthThresholds.BioAge.V2.waistMaleMean
         let sd: Double   = (sex == .female) ? HealthThresholds.BioAge.V2.waistFemaleSD   : HealthThresholds.BioAge.V2.waistMaleSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.waist.yearsPerSD ?? 0
-        let quality: Double = (value > 40 && value < 200) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .waist,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .waist, value: value, mean: mean, sd: sd, freshness: 1.0,
+            label: "Waist circumference",
+            detail: String(format: "%.0f cm", value),
+            domain: .bodyComposition
         )
-        return (reading, "Waist circumference", String(format: "%.0f cm", value), .bodyComposition)
     }
 
     private static func weightTrendReading(snapshot: HealthKitSnapshot, now: Date) -> ReadingTuple? {
         let series = snapshot.bodyMassSeries.sorted { $0.date < $1.date }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
+        let cutoff = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BioAge.V2.trendWindowDays, to: now) ?? now
         let windowSamples = series.filter { $0.date >= cutoff }
         guard windowSamples.count >= HealthThresholds.BioAge.V2.weightSeriesMinPoints,
               let latest = series.last,
@@ -672,84 +691,55 @@ enum BiologicalAgeEngine {
               baseline > 0 else { return nil }
         // weightTrend signal is signed % change over 90d. Positive = gaining weight.
         let pct = (latest.value - baseline) / baseline * 100
-        let mean = HealthThresholds.BioAge.V2.weightTrendMean
-        let sd = HealthThresholds.BioAge.V2.weightTrendSD
-        let z = BioInputReading.zScore(value: pct, mean: mean, sd: sd, direction: .lowerIsBetter)
-        let yearsPerSD = BioSignal.weightTrend.yearsPerSD ?? 0
-        let reading = BioInputReading(
-            signal: .weightTrend,
-            value: pct,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: 1.0,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .weightTrend, value: pct,
+            mean: HealthThresholds.BioAge.V2.weightTrendMean,
+            sd: HealthThresholds.BioAge.V2.weightTrendSD,
+            freshness: 1.0,
+            label: "Body weight trend",
+            detail: String(format: "Δ %+.1f kg vs 90d ago", latest.value - baseline),
+            domain: .bodyComposition
         )
-        return (reading, "Body weight trend", String(format: "Δ %+.1f kg vs 90d ago", latest.value - baseline), .bodyComposition)
     }
 
     private static func sleepReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
         guard let value = snapshot.sleepHoursAverage7d else { return nil }
-        let mean = HealthThresholds.BioAge.V2.sleepMean
-        let sd = HealthThresholds.BioAge.V2.sleepSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
-        let yearsPerSD = BioSignal.sleep.yearsPerSD ?? 0
-        let quality: Double = (value > 0 && value < 24) ? 1 : 0
-        let reading = BioInputReading(
-            signal: .sleep,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: quality,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .sleep, value: value,
+            mean: HealthThresholds.BioAge.V2.sleepMean,
+            sd: HealthThresholds.BioAge.V2.sleepSD,
+            freshness: 1.0,
+            label: "Sleep",
+            detail: String(format: "%.1f h/night avg", value),
+            domain: .sleep
         )
-        return (reading, "Sleep", String(format: "%.1f h/night avg", value), .sleep)
     }
 
     private static func exerciseMinutesReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
         guard let value = snapshot.exerciseMinutesPerWeek else { return nil }
-        let mean = HealthThresholds.BioAge.V2.exerciseMinutesMean
-        let sd = HealthThresholds.BioAge.V2.exerciseMinutesSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
-        let yearsPerSD = BioSignal.exerciseMinutes.yearsPerSD ?? 0
-        let reading = BioInputReading(
-            signal: .exerciseMinutes,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: 1.0,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .exerciseMinutes, value: value,
+            mean: HealthThresholds.BioAge.V2.exerciseMinutesMean,
+            sd: HealthThresholds.BioAge.V2.exerciseMinutesSD,
+            freshness: 1.0,
+            label: "Weekly exercise",
+            detail: "\(Int(value.rounded())) min/wk",
+            domain: .cardio
         )
-        return (reading, "Weekly exercise", "\(Int(value.rounded())) min/wk", .cardio)
     }
 
     private static func strengthSessionsReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
         guard let sessions = snapshot.strengthWorkoutsLast7Days else { return nil }
         let value = Double(sessions)
-        let mean = HealthThresholds.BioAge.V2.strengthSessionsMean
-        let sd = HealthThresholds.BioAge.V2.strengthSessionsSD
-        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
-        let yearsPerSD = BioSignal.strengthSessions.yearsPerSD ?? 0
-        let reading = BioInputReading(
-            signal: .strengthSessions,
-            value: value,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: 1.0,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .strengthSessions, value: value,
+            mean: HealthThresholds.BioAge.V2.strengthSessionsMean,
+            sd: HealthThresholds.BioAge.V2.strengthSessionsSD,
+            freshness: 1.0,
+            label: "Strength training",
+            detail: "\(sessions) session\(sessions == 1 ? "" : "s") this week",
+            domain: .strength
         )
-        return (reading, "Strength training", "\(sessions) session\(sessions == 1 ? "" : "s") this week", .strength)
     }
 
     private static func nutritionReading(digest: NutritionDigest?) -> ReadingTuple? {
@@ -774,30 +764,21 @@ enum BiologicalAgeEngine {
         // Nothing scored at all — don't contribute.
         guard (good + bad) > 0 else { return nil }
         let score = Double(good - bad)
-        let mean = 0.0
-        let sd = 1.0
-        let z = BioInputReading.zScore(value: score, mean: mean, sd: sd, direction: .higherIsBetter)
-        let yearsPerSD = BioSignal.nutrition.yearsPerSD ?? 0
         let detail: String
         if good >= 2 && bad == 0 { detail = "Plants + variety on track" }
         else if bad >= 2 { detail = "Frequent ultra-processed meals" }
         else { detail = "Mixed signal" }
-        let reading = BioInputReading(
-            signal: .nutrition,
-            value: score,
-            referenceMean: mean,
-            referenceSD: sd,
-            zScore: z,
-            rawYearsImpact: -z * yearsPerSD,
-            freshnessWeight: 1.0,
-            qualityWeight: 1.0,
-            suppressedByDownstream: false
+        return makeReading(
+            signal: .nutrition, value: score,
+            mean: 0.0, sd: 1.0, freshness: 1.0,
+            label: "Diet quality",
+            detail: detail,
+            domain: .fiber
         )
-        return (reading, "Diet quality", detail, .fiber)
     }
 
     private static func nicotineReading(manualEntries: [ManualEntry], now: Date) -> ReadingTuple? {
-        let since = Calendar.current.date(byAdding: .day, value: -60, to: now) ?? now
+        let since = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BioAge.V2.nicotineWindowDays, to: now) ?? now
         let recent = manualEntries.filter { $0.entryType == .nicotine && $0.date >= since }
         guard !recent.isEmpty else { return nil }
         let usedRecently = recent.contains { $0.booleanValue == true }
@@ -806,22 +787,18 @@ enum BiologicalAgeEngine {
             : HealthThresholds.BioAge.V2.nicotineCleanYears
         let label = usedRecently ? "Nicotine use" : "No nicotine"
         let detail = usedRecently ? "Logged in last 60d" : "Clean log for 60d+"
-        let reading = BioInputReading(
+        return makeFlatPenaltyReading(
             signal: .nicotine,
             value: usedRecently ? 1 : 0,
-            referenceMean: 0,
-            referenceSD: 0,
-            zScore: 0,
-            rawYearsImpact: years,
-            freshnessWeight: 1.0,
-            qualityWeight: 1.0,
-            suppressedByDownstream: false
+            years: years,
+            label: label,
+            detail: detail,
+            domain: .nicotine
         )
-        return (reading, label, detail, .nicotine)
     }
 
     private static func alcoholReading(manualEntries: [ManualEntry], now: Date) -> ReadingTuple? {
-        let since = Calendar.current.date(byAdding: .day, value: -14, to: now) ?? now
+        let since = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BioAge.V2.alcoholWindowDays, to: now) ?? now
         let recent = manualEntries.filter { $0.entryType == .alcohol && $0.date >= since }
         guard !recent.isEmpty else { return nil }
         let heavy = recent.filter { $0.alcoholLevel == .heavy }.count
@@ -846,18 +823,14 @@ enum BiologicalAgeEngine {
         } else {
             return nil
         }
-        let reading = BioInputReading(
+        return makeFlatPenaltyReading(
             signal: .alcohol,
             value: Double(heavy + light),
-            referenceMean: 0,
-            referenceSD: 0,
-            zScore: 0,
-            rawYearsImpact: years,
-            freshnessWeight: 1.0,
-            qualityWeight: 1.0,
-            suppressedByDownstream: false
+            years: years,
+            label: label,
+            detail: detail,
+            domain: .alcohol
         )
-        return (reading, label, detail, .alcohol)
     }
 
     // MARK: - Norm helpers
@@ -897,10 +870,12 @@ enum BiologicalAgeEngine {
 
     private static func freshnessForBloodwork(latestPanel: BloodworkPanel?, now: Date) -> Double {
         guard let panel = latestPanel else { return 0 }
-        let months = now.timeIntervalSince(panel.date) / (86_400 * 30)
-        if months <= Double(HealthThresholds.BioAge.V2.bloodworkFullMonths)    { return 1.0 }
-        if months <= Double(HealthThresholds.BioAge.V2.bloodworkHalfMonths)    { return 0.5 }
-        if months <= Double(HealthThresholds.BioAge.V2.bloodworkQuarterMonths) { return 0.25 }
+        // Calendar-aware month delta — avoids drift from the 30-day approximation
+        // around month boundaries.
+        let months = Calendar.current.dateComponents([.month], from: panel.date, to: now).month ?? Int.max
+        if months <= HealthThresholds.BioAge.V2.bloodworkFullMonths    { return 1.0 }
+        if months <= HealthThresholds.BioAge.V2.bloodworkHalfMonths    { return 0.5 }
+        if months <= HealthThresholds.BioAge.V2.bloodworkQuarterMonths { return 0.25 }
         return 0
     }
 
@@ -916,7 +891,7 @@ enum BiologicalAgeEngine {
 
         // VO2 max: now vs ~90d-ago using continuous z-score-driven years.
         if let vo2Now = snapshot.latestVO2Max?.value, !snapshot.vo2MaxSeries.isEmpty {
-            let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
+            let cutoff = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BioAge.V2.trendWindowDays, to: now) ?? now
             let older = snapshot.vo2MaxSeries.filter { $0.date <= cutoff }
             if let vo2Then = older.last?.value {
                 let mean = vo2Norm(age: chronoYears, sex: sex)
@@ -941,7 +916,7 @@ enum BiologicalAgeEngine {
         // Body mass drift: % change over 90 days, scored via weightTrend z.
         let series = snapshot.bodyMassSeries.sorted { $0.date < $1.date }
         if let latest = series.last {
-            let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
+            let cutoff = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BioAge.V2.trendWindowDays, to: now) ?? now
             if let then = series.first(where: { $0.date <= cutoff })?.value, then > 0 {
                 let pct = (latest.value - then) / then * 100
                 if abs(pct) >= HealthThresholds.BodyComp.weightChangePercentBorderline * 100 {
