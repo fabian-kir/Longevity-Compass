@@ -21,6 +21,11 @@ struct HealthKitSnapshot {
     var restingHeartRateAverage90d: Double?
     var restingHeartRateSeries: [(date: Date, value: Double)] = []
     var hrvAverage28d: Double?
+    /// Underlying HKQuantitySample count for HRV (SDNN) over the last 28 days.
+    /// Drives the freshness weight on the HRV engine reading — when at or above
+    /// `HealthThresholds.BioAge.V2.hrvMinDays`, HRV counts at full weight;
+    /// otherwise its contribution is halved.
+    var hrvSampleCount28d: Int?
     var sleepHoursAverage7d: Double?
     var sleepHoursAverage28d: Double?
     var latestBodyMass: (value: Double, date: Date)?
@@ -159,6 +164,7 @@ final class HealthKitManager {
         snapshot.restingHeartRateAverage28d  = try? await averageDiscrete(.restingHeartRate, days: 28, unit: HKUnit.count().unitDivided(by: .minute()))
         snapshot.restingHeartRateAverage90d  = try? await averageDiscrete(.restingHeartRate, days: 90, unit: HKUnit.count().unitDivided(by: .minute()))
         snapshot.hrvAverage28d               = try? await averageDiscrete(.heartRateVariabilitySDNN, days: 28, unit: .secondUnit(with: .milli))
+        snapshot.hrvSampleCount28d           = try? await sampleCount(.heartRateVariabilitySDNN, days: 28)
         let (s7, s28) = await sleepAverages()
         snapshot.sleepHoursAverage7d         = s7
         snapshot.sleepHoursAverage28d        = s28
@@ -251,6 +257,24 @@ final class HealthKitManager {
         guard let result = try await descriptor.result(for: healthStore),
               let avg = result.averageQuantity()?.doubleValue(for: unit) else { return nil }
         return avg
+    }
+
+    /// Count of underlying `HKQuantitySample`s for `identifier` over the last
+    /// `days` days. Used (e.g. for HRV) to gate freshness on whether enough
+    /// distinct samples exist, rather than just whether an average is non-nil.
+    private func sampleCount(
+        _ identifier: HKQuantityTypeIdentifier,
+        days: Int
+    ) async throws -> Int {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return 0 }
+        let (start, end) = dateRange(days: days)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [HKSamplePredicate.quantitySample(type: type, predicate: predicate)],
+            sortDescriptors: []
+        )
+        let samples = try await descriptor.result(for: healthStore)
+        return samples.count
     }
 
     private func latestSample(

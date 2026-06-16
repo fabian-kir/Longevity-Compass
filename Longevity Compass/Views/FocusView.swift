@@ -354,27 +354,11 @@ private struct WinPill: View {
 private struct ContributorsSection: View {
     let estimate: BioAgeEstimate
 
-    /// Match each contributor back to its underlying reading by label. Labels
-    /// are unique per signal in the engine, so this is unambiguous; if a match
-    /// is somehow missing we fall back to a label-only row (no z-bar).
+    /// Match each contributor back to its underlying reading via its typed
+    /// `signal` field. Each signal contributes at most one reading per
+    /// evaluate-pass, so this is unambiguous.
     private func reading(for contributor: BioAgeContributor) -> BioInputReading? {
-        estimate.readings.first { $0.signal.displayName == contributor.label || matchesLabel($0, contributor.label) }
-    }
-
-    private func matchesLabel(_ reading: BioInputReading, _ label: String) -> Bool {
-        // Some engine labels don't match `displayName` exactly (e.g.
-        // "Inflammation (hs-CRP)", "Body weight trend"). The reading's signal
-        // detail isn't accessible here, so we just compare label snippets.
-        switch reading.signal {
-        case .hsCrp:        return label.localizedCaseInsensitiveContains("crp")
-        case .weightTrend:  return label.localizedCaseInsensitiveContains("weight")
-        case .nicotine:     return label.localizedCaseInsensitiveContains("nicotine")
-        case .alcohol:      return label.localizedCaseInsensitiveContains("alcohol")
-                                   || label.localizedCaseInsensitiveContains("drink")
-        case .fastingInsulin: return label.localizedCaseInsensitiveContains("homa")
-                                     || label.localizedCaseInsensitiveContains("insulin")
-        default: return false
-        }
+        estimate.readings.first { $0.signal == contributor.signal }
     }
 
     var body: some View {

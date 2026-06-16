@@ -42,6 +42,7 @@ enum BioAgeProfileTests {
         // halving rule only fires for non-empty short series).
         snapshot.restingHeartRateSeries = []
         snapshot.hrvAverage28d = 65
+        snapshot.hrvSampleCount28d = 28   // full 28d coverage → freshness 1.0
         snapshot.sleepHoursAverage7d = 8.0
         snapshot.exerciseMinutesPerWeek = 360
         snapshot.strengthWorkoutsLast7Days = 3
@@ -116,6 +117,7 @@ enum BioAgeProfileTests {
         snapshot.restingHeartRateAverage28d = 78
         snapshot.restingHeartRateSeries = []
         snapshot.hrvAverage28d = 22
+        snapshot.hrvSampleCount28d = 28   // full 28d coverage → freshness 1.0
         snapshot.sleepHoursAverage7d = 5.5
         snapshot.exerciseMinutesPerWeek = 30
         snapshot.strengthWorkoutsLast7Days = 0
@@ -178,6 +180,7 @@ enum BioAgeProfileTests {
         snapshot.restingHeartRateAverage28d = 78
         snapshot.restingHeartRateSeries = []
         snapshot.hrvAverage28d = 22
+        snapshot.hrvSampleCount28d = 28   // full 28d coverage → freshness 1.0
         snapshot.sleepHoursAverage7d = 5.5
         snapshot.exerciseMinutesPerWeek = 30
         snapshot.strengthWorkoutsLast7Days = 0

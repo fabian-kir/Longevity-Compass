@@ -93,6 +93,7 @@ struct BioAgeDetailSheet: View {
     let estimate: BioAgeEstimate
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @Environment(AppServices.self) private var services
     @State private var suppressedExpanded: Bool = false
 
@@ -217,10 +218,10 @@ struct BioAgeDetailSheet: View {
             services.selectedTab = .track
             dismiss()
         case .cardio:
-            // VO2 max is the most likely missing cardio signal — it comes from
-            // Apple Health rather than in-app logging, so just dismiss and
-            // leave a no-op TODO for deeper deep-linking.
-            // TODO: deep-link to Apple Health VO2 source picker.
+            // Cardio signals (VO2 max, RHR, HRV) come from Apple Health rather
+            // than in-app logging — deep-link out so the user can connect or
+            // record the missing source.
+            openURL(AppleHealthLink.url)
             dismiss()
         }
     }

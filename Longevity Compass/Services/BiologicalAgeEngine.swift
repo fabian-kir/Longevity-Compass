@@ -370,6 +370,10 @@ extension BiologicalAgeEngine {
 struct BioAgeContributor: Identifiable, Hashable {
     let id = UUID()
     let domain: HealthDomain
+    /// Underlying signal this contributor was projected from. Lets UI map a
+    /// contributor row back to its `BioInputReading` without label-string
+    /// matching.
+    let signal: BioSignal
     let label: String
     let detail: String
     /// Signed years this input adds to (or removes from) the bio-age estimate.
@@ -683,6 +687,7 @@ enum BiologicalAgeEngine {
         let contributors: [BioAgeContributor] = readings.map { item in
             BioAgeContributor(
                 domain: item.domain,
+                signal: item.reading.signal,
                 label: item.label,
                 detail: item.detail,
                 years: item.reading.rawYearsImpact
@@ -870,10 +875,11 @@ enum BiologicalAgeEngine {
         guard let value = snapshot.hrvAverage28d else { return nil }
         let mean = hrvNorm(age: chronoYears, sex: sex)
         let sd = HealthThresholds.BioAge.V2.hrvSD
-        // TODO(Task 4): surface HRV sample count and apply hrvMinDays threshold.
-        // Reduced weight until Task 4 surfaces underlying-sample-count from HealthKit
-        // so hrvMinDays can be applied — keeps one noisy day from dominating fitness.
-        let freshness: Double = 0.5
+        // Mirror the RHR freshness rule: enough underlying samples → full weight,
+        // sparse coverage → halved. Treat a missing sample count as sparse so an
+        // estimator with only an average but no count exposed stays conservative.
+        let samples = snapshot.hrvSampleCount28d ?? 0
+        let freshness: Double = samples >= HealthThresholds.BioAge.V2.hrvMinDays ? 1.0 : 0.5
         return makeReading(
             signal: .hrv, value: value, mean: mean, sd: sd, freshness: freshness,
             label: "Heart rate variability",
