@@ -433,8 +433,10 @@ extension BioAgeEstimate {
     /// The single upstream-behavior reading representing the user's strongest
     /// potential lever — even if suppressed by Layer A in the number.
     ///
-    /// Returns nil only if the user has no behavior data, or all of their
-    /// behaviors are at or near typical (no behavior has a negative z-score).
+    /// Returns nil if the user has no behavior data, all of their behaviors
+    /// are at or near typical (no negative z-score), or no candidate behavior
+    /// clears the Layer B weakness threshold on its un-suppressed potential
+    /// (`abs(z × yearsPerSD) > layerBWeaknessYearsThreshold`).
     ///
     /// Ranking uses the un-suppressed magnitude `abs(zScore × yearsPerSD)`
     /// rather than `rawYearsImpact`, so a behavior whose contribution has been
@@ -489,6 +491,12 @@ extension BioAgeEstimate {
         let ranked: [Ranked] = candidates.compactMap { reading in
             guard let yps = reading.signal.yearsPerSD else { return nil }
             let potential = abs(reading.zScore * yps)
+            // Symmetry with `upstreamDrivers(for:limit:)`: a behavior must
+            // clear the Layer B weakness threshold on its *un-suppressed*
+            // potential to qualify as a lever. Without this, a user whose
+            // behaviors are all roughly typical (z ~ -0.01) would still get
+            // a top-lever recommendation with negligible magnitude.
+            guard potential > BiologicalAgeEngine.layerBWeaknessYearsThreshold else { return nil }
             let mapIndex = behaviorOrder.firstIndex(of: reading.signal) ?? Int.max
             return Ranked(
                 reading: reading,
