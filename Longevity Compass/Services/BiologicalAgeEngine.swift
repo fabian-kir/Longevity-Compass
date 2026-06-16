@@ -241,6 +241,11 @@ extension BiologicalAgeEngine {
     /// do not single-handedly silence the behavior factor.
     static let layerASuppressionMinWeight: Double = 0.5
 
+    /// Behavior/downstream readings with rawYearsImpact above this count as the
+    /// user being weak on that signal. Used by Layer B (`upstreamDrivers`) and
+    /// Layer C (`topLever`).
+    static let layerBWeaknessYearsThreshold: Double = 0.25
+
     /// Maps a target factor -> the set of downstream signals that, when present
     /// with effectiveWeight strictly greater than `layerASuppressionMinWeight`,
     /// will zero out the upstream-behavior years contribution to that factor.
@@ -404,8 +409,9 @@ struct BioAgeEstimate {
 extension BioAgeEstimate {
     /// For this estimate's user, returns the upstream behaviors most likely
     /// driving a given downstream marker — filtered to those where the user is
-    /// currently weak (`rawYearsImpact > 0.25`, i.e. behavior worse than typical)
-    /// and ranked by magnitude. Returns at most `limit` entries (default 3).
+    /// currently weak (`rawYearsImpact > layerBWeaknessYearsThreshold`, i.e.
+    /// behavior worse than typical) and ranked by magnitude. Returns at most
+    /// `limit` entries (default 3).
     ///
     /// Used by the bio-age detail UI (Task 8) to surface "common drivers of your
     /// high hs-CRP" plus "your strongest lever among them is sleep".
@@ -417,9 +423,90 @@ extension BioAgeEstimate {
         let candidateSet = Set(candidates)
         let weakDrivers = readings
             .filter { candidateSet.contains($0.signal) }
-            .filter { $0.rawYearsImpact > 0.25 }
+            .filter { $0.rawYearsImpact > BiologicalAgeEngine.layerBWeaknessYearsThreshold }
             .sorted { $0.rawYearsImpact > $1.rawYearsImpact }
         return Array(weakDrivers.prefix(limit))
+    }
+}
+
+extension BioAgeEstimate {
+    /// The single upstream-behavior reading representing the user's strongest
+    /// potential lever — even if suppressed by Layer A in the number.
+    ///
+    /// Returns nil only if the user has no behavior data, or all of their
+    /// behaviors are at or near typical (no behavior has a negative z-score).
+    ///
+    /// Ranking uses the un-suppressed magnitude `abs(zScore × yearsPerSD)`
+    /// rather than `rawYearsImpact`, so a behavior whose contribution has been
+    /// zeroed by Layer A (because a fresh downstream marker is present) can
+    /// still rank as the top lever for UI surfacing.
+    ///
+    /// Tie-break: number of the user's failing downstream markers
+    /// (`rawYearsImpact > layerBWeaknessYearsThreshold`) that list this
+    /// behavior as a Layer B driver. Final stable tie-break: position in the
+    /// canonical behavior-signal ordering.
+    var topLever: BioInputReading? {
+        // Canonical ordering for the deterministic final tie-break. Mirrors
+        // the keys of `layerATargetFactorsByBehaviorSignal` but pinned to a
+        // fixed sequence since Dictionary ordering is not stable.
+        let behaviorOrder: [BioSignal] = [
+            .sleep, .nutrition, .exerciseMinutes, .strengthSessions, .dailySteps
+        ]
+        let behaviorSet: Set<BioSignal> = Set(behaviorOrder)
+
+        // 1. Candidates: readings whose signal is an upstream behavior, i.e.
+        //    appears as a KEY in the Layer A behavior map. This excludes
+        //    alcohol and nicotine (flat penalties, not z-scored).
+        // 3. Filter to weakness only: zScore < 0 (worse than typical).
+        let candidates = readings.filter { reading in
+            behaviorSet.contains(reading.signal) && reading.zScore < 0
+        }
+        guard !candidates.isEmpty else { return nil }
+
+        // 4. Tie-break helper: count of failing downstream signals that list
+        //    this behavior as a Layer B driver.
+        let failingDownstream = self.readings.filter { reading in
+            reading.signal.factor != .behavior &&
+            reading.rawYearsImpact > BiologicalAgeEngine.layerBWeaknessYearsThreshold
+        }
+        let multiCause: (BioSignal) -> Int = { behavior in
+            failingDownstream.reduce(0) { acc, ds in
+                let drivers = BiologicalAgeEngine.layerBDriversByDownstream[ds.signal] ?? []
+                return acc + (drivers.contains(behavior) ? 1 : 0)
+            }
+        }
+
+        // 2. Compute potential = |z × yearsPerSD| on the raw z, not on
+        //    rawYearsImpact (which may be zeroed by Layer A). Skip readings
+        //    where yearsPerSD is nil (defensive — shouldn't happen for the
+        //    behavior keys).
+        struct Ranked {
+            let reading: BioInputReading
+            let potential: Double
+            let multiCauseScore: Int
+            let mapIndex: Int
+        }
+        let ranked: [Ranked] = candidates.compactMap { reading in
+            guard let yps = reading.signal.yearsPerSD else { return nil }
+            let potential = abs(reading.zScore * yps)
+            let mapIndex = behaviorOrder.firstIndex(of: reading.signal) ?? Int.max
+            return Ranked(
+                reading: reading,
+                potential: potential,
+                multiCauseScore: multiCause(reading.signal),
+                mapIndex: mapIndex
+            )
+        }
+        guard !ranked.isEmpty else { return nil }
+
+        // 5. Sort: potential desc, multiCauseScore desc, mapIndex asc
+        //    (i.e. -mapIndex desc — earlier in canonical order wins).
+        let sorted = ranked.sorted { a, b in
+            if a.potential != b.potential { return a.potential > b.potential }
+            if a.multiCauseScore != b.multiCauseScore { return a.multiCauseScore > b.multiCauseScore }
+            return a.mapIndex < b.mapIndex
+        }
+        return sorted.first?.reading
     }
 }
 
