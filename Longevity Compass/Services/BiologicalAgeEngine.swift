@@ -299,6 +299,67 @@ extension BiologicalAgeEngine {
     }
 }
 
+// MARK: - Layer B drivers
+//
+// Layer A zeroes the years contribution of an upstream behavior when a fresh
+// downstream marker already reflects it. Layer B is the user-facing counterpart:
+// for a given downstream marker, surface the upstream behaviors that commonly
+// drive it AND on which THIS user is currently weak. The UI in Task 8 uses this
+// to render "Your hs-CRP is elevated — your strongest lever is sleep."
+//
+// `layerBDriversByDownstream` is the static mapping (downstream signal →
+// ranked upstream behaviors). The personalized filter + rank lives on
+// `BioAgeEstimate.upstreamDrivers(for:limit:)`.
+
+extension BiologicalAgeEngine {
+    /// Downstream physiology → likely upstream behaviors that drive it.
+    /// Ordered by typical mechanistic importance (first = usually strongest lever).
+    /// Each entry has a brief one-line mechanistic justification.
+    static let layerBDriversByDownstream: [BioSignal: [BioSignal]] = [
+        // Glycemic ------------------------------------------------------
+        /// HbA1c reflects 90-day glucose; carb quality + post-meal activity + visceral fat drive it; sleep modulates insulin sensitivity.
+        .hba1c:           [.nutrition, .exerciseMinutes, .weightTrend, .sleep],
+        /// Fasting glucose tracks hepatic insulin sensitivity; nutrition + activity + adiposity dominate; sleep debt raises it.
+        .fastingGlucose:  [.nutrition, .exerciseMinutes, .weightTrend, .sleep],
+        /// Fasting insulin / HOMA-IR is driven by visceral fat + diet + activity; poor sleep worsens insulin resistance.
+        .fastingInsulin:  [.nutrition, .exerciseMinutes, .weightTrend, .sleep],
+        // Lipids --------------------------------------------------------
+        /// ApoB responds to dietary saturated fat + fiber, body fat, and aerobic activity.
+        .apoB:            [.nutrition, .weightTrend, .exerciseMinutes],
+        /// LDL-C drivers mirror ApoB: diet composition first, adiposity, then aerobic exercise.
+        .ldl:             [.nutrition, .weightTrend, .exerciseMinutes],
+        /// HDL is most responsive to aerobic exercise, then diet quality; alcohol modestly raises but is not a lever to push.
+        .hdl:             [.exerciseMinutes, .nutrition, .alcohol],
+        /// TG:HDL ratio is the canonical metabolic-syndrome marker — refined carbs, exercise, alcohol drive it.
+        .trigHdlRatio:    [.nutrition, .exerciseMinutes, .alcohol],
+        // Hemodynamic ---------------------------------------------------
+        /// Blood pressure: sleep apnea + alcohol + visceral fat + sodium/diet are the main modifiable drivers.
+        .bloodPressure:   [.sleep, .alcohol, .weightTrend, .nutrition],
+        // Inflammation --------------------------------------------------
+        /// hs-CRP is driven by adipose tissue + diet pattern + alcohol; short sleep raises it independently.
+        .hsCrp:           [.nutrition, .alcohol, .sleep, .weightTrend],
+        /// Homocysteine is primarily a B-vitamin (folate/B12/B6) story — diet is the lever.
+        .homocysteine:    [.nutrition],
+        // Fitness -------------------------------------------------------
+        /// VO2 max is built by aerobic volume + intensity, supported by strength work; sleep gates recovery.
+        .vo2Max:          [.exerciseMinutes, .strengthSessions, .sleep],
+        /// Resting heart rate falls with aerobic training and adequate sleep.
+        .rhr:             [.exerciseMinutes, .sleep],
+        /// HRV is suppressed by short/disturbed sleep and alcohol; aerobic fitness raises baseline.
+        .hrv:             [.sleep, .exerciseMinutes, .alcohol],
+        // Organ ---------------------------------------------------------
+        /// eGFR decline is accelerated by hypertension and high-protein / high-sodium diets.
+        .eGFR:            [.bloodPressure, .nutrition],
+        /// ALT elevation tracks NAFLD — driven by diet (fructose/refined carbs), alcohol, and visceral adiposity.
+        .alt:             [.nutrition, .alcohol, .weightTrend],
+        // Body composition is itself downstream; its drivers are behavior
+        /// Waist circumference is set by energy balance + diet quality + activity; alcohol calories add visceral fat.
+        .waist:           [.nutrition, .exerciseMinutes, .alcohol],
+        /// Weight trend (90d % change) is energy balance: diet quality + activity dominate.
+        .weightTrend:     [.nutrition, .exerciseMinutes],
+    ]
+}
+
 // MARK: - Model
 
 struct BioAgeContributor: Identifiable, Hashable {
@@ -324,6 +385,11 @@ struct BioAgeEstimate {
     /// Estimated change in biological years over the prior ~90 days. Negative = getting younger.
     let trendYearsPer90Days: Double?
     let generatedAt: Date
+    /// Underlying post-suppression readings used to compute this estimate.
+    /// Includes Layer-A-suppressed behavior readings (with `rawYearsImpact = 0`
+    /// and `suppressedByDownstream = true`) so Layer B can still surface them
+    /// as user-facing levers via `upstreamDrivers(for:limit:)`.
+    let readings: [BioInputReading]
 
     /// Contributors working in the user's favor (negative years), strongest first.
     var wins: [BioAgeContributor] {
@@ -332,6 +398,28 @@ struct BioAgeEstimate {
     /// Contributors adding biological years, biggest first — framed as opportunities.
     var opportunities: [BioAgeContributor] {
         contributors.filter { $0.years >= 0.25 }.sorted { $0.years > $1.years }
+    }
+}
+
+extension BioAgeEstimate {
+    /// For this estimate's user, returns the upstream behaviors most likely
+    /// driving a given downstream marker — filtered to those where the user is
+    /// currently weak (`rawYearsImpact > 0.25`, i.e. behavior worse than typical)
+    /// and ranked by magnitude. Returns at most `limit` entries (default 3).
+    ///
+    /// Used by the bio-age detail UI (Task 8) to surface "common drivers of your
+    /// high hs-CRP" plus "your strongest lever among them is sleep".
+    ///
+    /// Returns an empty array when the downstream signal has no mapping or when
+    /// none of its candidate drivers exceed the weakness threshold.
+    func upstreamDrivers(for downstream: BioSignal, limit: Int = 3) -> [BioInputReading] {
+        guard let candidates = BiologicalAgeEngine.layerBDriversByDownstream[downstream] else { return [] }
+        let candidateSet = Set(candidates)
+        let weakDrivers = readings
+            .filter { candidateSet.contains($0.signal) }
+            .filter { $0.rawYearsImpact > 0.25 }
+            .sorted { $0.rawYearsImpact > $1.rawYearsImpact }
+        return Array(weakDrivers.prefix(limit))
     }
 }
 
@@ -528,7 +616,8 @@ enum BiologicalAgeEngine {
             contributors: contributors.sorted { abs($0.years) > abs($1.years) },
             trend: trendDir,
             trendYearsPer90Days: trendYears,
-            generatedAt: now
+            generatedAt: now,
+            readings: readings.map { $0.reading }
         )
     }
 
