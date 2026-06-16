@@ -1,6 +1,62 @@
 import Foundation
 import HealthKit
 
+// MARK: - New Type Scaffolding (Task 1 — pure additive, not yet wired into evaluate())
+
+/// Individual measurable signals that feed into the biological-age engine.
+/// Each signal maps to exactly one `BioFactor` (see `BioInputReading.factor`).
+enum BioSignal: String, CaseIterable, Hashable {
+    case vo2Max, rhr, hrv
+    case hba1c, fastingGlucose, fastingInsulin
+    case apoB, ldl, hdl, trigHdlRatio
+    case bp
+    case hsCrp, homocysteine
+    case eGFR, alt
+    case waist, weightTrend
+    case sleep, exerciseMinutes, strengthSessions, dailySteps
+    case nicotine, alcohol, nutrition
+}
+
+/// Higher-level grouping a signal belongs to. Used by Layer A logic (later tasks)
+/// to apply intra-factor caps and downstream suppression.
+enum BioFactor: String, CaseIterable, Hashable {
+    case fitness        // VO2, RHR, HRV
+    case glycemic       // HbA1c, fasting glucose, fasting insulin
+    case lipids         // ApoB/LDL, HDL, TG:HDL
+    case hemodynamic    // BP
+    case bodyComp       // waist, weight trend
+    case inflammation   // hs-CRP, homocysteine
+    case organ          // eGFR, ALT
+    case behavior       // sleep, exercise, strength, steps, nutrition
+    case nicotine       // own factor (always-counts)
+    case alcohol        // own factor (always-counts)
+}
+
+/// Direction of "better" for a signal — does a higher raw value mean healthier
+/// (e.g. VO2 max) or does a lower raw value mean healthier (e.g. ApoB)?
+enum BioDirection {
+    case higherIsBetter
+    case lowerIsBetter
+}
+
+/// A single normalized input feeding the bio-age aggregator. Built once per
+/// signal, then potentially marked `suppressedByDownstream` by Layer A.
+struct BioInputReading: Hashable {
+    let signal: BioSignal
+    let factor: BioFactor
+    let value: Double
+    let referenceMean: Double      // age/sex-anchored typical value
+    let referenceSD: Double
+    let zScore: Double              // signed: + = better than typical
+    let rawYearsImpact: Double      // z × yearsPerSD, before cap & suppression
+    let freshnessWeight: Double     // 0...1
+    let qualityWeight: Double       // 0...1
+    /// Set later by Layer A logic (Task 5). Default false for now.
+    let suppressedByDownstream: Bool
+
+    var effectiveWeight: Double { freshnessWeight * qualityWeight }
+}
+
 // MARK: - Model
 
 struct BioAgeContributor: Identifiable, Hashable {
