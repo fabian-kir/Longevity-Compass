@@ -136,6 +136,8 @@ struct FocusView: View {
 private struct BioAgePanel: View {
     let estimate: BioAgeEstimate
 
+    @State private var showCalculationSheet: Bool = false
+
     private var tint: Color { AppTab.focus.tint }
 
     private var deltaTint: Color {
@@ -175,50 +177,85 @@ private struct BioAgePanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Biological age")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(tint)
-                        .textCase(.uppercase)
-                    Text(String(format: "%.1f", estimate.biologicalAge))
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    Text(String(format: "Chronological %.1f", estimate.chronologicalAge))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+        Button {
+            showCalculationSheet = true
+        } label: {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Biological age")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(tint)
+                            .textCase(.uppercase)
+                        Text(String(format: "%.1f", estimate.biologicalAge))
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        Text(String(format: "Chronological %.1f", estimate.chronologicalAge))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    GlassIconTile(systemName: "hourglass", tint: tint, size: 56)
                 }
-                Spacer(minLength: 0)
-                GlassIconTile(systemName: "hourglass", tint: tint, size: 56)
-            }
 
-            HStack(spacing: 8) {
-                chip(text: deltaLabel,
-                     icon: estimate.delta <= -0.25 ? "arrow.down.right" :
-                           estimate.delta >=  0.25 ? "arrow.up.right" : "equal",
-                     color: deltaTint)
-                chip(text: trendLabel,
-                     icon: estimate.trend.arrowSymbol == "questionmark" ? "clock" : estimate.trend.arrowSymbol,
-                     color: trendTint)
-            }
-
-            if estimate.confidence < 0.7 {
                 HStack(spacing: 8) {
-                    Image(systemName: "info.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(confidenceCopy)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    chip(text: deltaLabel,
+                         icon: estimate.delta <= -0.25 ? "arrow.down.right" :
+                               estimate.delta >=  0.25 ? "arrow.up.right" : "equal",
+                         color: deltaTint)
+                    chip(text: trendLabel,
+                         icon: estimate.trend.arrowSymbol == "questionmark" ? "clock" : estimate.trend.arrowSymbol,
+                         color: trendTint)
                 }
+
+                if let lever = estimate.topLever {
+                    topLeverLine(for: lever)
+                }
+
+                if estimate.confidence < 0.7 {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(confidenceCopy)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                    Text("Tap to see how this was calculated")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(tint.opacity(0.85))
             }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(tint: tint, cornerRadius: 22)
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(tint: tint, cornerRadius: 22)
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showCalculationSheet) {
+            BioAgeDetailSheet(estimate: estimate)
+        }
+    }
+
+    @ViewBuilder
+    private func topLeverLine(for lever: BioInputReading) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.up.forward.circle.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+            Text("Your biggest lever right now: \(lever.signal.displayName)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
     }
 
     private var confidenceCopy: String {
@@ -316,6 +353,29 @@ private struct WinPill: View {
 private struct ContributorsSection: View {
     let estimate: BioAgeEstimate
 
+    /// Match each contributor back to its underlying reading by label. Labels
+    /// are unique per signal in the engine, so this is unambiguous; if a match
+    /// is somehow missing we fall back to a label-only row (no z-bar).
+    private func reading(for contributor: BioAgeContributor) -> BioInputReading? {
+        estimate.readings.first { $0.signal.displayName == contributor.label || matchesLabel($0, contributor.label) }
+    }
+
+    private func matchesLabel(_ reading: BioInputReading, _ label: String) -> Bool {
+        // Some engine labels don't match `displayName` exactly (e.g.
+        // "Inflammation (hs-CRP)", "Body weight trend"). The reading's signal
+        // detail isn't accessible here, so we just compare label snippets.
+        switch reading.signal {
+        case .hsCrp:        return label.localizedCaseInsensitiveContains("crp")
+        case .weightTrend:  return label.localizedCaseInsensitiveContains("weight")
+        case .nicotine:     return label.localizedCaseInsensitiveContains("nicotine")
+        case .alcohol:      return label.localizedCaseInsensitiveContains("alcohol")
+                                   || label.localizedCaseInsensitiveContains("drink")
+        case .fastingInsulin: return label.localizedCaseInsensitiveContains("homa")
+                                     || label.localizedCaseInsensitiveContains("insulin")
+        default: return false
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionLabel(text: "What's shaping your age")
@@ -324,14 +384,16 @@ private struct ContributorsSection: View {
                     ContributorList(
                         title: "Working in your favor",
                         accent: .green,
-                        items: Array(estimate.wins.prefix(3))
+                        items: Array(estimate.wins.prefix(3)),
+                        readingLookup: reading(for:)
                     )
                 }
                 if !estimate.opportunities.isEmpty {
                     ContributorList(
                         title: "Biggest opportunities",
                         accent: .orange,
-                        items: Array(estimate.opportunities.prefix(3))
+                        items: Array(estimate.opportunities.prefix(3)),
+                        readingLookup: reading(for:)
                     )
                 }
             }
@@ -343,6 +405,7 @@ private struct ContributorList: View {
     let title: String
     let accent: Color
     let items: [BioAgeContributor]
+    let readingLookup: (BioAgeContributor) -> BioInputReading?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -354,7 +417,13 @@ private struct ContributorList: View {
                     .textCase(.uppercase)
             }
             VStack(spacing: 6) {
-                ForEach(items) { ContributorRow(item: $0, accent: accent) }
+                ForEach(items) { item in
+                    ContributorRow(
+                        item: item,
+                        reading: readingLookup(item),
+                        accent: accent
+                    )
+                }
             }
         }
         .padding(14)
@@ -365,6 +434,7 @@ private struct ContributorList: View {
 
 private struct ContributorRow: View {
     let item: BioAgeContributor
+    let reading: BioInputReading?
     let accent: Color
 
     var body: some View {
@@ -383,20 +453,13 @@ private struct ContributorRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            Text(yearsBadge)
-                .font(.caption.weight(.bold))
-                .monospacedDigit()
-                .foregroundStyle(accent)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .glassChip(tint: accent, tintOpacity: 0.22)
+            VStack(alignment: .trailing, spacing: 4) {
+                if let reading {
+                    ZScoreBar(zScore: reading.zScore)
+                }
+                YearsBadgeLabel(years: item.years, accent: accent)
+            }
         }
-    }
-
-    private var yearsBadge: String {
-        let sign = item.years < 0 ? "−" : "+"
-        let abs = abs(item.years)
-        return String(format: "%@%.1f yr", sign, abs)
     }
 }
 
