@@ -458,97 +458,14 @@ enum HealthThresholds {
             static let weightSeriesMinPoints: Int = 6
         }
 
-        // MARK: - BEGIN LEGACY BLOCK — removed in Task 3
-        // (The constants below are used by the legacy evaluate() and will be deleted
-        // when the aggregation engine replaces it in Task 3.)
-
-        // VO2 max age-norms (ml/kg/min), rough midpoints from population reference tables.
-        // Keyed by decade-of-life floor (e.g. 30 covers 30–39). Capped at 70.
-        static let vo2NormsMale: [Int: Double] = [
-            20: 48, 30: 44, 40: 40, 50: 36, 60: 32, 70: 28,
-        ]
-        static let vo2NormsFemale: [Int: Double] = [
-            20: 40, 30: 37, 40: 34, 50: 31, 60: 28, 70: 25,
-        ]
-        /// One MET ≈ 3.5 ml/kg/min. ~1 year of biological age per 2 ml/kg/min above/below norm.
-        static let vo2YearsPerUnitDelta: Double = 0.5
-        static let vo2MaxDelta: Double = 6
-
-        // Resting HR (bpm) → years
-        static let rhrYearsMap: [(maxValue: Double, years: Double)] = [
-            (55, -2), (60, -1), (66, 0), (72, 1), (78, 2), (.infinity, 3),
-        ]
-
-        // HbA1c (%) → years
-        static let hba1cYearsMap: [(maxValue: Double, years: Double)] = [
-            (5.0, -1), (5.5, 0), (5.7, 1), (6.0, 2), (6.5, 3), (.infinity, 5),
-        ]
-
-        // hs-CRP (mg/L) → years
-        static let crpYearsMap: [(maxValue: Double, years: Double)] = [
-            (1.0, -1), (3.0, 1), (10.0, 3), (.infinity, 3),
-        ]
-
-        // ApoB (mg/dL) → years; LDL-C used as fallback with same buckets.
-        static let apoBYearsMap: [(maxValue: Double, years: Double)] = [
-            (70, -1), (90, 0), (110, 1), (130, 2), (.infinity, 3),
-        ]
-        static let ldlYearsMap: [(maxValue: Double, years: Double)] = [
-            (80, -1), (100, 0), (130, 1), (160, 2), (.infinity, 3),
-        ]
-
-        // Blood pressure (systolic, diastolic averages) → years
-        // Optimal <120/<80 = -1; elevated 120–129/<80 = +1; stage 1 130–139/80–89 = +2; stage 2 ≥140/≥90 = +3.
-        static let bpOptimalYears: Double  = -1
-        static let bpElevatedYears: Double = 1
-        static let bpStage1Years: Double   = 2
-        static let bpStage2Years: Double   = 3
-        static let bpUrgentYears: Double   = 5
-
-        // Waist circumference (cm) → years
-        static let waistMaleLow: Double    = 94
-        static let waistMaleHigh: Double   = 102
-        static let waistFemaleLow: Double  = 80
-        static let waistFemaleHigh: Double = 88
-
-        // Sleep (h/night, 7d avg) → years
-        static let sleepGoodYears: Double      = -1   // 7–9 h
-        static let sleepBorderlineYears: Double = 0   // 6–7 h or 9–10 h
-        static let sleepBadYears: Double       = 2   // <6 h chronic
-
-        // Weekly exercise minutes → years
-        static let exerciseGoodMinutes: Double     = 300
-        static let exerciseAdequateMinutes: Double = 150
-        static let exerciseLowMinutes: Double      = 75
-        static let exerciseGoodYears: Double       = -2
-        static let exerciseAdequateYears: Double   = -1
-        static let exerciseLowYears: Double        = 1
-        static let exerciseSedentaryYears: Double  = 2
-
-        // Strength sessions per week → years
-        static let strengthGoodSessions: Int = 2
-        static let strengthYearsGood: Double = -1
-        static let strengthYearsNone: Double = 1
-
-        // Lifestyle modifiers
-        static let nicotineActiveYears: Double = 5
-        static let alcoholHeavyYears: Double   = 2
-        static let alcoholFrequentYears: Double = 1
-        static let alcoholNoneYears: Double    = -0.5
-
-        // Nutrition (very small signal — diet effects already partly captured via BP/lipids/HbA1c)
-        static let nutritionGoodYears: Double = -0.5
-        static let nutritionPoorYears: Double = 0.5
-
-        // Confidence: how many primary inputs are present.
-        // Primary set: VO2 max, RHR, BP, HbA1c, hs-CRP, ApoB-or-LDL, waist-or-weight, sleep, exercise.
-        static let primaryInputCount: Int = 9
-
-        // Trend: meaningful 90-day delta in years
+        // MARK: - Trend thresholds (still used by the v2 90-day trend mapping)
+        //
+        // Threshold for what counts as a meaningful 90-day biological-age
+        // change. The v2 engine computes the delta in continuous z-score-driven
+        // years; these constants decide when to surface that as
+        // improving/worsening vs stable.
         static let trendImprovingThreshold: Double = -0.3
         static let trendWorseningThreshold: Double = 0.3
-
-        // MARK: - END LEGACY BLOCK
     }
 
     // MARK: - Dashboard policy

@@ -205,6 +205,25 @@ extension BioFactor {
         case .alcohol:      return 3   // +3/-0.5 ceiling; sign handled in aggregation
         }
     }
+
+    /// Default-projection mapping from a factor to a coarse `HealthDomain`
+    /// for backwards-compatible contributor labelling. Behavior is too broad
+    /// for a single mapping — callers should resolve the domain per-signal
+    /// for behavior (see `BiologicalAgeEngine.domain(for:)`).
+    var defaultDomain: HealthDomain {
+        switch self {
+        case .fitness:      return .cardio
+        case .glycemic:     return .bloodwork
+        case .lipids:       return .bloodwork
+        case .hemodynamic:  return .bloodPressure
+        case .bodyComp:     return .bodyComposition
+        case .inflammation: return .bloodwork
+        case .organ:        return .bloodwork
+        case .behavior:     return .cardio
+        case .nicotine:     return .nicotine
+        case .alcohol:      return .alcohol
+        }
+    }
 }
 
 // MARK: - Model
@@ -247,6 +266,12 @@ struct BioAgeEstimate {
 
 enum BiologicalAgeEngine {
 
+    /// Coverage target for the confidence calculation: ~10 of the legacy
+    /// "primary" signals at full effective weight (VO2, RHR, HRV, HbA1c,
+    /// ApoB or LDL, BP, waist or weight, sleep, exercise, one inflammation
+    /// marker). Tuned later as new signals come online in Task 4.
+    private static let targetCoverage: Double = 10
+
     static func evaluate(
         manualEntries: [ManualEntry],
         nutritionDigest: NutritionDigest?,
@@ -259,176 +284,117 @@ enum BiologicalAgeEngine {
         guard chronoYears >= 18, chronoYears <= 120 else { return nil }
 
         let sex = healthSnapshot.biologicalSex
-        var contributors: [BioAgeContributor] = []
-        var primaryPresent = 0
-
-        // VO2 max (cardio fitness)
-        if let vo2 = healthSnapshot.latestVO2Max?.value {
-            let norm = vo2Norm(age: chronoYears, sex: sex)
-            let yrs = clamp(
-                (norm - vo2) * HealthThresholds.BioAge.vo2YearsPerUnitDelta,
-                -HealthThresholds.BioAge.vo2MaxDelta,
-                HealthThresholds.BioAge.vo2MaxDelta
-            )
-            contributors.append(BioAgeContributor(
-                domain: .cardio,
-                label: "Cardio fitness (VO2 max)",
-                detail: String(format: "%.0f vs ~%.0f norm", vo2, norm),
-                years: yrs
-            ))
-            primaryPresent += 1
-        }
-
-        // Resting heart rate
-        if let rhr = healthSnapshot.restingHeartRateAverage28d {
-            let yrs = lookupBand(rhr, map: HealthThresholds.BioAge.rhrYearsMap)
-            contributors.append(BioAgeContributor(
-                domain: .cardio,
-                label: "Resting heart rate",
-                detail: "\(Int(rhr.rounded())) bpm avg",
-                years: yrs
-            ))
-            primaryPresent += 1
-        }
-
-        // Blood pressure
-        if let bp = recentBpAverage(snapshot: healthSnapshot, manualEntries: manualEntries, now: now) {
-            let yrs = bpYears(systolic: bp.systolic, diastolic: bp.diastolic)
-            contributors.append(BioAgeContributor(
-                domain: .bloodPressure,
-                label: "Blood pressure",
-                detail: "\(Int(bp.systolic.rounded()))/\(Int(bp.diastolic.rounded())) avg",
-                years: yrs
-            ))
-            primaryPresent += 1
-        }
-
-        // Bloodwork: latest panel only
         let latestPanel = bloodworkPanels.sorted { $0.date > $1.date }.first
+        let bloodworkFreshness = freshnessForBloodwork(latestPanel: latestPanel, now: now)
 
-        if let hba1c = numericMarker(latestPanel, matching: ["hba1c", "a1c"]) {
-            let yrs = lookupBand(hba1c, map: HealthThresholds.BioAge.hba1cYearsMap)
-            contributors.append(BioAgeContributor(
-                domain: .bloodwork,
-                label: "HbA1c",
-                detail: String(format: "%.1f%%", hba1c),
-                years: yrs
-            ))
-            primaryPresent += 1
+        // Build the unsorted reading list. Each per-signal helper returns nil
+        // when data is missing or the freshness window is exhausted.
+        var readings: [(reading: BioInputReading, label: String, detail: String, domain: HealthDomain)] = []
+
+        // Fitness ----------------------------------------------------------
+        if let r = vo2MaxReading(snapshot: healthSnapshot, chronoYears: chronoYears, sex: sex, now: now) {
+            readings.append(r)
+        }
+        if let r = rhrReading(snapshot: healthSnapshot) {
+            readings.append(r)
+        }
+        if let r = hrvReading(snapshot: healthSnapshot, chronoYears: chronoYears, sex: sex) {
+            readings.append(r)
         }
 
-        if let crp = numericMarker(latestPanel, matching: ["hs-crp", "hs crp", "crp"]) {
-            let yrs = lookupBand(crp, map: HealthThresholds.BioAge.crpYearsMap)
-            contributors.append(BioAgeContributor(
-                domain: .bloodwork,
-                label: "Inflammation (hs-CRP)",
-                detail: String(format: "%.1f mg/L", crp),
-                years: yrs
-            ))
-            primaryPresent += 1
+        // Glycemic ---------------------------------------------------------
+        if let r = hba1cReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
+            readings.append(r)
         }
 
-        if let apob = numericMarker(latestPanel, matching: ["apob", "apo b"]) {
-            let yrs = lookupBand(apob, map: HealthThresholds.BioAge.apoBYearsMap)
-            contributors.append(BioAgeContributor(
-                domain: .bloodwork,
-                label: "ApoB",
-                detail: String(format: "%.0f mg/dL", apob),
-                years: yrs
-            ))
-            primaryPresent += 1
-        } else if let ldl = numericMarker(latestPanel, matching: ["ldl-c", "ldl"]) {
-            let yrs = lookupBand(ldl, map: HealthThresholds.BioAge.ldlYearsMap)
-            contributors.append(BioAgeContributor(
-                domain: .bloodwork,
-                label: "LDL-C",
-                detail: String(format: "%.0f mg/dL", ldl),
-                years: yrs
-            ))
-            primaryPresent += 1
+        // Lipids -----------------------------------------------------------
+        if let r = apoBReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
+            readings.append(r)
+        } else if let r = ldlReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
+            readings.append(r)
         }
 
-        // Waist circumference (manual). Falls back to weight stability via HK series.
-        if let waist = mostRecentValue(manualEntries, type: .waist) {
-            let yrs = waistYears(waist, sex: sex)
-            contributors.append(BioAgeContributor(
-                domain: .bodyComposition,
-                label: "Waist circumference",
-                detail: String(format: "%.0f cm", waist),
-                years: yrs
-            ))
-            primaryPresent += 1
-        } else if let wt = weightDriftContributor(snapshot: healthSnapshot, now: now) {
-            contributors.append(wt)
-            primaryPresent += 1
+        // Inflammation -----------------------------------------------------
+        if let r = hsCrpReading(latestPanel: latestPanel, freshness: bloodworkFreshness) {
+            readings.append(r)
         }
 
-        // Sleep
-        if let sleep = healthSnapshot.sleepHoursAverage7d {
-            let yrs = sleepYears(sleep)
-            contributors.append(BioAgeContributor(
-                domain: .sleep,
-                label: "Sleep",
-                detail: String(format: "%.1f h/night avg", sleep),
-                years: yrs
-            ))
-            primaryPresent += 1
+        // Hemodynamic ------------------------------------------------------
+        if let r = bloodPressureReading(snapshot: healthSnapshot, manualEntries: manualEntries, now: now) {
+            readings.append(r)
         }
 
-        // Exercise minutes (Apple Exercise Time)
-        if let mins = healthSnapshot.exerciseMinutesPerWeek {
-            let yrs = exerciseYears(mins)
-            contributors.append(BioAgeContributor(
-                domain: .cardio,
-                label: "Weekly exercise",
-                detail: "\(Int(mins.rounded())) min/wk",
-                years: yrs
-            ))
-            primaryPresent += 1
+        // Body composition -------------------------------------------------
+        if let r = waistReading(manualEntries: manualEntries, sex: sex, now: now) {
+            readings.append(r)
+        }
+        if let r = weightTrendReading(snapshot: healthSnapshot, now: now) {
+            readings.append(r)
         }
 
-        // Strength sessions
-        if let sess = healthSnapshot.strengthWorkoutsLast7Days, sess > 0 || (healthSnapshot.workoutsLast28Days ?? 0) > 0 {
-            let yrs: Double
-            if sess >= HealthThresholds.BioAge.strengthGoodSessions {
-                yrs = HealthThresholds.BioAge.strengthYearsGood
-            } else if sess == 0 {
-                yrs = HealthThresholds.BioAge.strengthYearsNone
-            } else {
-                yrs = 0
-            }
-            if abs(yrs) > 0.01 {
-                contributors.append(BioAgeContributor(
-                    domain: .strength,
-                    label: "Strength training",
-                    detail: "\(sess) session\(sess == 1 ? "" : "s") this week",
-                    years: yrs
-                ))
-            }
+        // Behavior ---------------------------------------------------------
+        if let r = sleepReading(snapshot: healthSnapshot) {
+            readings.append(r)
+        }
+        if let r = exerciseMinutesReading(snapshot: healthSnapshot) {
+            readings.append(r)
+        }
+        if let r = strengthSessionsReading(snapshot: healthSnapshot) {
+            readings.append(r)
+        }
+        if let r = nutritionReading(digest: nutritionDigest) {
+            readings.append(r)
         }
 
-        // Nicotine (high impact)
-        if let nic = nicotineContributor(manualEntries, now: now) {
-            contributors.append(nic)
+        // Flat-penalty lifestyle signals -----------------------------------
+        if let r = nicotineReading(manualEntries: manualEntries, now: now) {
+            readings.append(r)
+        }
+        if let r = alcoholReading(manualEntries: manualEntries, now: now) {
+            readings.append(r)
         }
 
-        // Alcohol
-        if let alc = alcoholContributor(manualEntries, now: now) {
-            contributors.append(alc)
+        // Group by factor, compute weighted-mean years per factor, clamp,
+        // and sum to a total years delta.
+        var totalYears: Double = 0
+        let grouped = Dictionary(grouping: readings) { $0.reading.factor }
+        for (factor, items) in grouped {
+            let live = items.filter { !$0.reading.suppressedByDownstream }
+            let totalWeight = live.reduce(0.0) { $0 + $1.reading.effectiveWeight }
+            guard totalWeight > 0 else { continue }
+            let weightedYears = live.reduce(0.0) {
+                $0 + $1.reading.rawYearsImpact * $1.reading.effectiveWeight
+            } / max(totalWeight, 1e-9)
+            let cap = factor.yearsCap
+            totalYears += clamp(weightedYears, -cap, cap)
         }
 
-        // Nutrition — small signal, only when digest is meaningful.
-        if let digest = nutritionDigest, let nut = nutritionContributor(digest) {
-            contributors.append(nut)
-        }
-
-        // Aggregate
-        let totalYears = contributors.reduce(0.0) { $0 + $1.years }
         let bio = max(0, chronoYears + totalYears)
-        let confidence = min(1.0, Double(primaryPresent) / Double(HealthThresholds.BioAge.primaryInputCount))
 
-        // 90-day trend (driven by VO2 max + RHR + body mass — the inputs we have history for)
-        let trendYears = compute90DayTrend(snapshot: healthSnapshot, chronoYears: chronoYears, sex: sex, now: now)
+        // Confidence: how much "coverage" we have versus targetCoverage.
+        let totalEffectiveWeight = readings.reduce(0.0) {
+            $0 + ($1.reading.suppressedByDownstream ? 0 : $1.reading.effectiveWeight)
+        }
+        let confidence = clamp(totalEffectiveWeight / targetCoverage, 0, 1)
+
+        // Project to legacy contributor structs for the existing UI. One
+        // contributor per reading, signed years preserved.
+        let contributors: [BioAgeContributor] = readings.map { item in
+            BioAgeContributor(
+                domain: item.domain,
+                label: item.label,
+                detail: item.detail,
+                years: item.reading.rawYearsImpact
+            )
+        }
+
+        // 90-day trend
+        let trendYears = compute90DayTrend(
+            snapshot: healthSnapshot,
+            chronoYears: chronoYears,
+            sex: sex,
+            now: now
+        )
         let trendDir: TrendDirection = {
             guard let t = trendYears else { return .unknown }
             if t <= HealthThresholds.BioAge.trendImprovingThreshold { return .improving }
@@ -448,130 +414,351 @@ enum BiologicalAgeEngine {
         )
     }
 
-    // MARK: - Per-input helpers
+    // MARK: - Per-signal builders
+    //
+    // Each builder returns `nil` when the input is missing OR the freshness
+    // window is exhausted. Builders return a `(reading, label, detail, domain)`
+    // tuple so the aggregator can both score the reading and project it into
+    // a `BioAgeContributor` for the UI.
 
-    private static func vo2Norm(age: Double, sex: HKBiologicalSex) -> Double {
-        let table: [Int: Double] = {
-            switch sex {
-            case .female: return HealthThresholds.BioAge.vo2NormsFemale
-            case .male:   return HealthThresholds.BioAge.vo2NormsMale
-            default:
-                // Mix M/F when sex is unknown.
-                let m = HealthThresholds.BioAge.vo2NormsMale
-                let f = HealthThresholds.BioAge.vo2NormsFemale
-                return m.reduce(into: [Int: Double]()) { acc, kv in
-                    acc[kv.key] = (kv.value + (f[kv.key] ?? kv.value)) / 2.0
-                }
-            }
-        }()
-        let decade = min(max(20, Int(age / 10) * 10), 70)
-        return table[decade] ?? table[40] ?? 35
-    }
+    private typealias ReadingTuple = (reading: BioInputReading, label: String, detail: String, domain: HealthDomain)
 
-    private static func bpYears(systolic: Double, diastolic: Double) -> Double {
-        if systolic >= HealthThresholds.BP.urgentSystolicMin || diastolic >= HealthThresholds.BP.urgentDiastolicMin {
-            return HealthThresholds.BioAge.bpUrgentYears
-        }
-        if systolic >= 140 || diastolic >= 90 { return HealthThresholds.BioAge.bpStage2Years }
-        if systolic >= HealthThresholds.BP.badSystolicMin || diastolic >= HealthThresholds.BP.badDiastolicMin {
-            return HealthThresholds.BioAge.bpStage1Years
-        }
-        if systolic >= HealthThresholds.BP.borderlineSystolicMin { return HealthThresholds.BioAge.bpElevatedYears }
-        return HealthThresholds.BioAge.bpOptimalYears
-    }
-
-    private static func waistYears(_ cm: Double, sex: HKBiologicalSex) -> Double {
-        let low: Double
-        let high: Double
-        switch sex {
-        case .female:
-            low = HealthThresholds.BioAge.waistFemaleLow
-            high = HealthThresholds.BioAge.waistFemaleHigh
-        default:
-            low = HealthThresholds.BioAge.waistMaleLow
-            high = HealthThresholds.BioAge.waistMaleHigh
-        }
-        if cm >= high { return 2 }
-        if cm >= low  { return 1 }
-        return -1
-    }
-
-    private static func sleepYears(_ hours: Double) -> Double {
-        if hours < 6 { return HealthThresholds.BioAge.sleepBadYears }
-        if hours < 7 { return HealthThresholds.BioAge.sleepBorderlineYears }
-        if hours <= 9 { return HealthThresholds.BioAge.sleepGoodYears }
-        return HealthThresholds.BioAge.sleepBorderlineYears
-    }
-
-    private static func exerciseYears(_ minutes: Double) -> Double {
-        if minutes >= HealthThresholds.BioAge.exerciseGoodMinutes     { return HealthThresholds.BioAge.exerciseGoodYears }
-        if minutes >= HealthThresholds.BioAge.exerciseAdequateMinutes { return HealthThresholds.BioAge.exerciseAdequateYears }
-        if minutes >= HealthThresholds.BioAge.exerciseLowMinutes      { return 0 }
-        if minutes <= 30                                              { return HealthThresholds.BioAge.exerciseSedentaryYears }
-        return HealthThresholds.BioAge.exerciseLowYears
-    }
-
-    private static func nicotineContributor(_ entries: [ManualEntry], now: Date) -> BioAgeContributor? {
-        let since = Calendar.current.date(byAdding: .day, value: -60, to: now) ?? now
-        let recent = entries.filter { $0.entryType == .nicotine && $0.date >= since }
-        guard !recent.isEmpty else { return nil }
-        let usedRecently = recent.contains { $0.booleanValue == true }
-        if usedRecently {
-            return BioAgeContributor(
-                domain: .nicotine,
-                label: "Nicotine use",
-                detail: "Logged in last 60d",
-                years: HealthThresholds.BioAge.nicotineActiveYears
-            )
-        }
-        return BioAgeContributor(
-            domain: .nicotine,
-            label: "No nicotine",
-            detail: "Clean log for 60d+",
-            years: -1
+    private static func vo2MaxReading(
+        snapshot: HealthKitSnapshot,
+        chronoYears: Double,
+        sex: HKBiologicalSex,
+        now: Date
+    ) -> ReadingTuple? {
+        guard let sample = snapshot.latestVO2Max else { return nil }
+        let value = sample.value
+        let mean = vo2Norm(age: chronoYears, sex: sex)
+        let sd = HealthThresholds.BioAge.V2.vo2MaxSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
+        let yearsPerSD = BioSignal.vo2Max.yearsPerSD ?? 0
+        let freshness = freshnessForVO2(sampleDate: sample.date, now: now)
+        let quality: Double = (value >= 5 && value <= 90) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .vo2Max,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
         )
+        return (reading, "Cardio fitness (VO2 max)", String(format: "%.0f vs ~%.0f norm", value, mean), .cardio)
     }
 
-    private static func alcoholContributor(_ entries: [ManualEntry], now: Date) -> BioAgeContributor? {
-        let since = Calendar.current.date(byAdding: .day, value: -14, to: now) ?? now
-        let recent = entries.filter { $0.entryType == .alcohol && $0.date >= since }
-        guard !recent.isEmpty else { return nil }
-        let heavy = recent.filter { $0.alcoholLevel == .heavy }.count
-        let light = recent.filter { $0.alcoholLevel == .light }.count
-        let none  = recent.filter { $0.alcoholLevel == AlcoholLevel.none }.count
-
-        if heavy >= 2 {
-            return BioAgeContributor(
-                domain: .alcohol,
-                label: "Heavy drinking",
-                detail: "\(heavy) heavy days/14d",
-                years: HealthThresholds.BioAge.alcoholHeavyYears
-            )
-        }
-        if (heavy + light) >= 5 {
-            return BioAgeContributor(
-                domain: .alcohol,
-                label: "Frequent drinking",
-                detail: "\(heavy + light) drinking days/14d",
-                years: HealthThresholds.BioAge.alcoholFrequentYears
-            )
-        }
-        if none >= 7 && (heavy + light) == 0 {
-            return BioAgeContributor(
-                domain: .alcohol,
-                label: "Alcohol-free",
-                detail: "No drinks logged 14d",
-                years: HealthThresholds.BioAge.alcoholNoneYears
-            )
-        }
-        return nil
+    private static func rhrReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
+        guard let value = snapshot.restingHeartRateAverage28d else { return nil }
+        let mean = HealthThresholds.BioAge.V2.rhrMean
+        let sd = HealthThresholds.BioAge.V2.rhrSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.rhr.yearsPerSD ?? 0
+        let freshness: Double = {
+            // If we have <14 days of underlying samples in the recent series, halve it.
+            let recent = snapshot.restingHeartRateSeries.count
+            if recent > 0 && recent < HealthThresholds.BioAge.V2.rhrMinDays { return 0.5 }
+            return 1.0
+        }()
+        let quality: Double = (value >= 30 && value <= 200) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .rhr,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "Resting heart rate", "\(Int(value.rounded())) bpm avg", .cardio)
     }
 
-    private static func nutritionContributor(_ digest: NutritionDigest) -> BioAgeContributor? {
-        // Lightweight: count favorable vs unfavorable rollups.
+    private static func hrvReading(
+        snapshot: HealthKitSnapshot,
+        chronoYears: Double,
+        sex: HKBiologicalSex
+    ) -> ReadingTuple? {
+        guard let value = snapshot.hrvAverage28d else { return nil }
+        let mean = hrvNorm(age: chronoYears, sex: sex)
+        let sd = HealthThresholds.BioAge.V2.hrvSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
+        let yearsPerSD = BioSignal.hrv.yearsPerSD ?? 0
+        // HRV detail in the legacy view uses ms. There is no underlying sample
+        // count exposed, so default freshness = 1.
+        let freshness: Double = 1.0
+        let quality: Double = (value > 0 && value < 300) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .hrv,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "Heart rate variability", String(format: "%.0f ms vs ~%.0f norm", value, mean), .cardio)
+    }
+
+    private static func hba1cReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let value = numericMarker(latestPanel, matching: ["hba1c", "a1c"]) else { return nil }
+        let mean = HealthThresholds.BioAge.V2.hba1cMean
+        let sd = HealthThresholds.BioAge.V2.hba1cSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.hba1c.yearsPerSD ?? 0
+        let quality: Double = (value >= 3.0 && value <= 20.0) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .hba1c,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "HbA1c", String(format: "%.1f%%", value), .bloodwork)
+    }
+
+    private static func apoBReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let value = numericMarker(latestPanel, matching: ["apob", "apo b"]) else { return nil }
+        let mean = HealthThresholds.BioAge.V2.apoBMean
+        let sd = HealthThresholds.BioAge.V2.apoBSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.apoB.yearsPerSD ?? 0
+        let quality: Double = (value > 10 && value < 400) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .apoB,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "ApoB", String(format: "%.0f mg/dL", value), .bloodwork)
+    }
+
+    private static func ldlReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let value = numericMarker(latestPanel, matching: ["ldl-c", "ldl"]) else { return nil }
+        let mean = HealthThresholds.BioAge.V2.ldlMean
+        let sd = HealthThresholds.BioAge.V2.ldlSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.ldl.yearsPerSD ?? 0
+        let quality: Double = (value > 10 && value < 500) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .ldl,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "LDL-C", String(format: "%.0f mg/dL", value), .bloodwork)
+    }
+
+    private static func hsCrpReading(latestPanel: BloodworkPanel?, freshness: Double) -> ReadingTuple? {
+        guard freshness > 0, let raw = numericMarker(latestPanel, matching: ["hs-crp", "hs crp", "crp"]) else { return nil }
+        // hs-CRP distributes log-normally; reference mean/SD live in log10 space.
+        guard raw > 0 else { return nil }
+        let logged = log10(raw)
+        let mean = HealthThresholds.BioAge.V2.hsCrpLog10Mean
+        let sd = HealthThresholds.BioAge.V2.hsCrpLog10SD
+        let z = BioInputReading.zScore(value: logged, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.hsCrp.yearsPerSD ?? 0
+        let quality: Double = (raw > 0 && raw < 100) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .hsCrp,
+            value: logged,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: freshness,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "Inflammation (hs-CRP)", String(format: "%.1f mg/L", raw), .bloodwork)
+    }
+
+    private static func bloodPressureReading(
+        snapshot: HealthKitSnapshot,
+        manualEntries: [ManualEntry],
+        now: Date
+    ) -> ReadingTuple? {
+        guard let bp = recentBpAverage(snapshot: snapshot, manualEntries: manualEntries, now: now) else { return nil }
+        // Score systolic and diastolic z separately, then average to a single
+        // "BP composite z" — keeps the signal as a single reading inside the
+        // hemodynamic factor.
+        let sysZ = BioInputReading.zScore(
+            value: bp.systolic,
+            mean: HealthThresholds.BioAge.V2.systolicBPMean,
+            sd: HealthThresholds.BioAge.V2.systolicBPSD,
+            direction: .lowerIsBetter
+        )
+        let diaZ = BioInputReading.zScore(
+            value: bp.diastolic,
+            mean: HealthThresholds.BioAge.V2.diastolicBPMean,
+            sd: HealthThresholds.BioAge.V2.diastolicBPSD,
+            direction: .lowerIsBetter
+        )
+        let z = (sysZ + diaZ) / 2
+        let yearsPerSD = BioSignal.bloodPressure.yearsPerSD ?? 0
+        // Implausible BP ranges fall back to 0 quality so they don't poison.
+        let quality: Double = (bp.systolic >= 60 && bp.systolic <= 260 && bp.diastolic >= 30 && bp.diastolic <= 200) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .bloodPressure,
+            value: bp.systolic,
+            referenceMean: HealthThresholds.BioAge.V2.systolicBPMean,
+            referenceSD: HealthThresholds.BioAge.V2.systolicBPSD,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "Blood pressure", "\(Int(bp.systolic.rounded()))/\(Int(bp.diastolic.rounded())) avg", .bloodPressure)
+    }
+
+    private static func waistReading(
+        manualEntries: [ManualEntry],
+        sex: HKBiologicalSex,
+        now: Date
+    ) -> ReadingTuple? {
+        guard let latest = manualEntries
+            .filter({ $0.entryType == .waist })
+            .max(by: { $0.date < $1.date }),
+              let value = latest.primaryValue else { return nil }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BodyComp.lookbackDays, to: now) ?? now
+        guard latest.date >= cutoff else { return nil }
+        let mean: Double = (sex == .female) ? HealthThresholds.BioAge.V2.waistFemaleMean : HealthThresholds.BioAge.V2.waistMaleMean
+        let sd: Double   = (sex == .female) ? HealthThresholds.BioAge.V2.waistFemaleSD   : HealthThresholds.BioAge.V2.waistMaleSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.waist.yearsPerSD ?? 0
+        let quality: Double = (value > 40 && value < 200) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .waist,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "Waist circumference", String(format: "%.0f cm", value), .bodyComposition)
+    }
+
+    private static func weightTrendReading(snapshot: HealthKitSnapshot, now: Date) -> ReadingTuple? {
+        let series = snapshot.bodyMassSeries.sorted { $0.date < $1.date }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
+        let windowSamples = series.filter { $0.date >= cutoff }
+        guard windowSamples.count >= HealthThresholds.BioAge.V2.weightSeriesMinPoints,
+              let latest = series.last,
+              let baseline = (series.first(where: { $0.date <= cutoff })?.value) ?? series.first?.value,
+              baseline > 0 else { return nil }
+        // weightTrend signal is signed % change over 90d. Positive = gaining weight.
+        let pct = (latest.value - baseline) / baseline * 100
+        let mean = HealthThresholds.BioAge.V2.weightTrendMean
+        let sd = HealthThresholds.BioAge.V2.weightTrendSD
+        let z = BioInputReading.zScore(value: pct, mean: mean, sd: sd, direction: .lowerIsBetter)
+        let yearsPerSD = BioSignal.weightTrend.yearsPerSD ?? 0
+        let reading = BioInputReading(
+            signal: .weightTrend,
+            value: pct,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
+        )
+        return (reading, "Body weight trend", String(format: "Δ %+.1f kg vs 90d ago", latest.value - baseline), .bodyComposition)
+    }
+
+    private static func sleepReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
+        guard let value = snapshot.sleepHoursAverage7d else { return nil }
+        let mean = HealthThresholds.BioAge.V2.sleepMean
+        let sd = HealthThresholds.BioAge.V2.sleepSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
+        let yearsPerSD = BioSignal.sleep.yearsPerSD ?? 0
+        let quality: Double = (value > 0 && value < 24) ? 1 : 0
+        let reading = BioInputReading(
+            signal: .sleep,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: quality,
+            suppressedByDownstream: false
+        )
+        return (reading, "Sleep", String(format: "%.1f h/night avg", value), .sleep)
+    }
+
+    private static func exerciseMinutesReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
+        guard let value = snapshot.exerciseMinutesPerWeek else { return nil }
+        let mean = HealthThresholds.BioAge.V2.exerciseMinutesMean
+        let sd = HealthThresholds.BioAge.V2.exerciseMinutesSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
+        let yearsPerSD = BioSignal.exerciseMinutes.yearsPerSD ?? 0
+        let reading = BioInputReading(
+            signal: .exerciseMinutes,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
+        )
+        return (reading, "Weekly exercise", "\(Int(value.rounded())) min/wk", .cardio)
+    }
+
+    private static func strengthSessionsReading(snapshot: HealthKitSnapshot) -> ReadingTuple? {
+        guard let sessions = snapshot.strengthWorkoutsLast7Days else { return nil }
+        let value = Double(sessions)
+        let mean = HealthThresholds.BioAge.V2.strengthSessionsMean
+        let sd = HealthThresholds.BioAge.V2.strengthSessionsSD
+        let z = BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: .higherIsBetter)
+        let yearsPerSD = BioSignal.strengthSessions.yearsPerSD ?? 0
+        let reading = BioInputReading(
+            signal: .strengthSessions,
+            value: value,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
+        )
+        return (reading, "Strength training", "\(sessions) session\(sessions == 1 ? "" : "s") this week", .strength)
+    }
+
+    private static func nutritionReading(digest: NutritionDigest?) -> ReadingTuple? {
+        guard let digest = digest else { return nil }
+        // Convert the rollup-based nutrition signal into a z-score in
+        // "favorable-buckets" space — favorable = good - bad. Mean = 0,
+        // SD = 1 keeps things stable until we have a real nutrition score.
         let favorable: [NutrientBucket] = [.plantVariety, .leafyGreenDays, .legumeDays, .fermentedDays]
         let unfavorable: [NutrientBucket] = [.ultraProcessedMeals, .processedMeatMeals, .friedMeals]
-
         var good = 0
         var bad = 0
         for b in favorable {
@@ -584,41 +771,137 @@ enum BiologicalAgeEngine {
                 bad += 1
             }
         }
-        if good >= 2 && bad == 0 {
-            return BioAgeContributor(
-                domain: .fiber,
-                label: "Diet quality",
-                detail: "Plants + variety on track",
-                years: HealthThresholds.BioAge.nutritionGoodYears
-            )
-        }
-        if bad >= 2 {
-            return BioAgeContributor(
-                domain: .fiber,
-                label: "Diet quality",
-                detail: "Frequent ultra-processed meals",
-                years: HealthThresholds.BioAge.nutritionPoorYears
-            )
-        }
-        return nil
+        // Nothing scored at all — don't contribute.
+        guard (good + bad) > 0 else { return nil }
+        let score = Double(good - bad)
+        let mean = 0.0
+        let sd = 1.0
+        let z = BioInputReading.zScore(value: score, mean: mean, sd: sd, direction: .higherIsBetter)
+        let yearsPerSD = BioSignal.nutrition.yearsPerSD ?? 0
+        let detail: String
+        if good >= 2 && bad == 0 { detail = "Plants + variety on track" }
+        else if bad >= 2 { detail = "Frequent ultra-processed meals" }
+        else { detail = "Mixed signal" }
+        let reading = BioInputReading(
+            signal: .nutrition,
+            value: score,
+            referenceMean: mean,
+            referenceSD: sd,
+            zScore: z,
+            rawYearsImpact: -z * yearsPerSD,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
+        )
+        return (reading, "Diet quality", detail, .fiber)
     }
 
-    private static func weightDriftContributor(snapshot: HealthKitSnapshot, now: Date) -> BioAgeContributor? {
-        let series = snapshot.bodyMassSeries.sorted { $0.date < $1.date }
-        guard let latest = series.last else { return nil }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -HealthThresholds.BodyComp.lookbackDays, to: now) ?? now
-        guard let baseline = series.first(where: { $0.date <= cutoff })?.value ?? series.first?.value,
-              baseline > 0, series.count >= 2 else { return nil }
-        let pct = (latest.value - baseline) / baseline
-        // Only contributes if meaningfully drifting.
-        guard abs(pct) >= HealthThresholds.BodyComp.weightChangePercentBorderline else { return nil }
-        let yrs: Double = pct > 0 ? (pct >= HealthThresholds.BodyComp.weightChangePercentBad ? 2 : 1) : -0.5
-        return BioAgeContributor(
-            domain: .bodyComposition,
-            label: "Body weight trend",
-            detail: String(format: "Δ %+.1f kg vs 90d ago", latest.value - baseline),
-            years: yrs
+    private static func nicotineReading(manualEntries: [ManualEntry], now: Date) -> ReadingTuple? {
+        let since = Calendar.current.date(byAdding: .day, value: -60, to: now) ?? now
+        let recent = manualEntries.filter { $0.entryType == .nicotine && $0.date >= since }
+        guard !recent.isEmpty else { return nil }
+        let usedRecently = recent.contains { $0.booleanValue == true }
+        let years: Double = usedRecently
+            ? HealthThresholds.BioAge.V2.nicotineActiveYears
+            : HealthThresholds.BioAge.V2.nicotineCleanYears
+        let label = usedRecently ? "Nicotine use" : "No nicotine"
+        let detail = usedRecently ? "Logged in last 60d" : "Clean log for 60d+"
+        let reading = BioInputReading(
+            signal: .nicotine,
+            value: usedRecently ? 1 : 0,
+            referenceMean: 0,
+            referenceSD: 0,
+            zScore: 0,
+            rawYearsImpact: years,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
         )
+        return (reading, label, detail, .nicotine)
+    }
+
+    private static func alcoholReading(manualEntries: [ManualEntry], now: Date) -> ReadingTuple? {
+        let since = Calendar.current.date(byAdding: .day, value: -14, to: now) ?? now
+        let recent = manualEntries.filter { $0.entryType == .alcohol && $0.date >= since }
+        guard !recent.isEmpty else { return nil }
+        let heavy = recent.filter { $0.alcoholLevel == .heavy }.count
+        let light = recent.filter { $0.alcoholLevel == .light }.count
+        let none  = recent.filter { $0.alcoholLevel == AlcoholLevel.none }.count
+
+        let years: Double
+        let label: String
+        let detail: String
+        if heavy >= 2 {
+            years = HealthThresholds.BioAge.V2.alcoholHeavyYears
+            label = "Heavy drinking"
+            detail = "\(heavy) heavy days/14d"
+        } else if (heavy + light) >= 5 {
+            years = HealthThresholds.BioAge.V2.alcoholFrequentYears
+            label = "Frequent drinking"
+            detail = "\(heavy + light) drinking days/14d"
+        } else if none >= 7 && (heavy + light) == 0 {
+            years = HealthThresholds.BioAge.V2.alcoholNoneYears
+            label = "Alcohol-free"
+            detail = "No drinks logged 14d"
+        } else {
+            return nil
+        }
+        let reading = BioInputReading(
+            signal: .alcohol,
+            value: Double(heavy + light),
+            referenceMean: 0,
+            referenceSD: 0,
+            zScore: 0,
+            rawYearsImpact: years,
+            freshnessWeight: 1.0,
+            qualityWeight: 1.0,
+            suppressedByDownstream: false
+        )
+        return (reading, label, detail, .alcohol)
+    }
+
+    // MARK: - Norm helpers
+
+    private static func vo2Norm(age: Double, sex: HKBiologicalSex) -> Double {
+        switch sex {
+        case .female: return interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.vo2NormsFemale)
+        case .male:   return interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.vo2NormsMale)
+        default:
+            let m = interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.vo2NormsMale)
+            let f = interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.vo2NormsFemale)
+            return (m + f) / 2.0
+        }
+    }
+
+    private static func hrvNorm(age: Double, sex: HKBiologicalSex) -> Double {
+        switch sex {
+        case .female: return interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.hrvNormsFemale)
+        case .male:   return interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.hrvNormsMale)
+        default:
+            let m = interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.hrvNormsMale)
+            let f = interpolateDecadeNorm(age: age, table: HealthThresholds.BioAge.V2.hrvNormsFemale)
+            return (m + f) / 2.0
+        }
+    }
+
+    // MARK: - Freshness helpers
+
+    private static func freshnessForVO2(sampleDate: Date, now: Date) -> Double {
+        let days = max(0, now.timeIntervalSince(sampleDate) / 86_400)
+        let fresh = Double(HealthThresholds.BioAge.V2.vo2FreshDays)
+        let decay = Double(HealthThresholds.BioAge.V2.vo2DecayDays)
+        if days <= fresh { return 1.0 }
+        if days >= decay { return 0.0 }
+        return 1.0 - (days - fresh) / (decay - fresh)
+    }
+
+    private static func freshnessForBloodwork(latestPanel: BloodworkPanel?, now: Date) -> Double {
+        guard let panel = latestPanel else { return 0 }
+        let months = now.timeIntervalSince(panel.date) / (86_400 * 30)
+        if months <= Double(HealthThresholds.BioAge.V2.bloodworkFullMonths)    { return 1.0 }
+        if months <= Double(HealthThresholds.BioAge.V2.bloodworkHalfMonths)    { return 0.5 }
+        if months <= Double(HealthThresholds.BioAge.V2.bloodworkQuarterMonths) { return 0.25 }
+        return 0
     }
 
     // MARK: - Trend
@@ -631,37 +914,44 @@ enum BiologicalAgeEngine {
     ) -> Double? {
         var deltas: [Double] = []
 
-        // VO2 max: compare current value vs ~90d-ago sample.
+        // VO2 max: now vs ~90d-ago using continuous z-score-driven years.
         if let vo2Now = snapshot.latestVO2Max?.value, !snapshot.vo2MaxSeries.isEmpty {
             let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
-            let oldSeries = snapshot.vo2MaxSeries.filter { $0.date <= cutoff }
-            if let vo2Then = oldSeries.last?.value {
-                let norm = vo2Norm(age: chronoYears, sex: sex)
-                let yrsNow  = clamp((norm - vo2Now)  * HealthThresholds.BioAge.vo2YearsPerUnitDelta,
-                                    -HealthThresholds.BioAge.vo2MaxDelta, HealthThresholds.BioAge.vo2MaxDelta)
-                let yrsThen = clamp((norm - vo2Then) * HealthThresholds.BioAge.vo2YearsPerUnitDelta,
-                                    -HealthThresholds.BioAge.vo2MaxDelta, HealthThresholds.BioAge.vo2MaxDelta)
-                deltas.append(yrsNow - yrsThen)
+            let older = snapshot.vo2MaxSeries.filter { $0.date <= cutoff }
+            if let vo2Then = older.last?.value {
+                let mean = vo2Norm(age: chronoYears, sex: sex)
+                let sd = HealthThresholds.BioAge.V2.vo2MaxSD
+                let yps = BioSignal.vo2Max.yearsPerSD ?? 0
+                let zNow  = BioInputReading.zScore(value: vo2Now,  mean: mean, sd: sd, direction: .higherIsBetter)
+                let zThen = BioInputReading.zScore(value: vo2Then, mean: mean, sd: sd, direction: .higherIsBetter)
+                deltas.append((-zNow * yps) - (-zThen * yps))
             }
         }
 
-        // RHR: 28d avg vs 90d avg (28d represents "now", 90d represents the longer-window baseline).
+        // RHR: 28d "now" vs 90d "then".
         if let r28 = snapshot.restingHeartRateAverage28d, let r90 = snapshot.restingHeartRateAverage90d {
-            let yrsNow  = lookupBand(r28, map: HealthThresholds.BioAge.rhrYearsMap)
-            let yrsThen = lookupBand(r90, map: HealthThresholds.BioAge.rhrYearsMap)
-            deltas.append(yrsNow - yrsThen)
+            let mean = HealthThresholds.BioAge.V2.rhrMean
+            let sd = HealthThresholds.BioAge.V2.rhrSD
+            let yps = BioSignal.rhr.yearsPerSD ?? 0
+            let zNow  = BioInputReading.zScore(value: r28, mean: mean, sd: sd, direction: .lowerIsBetter)
+            let zThen = BioInputReading.zScore(value: r90, mean: mean, sd: sd, direction: .lowerIsBetter)
+            deltas.append((-zNow * yps) - (-zThen * yps))
         }
 
-        // Body mass: latest vs ~90d ago.
+        // Body mass drift: % change over 90 days, scored via weightTrend z.
         let series = snapshot.bodyMassSeries.sorted { $0.date < $1.date }
         if let latest = series.last {
             let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
             if let then = series.first(where: { $0.date <= cutoff })?.value, then > 0 {
-                let pct = (latest.value - then) / then
-                if abs(pct) >= HealthThresholds.BodyComp.weightChangePercentBorderline {
-                    // Same sign convention as weight-drift contributor.
-                    let delta = pct > 0 ? (pct >= HealthThresholds.BodyComp.weightChangePercentBad ? 2.0 : 1.0) : -0.5
-                    deltas.append(delta)
+                let pct = (latest.value - then) / then * 100
+                if abs(pct) >= HealthThresholds.BodyComp.weightChangePercentBorderline * 100 {
+                    let mean = HealthThresholds.BioAge.V2.weightTrendMean
+                    let sd = HealthThresholds.BioAge.V2.weightTrendSD
+                    let yps = BioSignal.weightTrend.yearsPerSD ?? 0
+                    let z = BioInputReading.zScore(value: pct, mean: mean, sd: sd, direction: .lowerIsBetter)
+                    // "Then" baseline is the zero-drift case, so delta is just the
+                    // years impact attributable to the observed drift.
+                    deltas.append(-z * yps)
                 }
             }
         }
@@ -699,13 +989,6 @@ enum BiologicalAgeEngine {
         return Double(numeric)
     }
 
-    private static func mostRecentValue(_ entries: [ManualEntry], type: ManualEntryType) -> Double? {
-        entries
-            .filter { $0.entryType == type }
-            .max(by: { $0.date < $1.date })?
-            .primaryValue
-    }
-
     private static func recentBpAverage(
         snapshot: HealthKitSnapshot,
         manualEntries: [ManualEntry],
@@ -732,16 +1015,8 @@ enum BiologicalAgeEngine {
         return Double(comps.day ?? 0) / 365.25
     }
 
-    private static func lookupBand(_ value: Double, map: [(maxValue: Double, years: Double)]) -> Double {
-        for entry in map {
-            if value < entry.maxValue { return entry.years }
-        }
-        return map.last?.years ?? 0
-    }
-
     // Local clamp to avoid name collision with stdlib variants pulled from other modules.
     private static func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
         min(max(value, lower), upper)
     }
 }
-
