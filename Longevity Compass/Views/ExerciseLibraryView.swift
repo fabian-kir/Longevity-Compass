@@ -64,7 +64,7 @@ struct ExerciseDefRow: View {
                     .font(.title3)
                     .foregroundStyle(.tint)
                     .frame(width: 38, height: 38)
-                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .glassEffect(.regular.tint(AppTab.train.tint.opacity(0.22)), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             Text(def.name)
         }

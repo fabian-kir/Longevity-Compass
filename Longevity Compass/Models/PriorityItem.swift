@@ -18,6 +18,28 @@ struct PriorityItem: Identifiable, Hashable {
     var title: String { domain.displayName }
     var rationale: String { domain.rationale }
     var systemImageName: String { domain.systemImageName }
+
+    /// Returns a copy with the reminder frequency (and recomputed next-tracking date) overridden.
+    /// Used by `PriorityEngine` to bump cadence when a high-impact domain is trending the wrong way.
+    func withReminderCadence(
+        _ frequency: ReminderFrequency,
+        nextTrackingDate: Date?
+    ) -> PriorityItem {
+        PriorityItem(
+            domain: domain,
+            status: status,
+            trend: trend,
+            priorityScore: priorityScore,
+            impactWeight: impactWeight,
+            reason: reason,
+            currentValueDescription: currentValueDescription,
+            trendDescription: trendDescription,
+            recommendedActions: recommendedActions,
+            nextTrackingDate: nextTrackingDate,
+            reminderFrequency: frequency,
+            dataIsStale: dataIsStale
+        )
+    }
 }
 
 enum OverallStatus: String {

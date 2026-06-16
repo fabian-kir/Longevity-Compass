@@ -28,6 +28,7 @@ struct PostCaptureSheet: View {
 
     @State private var phase: Phase = .analyzing
     @State private var portionGrams: Double?
+    @State private var mealWeightGrams: Double = 350
     @State private var isSaving = false
 
     var body: some View {
@@ -185,6 +186,7 @@ struct PostCaptureSheet: View {
             }
 
             Section("Per-100 g (Open Food Facts)") {
+                if let v = product.kcal100g    { row("Calories", String(format: "%.0f kcal", v)) }
                 if let v = product.protein100g { row("Protein", String(format: "%.1f g", v)) }
                 if let v = product.fiber100g   { row("Fibre",   String(format: "%.1f g", v)) }
                 if let v = product.carbs100g   { row("Carbs",   String(format: "%.1f g", v)) }
@@ -254,6 +256,30 @@ struct PostCaptureSheet: View {
             if let notes = fp.aiNotes, !notes.isEmpty {
                 Section("AI notes") { Text(notes).font(.footnote) }
             }
+            if fp.hasMacroEstimates {
+                Section {
+                    HStack {
+                        Text("Estimated weight")
+                        Spacer()
+                        TextField("g", value: $mealWeightGrams, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 80)
+                        Text("g")
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text("Adjust to match how much you ate. Macros scale accordingly.")
+                }
+                if let scaled = fp.scaledMacros(toGrams: mealWeightGrams) {
+                    Section("Estimated macros at \(Int(mealWeightGrams)) g") {
+                        row("Calories", String(format: "%.0f kcal", scaled.kcal))
+                        row("Protein",  String(format: "%.0f g",    scaled.protein))
+                        row("Carbs",    String(format: "%.0f g",    scaled.carbs))
+                        row("Fat",      String(format: "%.0f g",    scaled.fat))
+                    }
+                }
+            }
             Section {
                 Button {
                     saveFingerprint(analysis: analysis)
@@ -286,6 +312,7 @@ struct PostCaptureSheet: View {
                 portionGrams = product.servingSizeGrams
             case .aiFingerprint(let analysis):
                 phase = .aiFingerprint(analysis)
+                mealWeightGrams = analysis.fingerprint.typicalServingGrams ?? 350
             }
         } catch {
             if isNetworkRelated(error) {
@@ -325,6 +352,7 @@ struct PostCaptureSheet: View {
                 source: .barcode,
                 rawInput: product.barcode,
                 productName: product.name,
+                caloriesKcal: scaled.kcalTotal,
                 portionGrams: scaled.portionGrams,
                 proteinGrams: scaled.protein,
                 fiberGrams: scaled.fiber,
@@ -354,9 +382,11 @@ struct PostCaptureSheet: View {
         isSaving = true
         Task {
             let imageFileName = MealImageStore.save(image: image)
+            let weight = analysis.fingerprint.hasMacroEstimates ? mealWeightGrams : nil
             let entry = NutritionEntry.fromFingerprint(
                 analysis,
                 capturedAt: capturedAt,
+                portionGrams: weight,
                 imageFileName: imageFileName
             )
             await services.recordNutritionEntry(entry)

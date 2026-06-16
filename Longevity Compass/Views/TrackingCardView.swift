@@ -268,8 +268,14 @@ struct TrackingCardView: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(filled ? tint.opacity(0.25) : Color(.secondarySystemBackground), in: Capsule())
                 .foregroundStyle(filled ? tint : .primary)
+                .glassEffect(
+                    filled ? .regular.tint(tint.opacity(0.30)) : .regular,
+                    in: Capsule()
+                )
+                .overlay(
+                    Capsule().strokeBorder(tint.opacity(filled ? 0.35 : 0.0), lineWidth: 0.8)
+                )
         }
         .buttonStyle(.plain)
     }
@@ -291,7 +297,15 @@ struct TrackPillButtonStyle: ButtonStyle {
         configuration.label
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(tint.opacity(configuration.isPressed ? 0.35 : 0.15), in: Capsule())
             .foregroundStyle(tint)
+            .glassEffect(
+                .regular.tint(tint.opacity(configuration.isPressed ? 0.40 : 0.22)),
+                in: Capsule()
+            )
+            .overlay(
+                Capsule().strokeBorder(tint.opacity(0.30), lineWidth: 0.8)
+            )
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

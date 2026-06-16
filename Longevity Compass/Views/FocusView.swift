@@ -66,6 +66,7 @@ struct FocusView: View {
                     Task { await services.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .symbolEffect(.bounce, value: services.isRefreshing)
                 }
                 .accessibilityLabel("Refresh")
             }
@@ -106,7 +107,7 @@ struct FocusView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 56)
         .padding(.horizontal, 24)
-        .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .glassCard(tint: .green, cornerRadius: 18, tintOpacity: 0.22)
     }
 
     private var allClearInline: some View {
@@ -114,6 +115,7 @@ struct FocusView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.green)
+                .symbolEffect(.pulse, options: .repeating)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Nothing urgent today")
                     .font(.subheadline.weight(.semibold))
@@ -125,7 +127,7 @@ struct FocusView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .glassCard(tint: .green, cornerRadius: 14, tintOpacity: 0.22)
     }
 }
 
@@ -189,11 +191,7 @@ private struct BioAgePanel: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "hourglass")
-                    .font(.system(size: 30, weight: .semibold))
-                    .frame(width: 56, height: 56)
-                    .foregroundStyle(.white)
-                    .background(tint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                GlassIconTile(systemName: "hourglass", tint: tint, size: 56)
             }
 
             HStack(spacing: 8) {
@@ -220,11 +218,7 @@ private struct BioAgePanel: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(tint.opacity(0.40), lineWidth: 1.5)
-        )
+        .glassCard(tint: tint, cornerRadius: 22)
     }
 
     private var confidenceCopy: String {
@@ -245,7 +239,7 @@ private struct BioAgePanel: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .foregroundStyle(color)
-        .background(color.opacity(0.15), in: Capsule())
+        .glassChip(tint: color, tintOpacity: 0.22)
     }
 }
 
@@ -282,7 +276,19 @@ private struct WinPill: View {
                 .font(.subheadline.weight(.semibold))
                 .frame(width: 30, height: 30)
                 .foregroundStyle(.white)
-                .background(Color.green, in: Circle())
+                .background(
+                    Circle()
+                        .fill(Color.green)
+                        .overlay(
+                            Circle().fill(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.35), .clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        )
+                )
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
                     .font(.subheadline.weight(.semibold))
@@ -301,11 +307,7 @@ private struct WinPill: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: 260, alignment: .leading)
-        .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.green.opacity(0.35), lineWidth: 1)
-        )
+        .glassCard(tint: .green, cornerRadius: 14, tintOpacity: 0.24)
     }
 }
 
@@ -357,7 +359,7 @@ private struct ContributorList: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .glassSurface(cornerRadius: 14)
     }
 }
 
@@ -371,7 +373,7 @@ private struct ContributorRow: View {
                 .font(.subheadline.weight(.semibold))
                 .frame(width: 26, height: 26)
                 .foregroundStyle(accent)
-                .background(accent.opacity(0.15), in: Circle())
+                .glassEffect(.regular.tint(accent.opacity(0.22)), in: Circle())
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.label)
                     .font(.subheadline.weight(.semibold))
@@ -387,7 +389,7 @@ private struct ContributorRow: View {
                 .foregroundStyle(accent)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(accent.opacity(0.15), in: Capsule())
+                .glassChip(tint: accent, tintOpacity: 0.22)
         }
     }
 
@@ -448,20 +450,12 @@ private struct FocusHeroCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(tint.opacity(0.45), lineWidth: 1.5)
-        )
+        .glassCard(tint: tint, cornerRadius: 22, tintOpacity: 0.30)
     }
 
     private var heroHeader: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: item.systemImageName)
-                .font(.system(size: 32, weight: .semibold))
-                .frame(width: 64, height: 64)
-                .foregroundStyle(.white)
-                .background(tint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            GlassIconTile(systemName: item.systemImageName, tint: tint, size: 64, cornerRadius: 16)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Focus here first")
@@ -522,8 +516,26 @@ private struct FocusHeroCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(tint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .foregroundStyle(.white)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(tint)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.28), .clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(.white.opacity(0.30), lineWidth: 0.8)
+        )
+        .shadow(color: tint.opacity(0.30), radius: 8, x: 0, y: 4)
     }
 
     private var tint: Color {
@@ -542,7 +554,7 @@ private struct CompactPriorityRow: View {
                 .font(.subheadline.weight(.semibold))
                 .frame(width: 28, height: 28)
                 .foregroundStyle(tint)
-                .background(tint.opacity(0.15), in: Circle())
+                .glassChip(tint: tint, tintOpacity: 0.22)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
@@ -565,7 +577,7 @@ private struct CompactPriorityRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassSurface(cornerRadius: 12)
     }
 
     private var tint: Color {

@@ -13,6 +13,9 @@ struct DataExportView: View {
     @State private var modelInput: String = ""
     @State private var apiSaved: Bool = false
 
+    @State private var scheduled: [NotificationManager.ScheduledNotification] = []
+    @State private var scheduledLoaded = false
+
     var body: some View {
         Form {
             Section("Privacy") {
@@ -88,18 +91,37 @@ struct DataExportView: View {
 
                 if let digest = services.nutritionDigest {
                     HStack {
-                        Text("Cost this month")
+                        Text("Nutrition cost this month")
                         Spacer()
                         Text(String(format: "$%.4f", digest.costThisMonthUSD)).monospacedDigit().foregroundStyle(.secondary)
                     }
                     HStack {
-                        Text("Cost all-time")
+                        Text("Nutrition cost all-time")
                         Spacer()
                         Text(String(format: "$%.4f", digest.costAllTimeUSD)).monospacedDigit().foregroundStyle(.secondary)
                     }
                 }
 
-                Text("Get a key at openrouter.ai → top right → Keys → Create. Photos and meal descriptions are sent to OpenRouter, which forwards them to the model provider you chose (Claude Sonnet 4.6 by default). Per-entry cost is calculated locally from token usage at \(String(format: "$%.2f", HealthThresholds.OpenRouter.inputUSDPerMillion))/M input + \(String(format: "$%.2f", HealthThresholds.OpenRouter.outputUSDPerMillion))/M output.")
+                let exDigest = services.exerciseImageDigest
+                HStack {
+                    Text("Exercise icons all-time")
+                    Spacer()
+                    Text(String(format: "$%.4f (%d icons)", exDigest.totalCostUSD, exDigest.defsWithGeneratedImage))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                if exDigest.defsWithGeneratedImage > 0 {
+                    HStack {
+                        Text("Exercise icon tokens")
+                        Spacer()
+                        Text("\(exDigest.totalInputTokens) in · \(exDigest.totalOutputTokens) out")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                }
+
+                Text("Get a key at openrouter.ai → top right → Keys → Create. Nutrition photos go to your chosen chat model (Claude Sonnet 4.6 by default) at \(String(format: "$%.2f", HealthThresholds.OpenRouter.inputUSDPerMillion))/M input + \(String(format: "$%.2f", HealthThresholds.OpenRouter.outputUSDPerMillion))/M output. Exercise icons use \(HealthThresholds.OpenRouter.imageModel) at \(String(format: "$%.2f", HealthThresholds.OpenRouter.imageInputUSDPerMillion))/M input + \(String(format: "$%.2f", HealthThresholds.OpenRouter.imageOutputUSDPerMillion))/M image-output (~$0.04/icon).")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 if let err = services.openRouter.lastError {
@@ -107,7 +129,7 @@ struct DataExportView: View {
                 }
             }
 
-            Section("Notifications") {
+            Section {
                 HStack {
                     Text("Status")
                     Spacer()
@@ -116,10 +138,64 @@ struct DataExportView: View {
                 Button {
                     Task {
                         await services.notifications.requestAuthorization()
+                        await reloadScheduled()
                     }
                 } label: {
                     Label("Re-request permission", systemImage: "bell")
                 }
+            } header: {
+                Text("Notifications")
+            } footer: {
+                Text("The app reschedules these every time it refreshes priorities. Anything you don't want, mute the whole app in iOS Settings.")
+            }
+
+            Section {
+                notificationTypeRow(
+                    icon: "exclamationmark.circle",
+                    tint: .orange,
+                    title: "Priority reminders",
+                    detail: "One per due item at 9:00 AM. Lookahead is 14 days for high-impact items (BP, nicotine, cardio, strength, body, sleep, bloodwork) and 7 days for the rest. Cadence tightens automatically when a high-impact metric trends the wrong way, even before status flips."
+                )
+                notificationTypeRow(
+                    icon: "calendar",
+                    tint: .blue,
+                    title: "Weekly review",
+                    detail: "Every Sunday at 6:00 PM, summarising what to focus on this week."
+                )
+                notificationTypeRow(
+                    icon: "fork.knife",
+                    tint: .green,
+                    title: "Nutrition check",
+                    detail: "8:00 PM, only on days when protein / fibre / omega-3 are off-track. Skipped if you've already logged today."
+                )
+            } header: {
+                Text("What you'll get")
+            } footer: {
+                Text("Items overdue beyond their next-check date are pulled forward to today so they actually fire.")
+            }
+
+            Section {
+                if !scheduledLoaded {
+                    HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
+                } else if scheduled.isEmpty {
+                    Text("Nothing scheduled right now.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(scheduled) { item in
+                        ScheduledNotificationRow(item: item)
+                    }
+                }
+                Button {
+                    Task { await reloadScheduled() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .font(.footnote)
+                }
+            } header: {
+                Text("Currently scheduled")
+            } footer: {
+                Text("Live from iOS. Updated when priorities refresh or when you tap Refresh above.")
             }
 
             Section("Export") {
@@ -150,6 +226,7 @@ struct DataExportView: View {
             }
         }
         .navigationTitle("Data")
+        .task { await reloadScheduled() }
         .alert("Delete everything?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 Task { await services.deleteAllLocalData() }
@@ -165,6 +242,26 @@ struct DataExportView: View {
         }
     }
 
+    private func reloadScheduled() async {
+        scheduled = await services.notifications.pendingNotifications()
+        scheduledLoaded = true
+    }
+
+    private func notificationTypeRow(icon: String, tint: Color, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(tint)
+                .glassEffect(.regular.tint(tint.opacity(0.22)), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     private var notificationStatusLabel: String {
         switch services.notifications.authorizationStatus {
         case .authorized:    "Allowed"
@@ -174,5 +271,67 @@ struct DataExportView: View {
         case .ephemeral:     "Ephemeral"
         @unknown default:    "Unknown"
         }
+    }
+}
+
+// MARK: - Scheduled notification row
+
+private struct ScheduledNotificationRow: View {
+    let item: NotificationManager.ScheduledNotification
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: kindIcon)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(kindTint)
+                .glassEffect(.regular.tint(kindTint.opacity(0.22)), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title).font(.subheadline.weight(.semibold))
+                Text(item.body).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                if let date = item.fireDate {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                        Text(fireDateLabel(date))
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(kindTint)
+                    .padding(.top, 1)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var kindIcon: String {
+        switch item.kind {
+        case .priority:      "exclamationmark.circle"
+        case .weeklyReview:  "calendar"
+        case .nutrition:     "fork.knife"
+        case .other:         "bell"
+        }
+    }
+
+    private var kindTint: Color {
+        switch item.kind {
+        case .priority:      .orange
+        case .weeklyReview:  .blue
+        case .nutrition:     .green
+        case .other:         .gray
+        }
+    }
+
+    private func fireDateLabel(_ date: Date) -> String {
+        let cal = Calendar.current
+        let day: String
+        if cal.isDateInToday(date)         { day = "Today" }
+        else if cal.isDateInTomorrow(date) { day = "Tomorrow" }
+        else if date.timeIntervalSinceNow < 7 * 24 * 3600 {
+            day = date.formatted(.dateTime.weekday(.wide))
+        } else {
+            day = date.formatted(.dateTime.month(.abbreviated).day())
+        }
+        let time = date.formatted(.dateTime.hour().minute())
+        return "\(day) · \(time)"
     }
 }

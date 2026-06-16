@@ -176,7 +176,12 @@ struct EditNutritionEntrySheet: View {
                 plantIngredients: plantIngredients,
                 aiNotes: trimmedNotes.isEmpty ? nil : trimmedNotes,
                 confidence: entry.fingerprint?.confidence,
-                title: trimmedTitle.isEmpty ? nil : trimmedTitle
+                title: trimmedTitle.isEmpty ? nil : trimmedTitle,
+                estimatedKcalPer100g: entry.fingerprint?.estimatedKcalPer100g,
+                proteinPer100g: entry.fingerprint?.proteinPer100g,
+                carbsPer100g: entry.fingerprint?.carbsPer100g,
+                fatPer100g: entry.fingerprint?.fatPer100g,
+                typicalServingGrams: entry.fingerprint?.typicalServingGrams
             )
             entry.productName = trimmedTitle.isEmpty ? nil : trimmedTitle
             if let data = try? JSONEncoder().encode(updated),

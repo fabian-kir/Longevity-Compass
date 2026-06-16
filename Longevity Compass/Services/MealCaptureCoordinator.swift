@@ -18,9 +18,9 @@ final class MealCaptureCoordinator: NSObject {
     private(set) var captureError: String?
 
     nonisolated(unsafe) let session: AVCaptureSession = AVCaptureSession()
-    private let photoOutput = AVCapturePhotoOutput()
-    private let sessionQueue = DispatchQueue(label: "meal.capture.session")
-    private var didConfigure = false
+    nonisolated(unsafe) private let photoOutput = AVCapturePhotoOutput()
+    nonisolated private let sessionQueue = DispatchQueue(label: "meal.capture.session")
+    nonisolated(unsafe) private var didConfigure = false
 
     private var captureContinuation: CheckedContinuation<UIImage, Error>?
 
@@ -105,7 +105,7 @@ final class MealCaptureCoordinator: NSObject {
         }
     }
 
-    private func configureIfNeeded() {
+    nonisolated private func configureIfNeeded() {
         dispatchPrecondition(condition: .onQueue(sessionQueue))
         guard !didConfigure else { return }
         session.beginConfiguration()

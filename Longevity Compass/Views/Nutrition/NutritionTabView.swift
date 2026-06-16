@@ -12,6 +12,7 @@ struct NutritionTabView: View {
     @State private var savedNotice: String?
     @State private var isCapturing = false
     @State private var showLibraryPicker = false
+    @State private var showFoodSearch = false
     @State private var libraryImage: UIImage?
 
     private struct CapturedImage: Identifiable {
@@ -38,10 +39,20 @@ struct NutritionTabView: View {
                     Image(systemName: "list.bullet.rectangle")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showFoodSearch = true } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+            }
         }
         .sheet(item: $captured) { item in
             PostCaptureSheet(image: item.image, capturedAt: item.date) { outcome in
                 handleSheetOutcome(outcome)
+            }
+        }
+        .sheet(isPresented: $showFoodSearch) {
+            FoodSearchSheet { title in
+                flash("Logged \(title)")
             }
         }
         .sheet(isPresented: $showLibraryPicker) {
@@ -139,7 +150,8 @@ struct NutritionTabView: View {
                     .font(.title2)
                     .foregroundStyle(.white)
                     .padding(12)
-                    .background(Color.white.opacity(0.18), in: Circle())
+                    .glassEffect(.regular.tint(.white.opacity(0.12)), in: Circle())
+                    .overlay(Circle().strokeBorder(.white.opacity(0.30), lineWidth: 0.8))
             }
 
             Spacer()
@@ -173,7 +185,8 @@ struct NutritionTabView: View {
         .font(.caption.weight(.semibold))
         .foregroundStyle(.white)
         .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(.black.opacity(0.55), in: Capsule())
+        .glassEffect(.regular.tint(.black.opacity(0.45)), in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.20), lineWidth: 0.6))
     }
 
     // MARK: - Weekly panel
@@ -299,23 +312,27 @@ private struct NutritionHistoryRow: View {
 
     private var detail: String {
         if let fp = entry.fingerprint {
+            var parts: [String] = []
+            if let kcal = entry.caloriesKcal {
+                parts.append("\(Int(kcal.rounded())) kcal")
+            }
+            let maxCategories = parts.isEmpty ? 3 : 2
             let topCategories = fp.items
                 .sorted { $0.plateFraction > $1.plateFraction }
-                .prefix(3)
+                .prefix(maxCategories)
                 .map(\.category.displayLabel)
             if !topCategories.isEmpty {
-                return topCategories.joined(separator: " · ")
+                parts.append(contentsOf: topCategories)
+            } else if !fp.plantIngredients.isEmpty {
+                parts.append(contentsOf: fp.plantIngredients.prefix(maxCategories).map { $0 })
             }
-            if !fp.plantIngredients.isEmpty {
-                return fp.plantIngredients.prefix(3).joined(separator: ", ")
-            }
-            return entry.source.displayLabel
+            return parts.isEmpty ? entry.source.displayLabel : parts.joined(separator: " · ")
         }
         var parts: [String] = []
-        if let p = entry.portionGrams { parts.append("\(Int(p.rounded())) g") }
-        if let p = entry.proteinGrams { parts.append("P \(Int(p.rounded()))") }
-        if let f = entry.fiberGrams   { parts.append("F \(Int(f.rounded()))") }
-        if let s = entry.addedSugarGrams { parts.append("Sug \(Int(s.rounded()))") }
+        if let kcal = entry.caloriesKcal   { parts.append("\(Int(kcal.rounded())) kcal") }
+        if let p = entry.portionGrams       { parts.append("\(Int(p.rounded())) g") }
+        if let p = entry.proteinGrams       { parts.append("P \(Int(p.rounded()))") }
+        if let f = entry.fiberGrams         { parts.append("F \(Int(f.rounded()))") }
         return parts.joined(separator: " · ")
     }
 }
@@ -377,7 +394,7 @@ struct NutritionRollupPanel: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .glassCard(tint: AppTab.nutrition.tint, cornerRadius: 16, tintOpacity: 0.16)
     }
 }
 
@@ -413,8 +430,8 @@ private struct BucketStatusBadge: View {
         }
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(tint.opacity(0.15), in: Capsule())
         .foregroundStyle(tint)
+        .glassChip(tint: tint, tintOpacity: 0.22)
     }
 
     private var tint: Color {

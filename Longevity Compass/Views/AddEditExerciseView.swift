@@ -1,126 +1,75 @@
 import SwiftUI
 import SwiftData
-import PhotosUI
 
 struct AddEditExerciseView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppServices.self) private var services
 
     private let existing: ExerciseDef?
 
     @State private var name: String
-    @State private var selectedSymbol: String
     @State private var photoData: Data?
-    @State private var usePhoto: Bool
-    @State private var photoItem: PhotosPickerItem?
+    @State private var existingSymbol: String
 
-    private static let symbols: [String] = [
-        "dumbbell.fill",
-        "figure.strengthtraining.traditional",
-        "figure.strengthtraining.functional",
-        "figure.core.training",
-        "figure.gymnastics",
-        "figure.arms.open",
-        "figure.flexibility",
-        "figure.pilates",
-        "figure.yoga",
-        "figure.highintensity.intervaltraining",
-        "figure.rowing",
-        "figure.boxing",
-        "figure.kickboxing",
-        "figure.martial.arts",
-        "figure.wrestling",
-        "figure.climbing",
-        "figure.jumprope",
-        "bolt.fill",
-        "flame.fill",
-        "star.fill",
-        "trophy.fill",
-        "heart.fill",
-        "circle.grid.3x3.fill",
-        "arrow.up.circle.fill",
-    ]
+    // Session-only usage tracking (accumulates across regenerations in this sheet).
+    @State private var sessionModel: String?
+    @State private var sessionInputTokens: Int = 0
+    @State private var sessionOutputTokens: Int = 0
+    @State private var sessionCostUSD: Double = 0
+
+    @State private var isGenerating = false
+    @State private var generationError: String?
+    @FocusState private var nameFocused: Bool
 
     init(existing: ExerciseDef? = nil) {
         self.existing = existing
         _name = State(initialValue: existing?.name ?? "")
-        _selectedSymbol = State(initialValue: existing?.sfSymbol ?? "dumbbell.fill")
         _photoData = State(initialValue: existing?.photoData)
-        _usePhoto = State(initialValue: existing?.photoData != nil)
+        _existingSymbol = State(initialValue: existing?.sfSymbol ?? "dumbbell.fill")
     }
 
     var body: some View {
         Form {
             Section("Name") {
                 TextField("Exercise name", text: $name)
+                    .focused($nameFocused)
+                    .submitLabel(.done)
+                    .onSubmit { triggerAutoGenIfNeeded() }
             }
 
             Section {
-                Picker("Icon type", selection: $usePhoto) {
-                    Text("Symbol").tag(false)
-                    Text("Photo").tag(true)
-                }
-                .pickerStyle(.segmented)
-
-                if usePhoto {
-                    HStack(spacing: 14) {
-                        if let data = photoData, let img = UIImage(data: data) {
-                            Image(uiImage: img)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        } else {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
-                                .frame(width: 64, height: 64)
-                                .overlay {
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(.secondary)
-                                }
-                        }
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            Text(photoData == nil ? "Choose Photo" : "Change Photo")
-                        }
-                        .onChange(of: photoItem) { _, item in
-                            Task {
-                                photoData = try? await item?.loadTransferable(type: Data.self)
-                            }
+                HStack(alignment: .top, spacing: 14) {
+                    iconPreview
+                    VStack(alignment: .leading, spacing: 6) {
+                        statusLine
+                        if sessionCostUSD > 0 {
+                            Text(String(format: "This session: %d in + %d out tokens · $%.4f",
+                                        sessionInputTokens, sessionOutputTokens, sessionCostUSD))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.vertical, 4)
-                } else {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
-                        ForEach(Self.symbols, id: \.self) { symbol in
-                            Button {
-                                selectedSymbol = symbol
-                            } label: {
-                                Image(systemName: symbol)
-                                    .font(.title2)
-                                    .frame(width: 44, height: 44)
-                                    .background(
-                                        selectedSymbol == symbol
-                                            ? AnyShapeStyle(.tint.opacity(0.18))
-                                            : AnyShapeStyle(Color.clear),
-                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    )
-                                    .foregroundStyle(selectedSymbol == symbol ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 6)
+                    Spacer(minLength: 0)
                 }
+                .padding(.vertical, 4)
             } header: {
                 Text("Icon")
+            } footer: {
+                Text("Auto-generated by \(HealthThresholds.OpenRouter.imageModel) via OpenRouter. Roughly $0.04 per image. If generation is skipped or fails, the exercise saves without an image and a default symbol is used.")
             }
         }
         .navigationTitle(existing == nil ? "New Exercise" : "Edit Exercise")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: nameFocused) { _, focused in
+            if !focused { triggerAutoGenIfNeeded() }
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button("Save") {
+                    Task { await saveTapped() }
+                }
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isGenerating)
             }
             if existing == nil {
                 ToolbarItem(placement: .cancellationAction) {
@@ -130,17 +79,134 @@ struct AddEditExerciseView: View {
         }
     }
 
-    private func save() {
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private var iconPreview: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let data = photoData, let img = UIImage(data: data) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                        .overlay {
+                            Image(systemName: existingSymbol)
+                                .font(.title)
+                                .foregroundStyle(.secondary)
+                        }
+                }
+            }
+            .frame(width: 84, height: 84)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                if isGenerating {
+                    ZStack {
+                        Color.black.opacity(0.45)
+                        ProgressView().tint(.white)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+
+            if !isGenerating && services.openRouter.hasAPIKey && !name.trimmingCharacters(in: .whitespaces).isEmpty {
+                Button {
+                    Task { await generate() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(.black.opacity(0.55), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(4)
+                .accessibilityLabel("Regenerate icon")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusLine: some View {
+        if isGenerating {
+            Text("Generating icon…").font(.subheadline).foregroundStyle(.secondary)
+        } else if let err = generationError {
+            Text(err).font(.caption).foregroundStyle(.red).lineLimit(4)
+        } else if photoData != nil {
+            Text("Tap the arrow to try a different version.")
+                .font(.caption).foregroundStyle(.secondary)
+        } else if !services.openRouter.hasAPIKey {
+            Text("Add an OpenRouter API key in the Data tab to auto-generate icons. Saves without an icon for now.")
+                .font(.caption).foregroundStyle(.secondary)
+        } else if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            Text("Enter a name — an icon will be generated automatically.")
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            Text("Tap Done on the keyboard, or hit Save — an icon will be generated.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Generation
+
+    private func triggerAutoGenIfNeeded() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        let photo = usePhoto ? photoData : nil
+        guard !trimmed.isEmpty,
+              services.openRouter.hasAPIKey,
+              !isGenerating,
+              photoData == nil   // only auto-fire when there's no image yet; regenerate is explicit
+        else { return }
+        Task { await generate() }
+    }
+
+    private func generate() async {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        isGenerating = true
+        generationError = nil
+        defer { isGenerating = false }
+        do {
+            let result = try await services.openRouter.generateExerciseImage(exerciseName: trimmed)
+            photoData = result.imageData
+            sessionModel = result.model
+            sessionInputTokens  += result.inputTokens
+            sessionOutputTokens += result.outputTokens
+            sessionCostUSD      += result.costUSD
+        } catch {
+            generationError = error.localizedDescription
+        }
+    }
+
+    // MARK: - Save
+
+    private func saveTapped() async {
+        if photoData == nil, generationError == nil, services.openRouter.hasAPIKey {
+            await generate()
+        }
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+
         if let ex = existing {
             ex.name = trimmed
-            ex.sfSymbol = selectedSymbol
-            ex.photoData = photo
+            ex.photoData = photoData
+            applySessionUsage(to: ex)
         } else {
-            context.insert(ExerciseDef(name: trimmed, sfSymbol: selectedSymbol, photoData: photo))
+            let def = ExerciseDef(name: trimmed, sfSymbol: existingSymbol, photoData: photoData)
+            applySessionUsage(to: def)
+            context.insert(def)
         }
         try? context.save()
+        await services.refresh()
         dismiss()
+    }
+
+    private func applySessionUsage(to def: ExerciseDef) {
+        guard sessionCostUSD > 0 else { return }
+        def.imageModel = sessionModel ?? def.imageModel
+        def.imageInputTokens  = (def.imageInputTokens  ?? 0) + sessionInputTokens
+        def.imageOutputTokens = (def.imageOutputTokens ?? 0) + sessionOutputTokens
+        def.imageCostUSD      = (def.imageCostUSD      ?? 0) + sessionCostUSD
+        def.imageGeneratedAt  = .now
     }
 }

@@ -157,8 +157,8 @@ private struct BloodworkPanelRow: View {
         Text(flag.displayLabel)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(badgeTint(flag).opacity(0.18), in: Capsule())
             .foregroundStyle(badgeTint(flag))
+            .glassChip(tint: badgeTint(flag), tintOpacity: 0.25)
     }
 
     private func badgeTint(_ flag: BloodworkFlag) -> Color {

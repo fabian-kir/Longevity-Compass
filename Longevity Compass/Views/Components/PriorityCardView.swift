@@ -83,11 +83,7 @@ struct PriorityCardView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(statusTint.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(statusTint.opacity(0.35), lineWidth: 1)
-        )
+        .glassCard(tint: statusTint, cornerRadius: 18, tintOpacity: 0.22)
     }
 
     private var header: some View {
@@ -96,7 +92,7 @@ struct PriorityCardView: View {
                 .font(.title3.weight(.semibold))
                 .frame(width: 32, height: 32)
                 .foregroundStyle(statusTint)
-                .background(statusTint.opacity(0.15), in: Circle())
+                .glassEffect(.regular.tint(statusTint.opacity(0.22)), in: Circle())
             VStack(alignment: .leading, spacing: 0) {
                 Text(item.title).font(.headline)
                 Text(item.status.displayLabel)
@@ -109,8 +105,20 @@ struct PriorityCardView: View {
                     .font(.caption.weight(.bold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(statusTint, in: Capsule())
                     .foregroundStyle(.white)
+                    .background(
+                        Capsule()
+                            .fill(statusTint)
+                            .overlay(
+                                Capsule().fill(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.30), .clear],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                            )
+                    )
             }
         }
     }
@@ -153,8 +161,12 @@ struct PriorityCardView: View {
                     Image(systemName: "chevron.right")
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)
-                .background(statusTint.opacity(0.15), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .foregroundStyle(statusTint)
+                .glassEffect(.regular.tint(statusTint.opacity(0.22)), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(statusTint.opacity(0.30), lineWidth: 0.8)
+                )
             }
             .buttonStyle(.plain)
         }

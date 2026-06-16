@@ -181,6 +181,7 @@ final class PendingMealQueue {
                 source: .barcode,
                 rawInput: product.barcode,
                 productName: product.name,
+                caloriesKcal: scaled.kcalTotal,
                 portionGrams: scaled.portionGrams,
                 proteinGrams: scaled.protein,
                 fiberGrams: scaled.fiber,
@@ -207,34 +208,39 @@ final class PendingMealQueue {
 
 extension NutritionEntry {
     /// Builds a photo-source entry from an AI fingerprint analysis.
-    /// No macros are filled — those only come from the barcode path.
+    /// Pass `portionGrams` to scale the per-100 g macro estimates into absolute values;
+    /// nil leaves macro fields empty (used by the offline queue which has no user weight input).
     @MainActor static func fromFingerprint(
         _ analysis: MealFingerprintAnalysis,
         capturedAt: Date,
+        portionGrams: Double? = nil,
         imageFileName: String? = nil
     ) -> NutritionEntry {
+        let fp = analysis.fingerprint
         let json: String? = {
-            guard let data = try? JSONEncoder().encode(analysis.fingerprint) else { return nil }
+            guard let data = try? JSONEncoder().encode(fp) else { return nil }
             return String(data: data, encoding: .utf8)
         }()
-        let title = analysis.fingerprint.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = fp.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let scaled = portionGrams.flatMap { fp.scaledMacros(toGrams: $0) }
         return NutritionEntry(
             date: capturedAt,
             source: .photo,
             rawInput: "",
             productName: (title?.isEmpty == false) ? title : nil,
-            portionGrams: nil,
-            proteinGrams: nil,
+            caloriesKcal: scaled?.kcal,
+            portionGrams: portionGrams,
+            proteinGrams: scaled?.protein,
             fiberGrams: nil,
-            carbsGrams: nil,
-            fatGrams: nil,
+            carbsGrams: scaled?.carbs,
+            fatGrams: scaled?.fat,
             saturatedFatGrams: nil,
             addedSugarGrams: nil,
             sodiumMilligrams: nil,
             isFattyFish: nil,
             leafyGreenServings: nil,
             ultraProcessedScore: nil,
-            aiNotes: analysis.fingerprint.aiNotes,
+            aiNotes: fp.aiNotes,
             modelUsed: analysis.model,
             inputTokens: analysis.inputTokens,
             outputTokens: analysis.outputTokens,

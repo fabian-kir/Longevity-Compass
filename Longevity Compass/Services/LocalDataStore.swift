@@ -104,6 +104,22 @@ final class LocalDataStore {
         try? context.save()
     }
 
+    // MARK: - Exercise
+
+    func fetchAllExerciseDefs() -> [ExerciseDef] {
+        let descriptor = FetchDescriptor<ExerciseDef>(
+            sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.name)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func fetchAllExerciseEntries() -> [ExerciseEntry] {
+        let descriptor = FetchDescriptor<ExerciseEntry>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     func saveContext() {
         try? context.save()
     }

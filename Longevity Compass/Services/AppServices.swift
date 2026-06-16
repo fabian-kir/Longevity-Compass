@@ -33,6 +33,7 @@ final class AppServices {
     private(set) var healthSnapshot: HealthKitSnapshot = HealthKitSnapshot()
     private(set) var currentResult: PriorityEngine.Result?
     private(set) var nutritionDigest: NutritionDigest?
+    private(set) var exerciseImageDigest: ExerciseImageDigest = .empty
     private(set) var bioAge: BioAgeEstimate?
     private(set) var isRefreshing: Bool = false
     private(set) var hasBootstrapped: Bool = false
@@ -68,11 +69,14 @@ final class AppServices {
         let entries = store.fetchAllManualEntries()
         let nutrition = store.fetchAllNutritionEntries()
         let bloodwork = store.fetchAllBloodworkPanels()
+        let exercises = store.fetchAllExerciseEntries()
         nutritionDigest = NutritionEngine.digest(nutrition)
+        exerciseImageDigest = ExerciseImageDigest(defs: store.fetchAllExerciseDefs())
 
         let result = PriorityEngine.evaluate(
             manualEntries: entries,
             nutritionEntries: nutrition,
+            exerciseEntries: exercises,
             healthSnapshot: healthSnapshot,
             bloodworkPanels: bloodwork
         )

@@ -31,6 +31,7 @@ final class NutritionEntry {
     var rawInput: String
     var productName: String?
 
+    var caloriesKcal: Double?
     var portionGrams: Double?
     var proteinGrams: Double?
     var fiberGrams: Double?
@@ -62,6 +63,7 @@ final class NutritionEntry {
         source: NutritionSource,
         rawInput: String,
         productName: String? = nil,
+        caloriesKcal: Double? = nil,
         portionGrams: Double? = nil,
         proteinGrams: Double? = nil,
         fiberGrams: Double? = nil,
@@ -86,6 +88,7 @@ final class NutritionEntry {
         self.sourceRaw = source.rawValue
         self.rawInput = rawInput
         self.productName = productName
+        self.caloriesKcal = caloriesKcal
         self.portionGrams = portionGrams
         self.proteinGrams = proteinGrams
         self.fiberGrams = fiberGrams

@@ -242,6 +242,12 @@ enum HealthThresholds {
         static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
         static let httpReferer = "https://github.com/fabian-kir/longevity-compass"
         static let appTitle    = "Longevity Compass"
+
+        // Cheap image-output model used for auto-generated exercise icons.
+        // Each image ~1290 image-output tokens → roughly $0.04 per icon.
+        static let imageModel = "google/gemini-2.5-flash-image"
+        static let imageInputUSDPerMillion:  Double = 0.30
+        static let imageOutputUSDPerMillion: Double = 30.00
     }
 
     // MARK: - Biological age estimation

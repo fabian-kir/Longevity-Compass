@@ -7,6 +7,7 @@ struct TrainingView: View {
     @Query(sort: \ExerciseDef.sortOrder) private var defs: [ExerciseDef]
 
     @State private var showLogSheet = false
+    @State private var editingEntry: ExerciseEntry?
 
     var body: some View {
         List {
@@ -21,10 +22,23 @@ struct TrainingView: View {
                     Section(sectionTitle(for: group.key)) {
                         ForEach(group.value) { entry in
                             ExerciseEntryRow(entry: entry)
-                        }
-                        .onDelete { offsets in
-                            for i in offsets { context.delete(group.value[i]) }
-                            try? context.save()
+                                .onTapGesture { editingEntry = entry }
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        context.delete(entry)
+                                        try? context.save()
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        editingEntry = entry
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    .tint(.blue)
+                                }
                         }
                     }
                 }
@@ -47,8 +61,26 @@ struct TrainingView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(.tint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .foregroundStyle(.white)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(AppTab.train.tint)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.30), .clear],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(.white.opacity(0.30), lineWidth: 0.8)
+                    )
+                    .shadow(color: AppTab.train.tint.opacity(0.35), radius: 10, x: 0, y: 4)
             }
             .padding(.horizontal)
             .padding(.bottom, 8)
@@ -56,6 +88,25 @@ struct TrainingView: View {
         }
         .sheet(isPresented: $showLogSheet) {
             LogExerciseSheet()
+        }
+        .sheet(item: $editingEntry) { entry in
+            NavigationStack {
+                SetLoggerView(
+                    exerciseName: entry.exerciseName,
+                    initialSets: entry.sets,
+                    initialDate: entry.date
+                ) { date, sets in
+                    entry.date = date
+                    entry.sets = sets
+                    try? context.save()
+                    editingEntry = nil
+                }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { editingEntry = nil }
+                    }
+                }
+            }
         }
         .task { seedIfNeeded() }
     }
@@ -119,7 +170,7 @@ struct ExerciseEntryRow: View {
                             Text(setLabel(i: i, set: set))
                                 .font(.caption.monospacedDigit())
                                 .padding(.horizontal, 8).padding(.vertical, 3)
-                                .background(Color(.secondarySystemBackground), in: Capsule())
+                                .glassEffect(.regular, in: Capsule())
                         }
                     }
                 }

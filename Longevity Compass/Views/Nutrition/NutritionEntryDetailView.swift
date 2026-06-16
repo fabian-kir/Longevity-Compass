@@ -46,6 +46,7 @@ struct NutritionEntryDetailView: View {
 
             if let fp = entry.fingerprint {
                 fingerprintSections(fp)
+                if hasMacros { macroSection }
             } else if hasMacros {
                 macroSection
             }
@@ -83,7 +84,7 @@ struct NutritionEntryDetailView: View {
     }
 
     private var hasMacros: Bool {
-        entry.portionGrams != nil || entry.proteinGrams != nil || entry.fiberGrams != nil
+        entry.caloriesKcal != nil || entry.portionGrams != nil || entry.proteinGrams != nil || entry.fiberGrams != nil
     }
 
     @ViewBuilder
@@ -113,6 +114,9 @@ struct NutritionEntryDetailView: View {
 
     private var macroSection: some View {
         Section("Nutrients") {
+            if let kcal = entry.caloriesKcal {
+                row("Calories", String(format: "%.0f kcal", kcal))
+            }
             row("Portion",         entry.portionGrams.map { String(format: "%.0f g", $0) })
             row("Protein",         entry.proteinGrams.map { String(format: "%.0f g", $0) })
             row("Fibre",           entry.fiberGrams.map { String(format: "%.0f g", $0) })

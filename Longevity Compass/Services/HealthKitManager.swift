@@ -349,7 +349,7 @@ final class HealthKitManager {
 
         var perNight: [Date: TimeInterval] = [:]
         for (bucket, nightSamples) in byNight {
-            guard let bestTier = nightSamples.map(sleepSourceTier(for:)).min() else { continue }
+            guard let bestTier = nightSamples.map({ sleepSourceTier(for: $0) }).min() else { continue }
             let chosen = nightSamples.filter { sleepSourceTier(for: $0) == bestTier }
             let intervals = chosen
                 .map { (start: $0.startDate, end: $0.endDate) }

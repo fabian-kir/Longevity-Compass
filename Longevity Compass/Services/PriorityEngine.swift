@@ -14,6 +14,7 @@ enum PriorityEngine {
     static func evaluate(
         manualEntries: [ManualEntry],
         nutritionEntries: [NutritionEntry] = [],
+        exerciseEntries: [ExerciseEntry] = [],
         healthSnapshot: HealthKitSnapshot,
         bloodworkPanels: [BloodworkPanel] = [],
         now: Date = .now
@@ -26,7 +27,7 @@ enum PriorityEngine {
             case .bloodPressure:    evaluateBloodPressure(manualEntries, healthSnapshot, now: now)
             case .nicotine:         evaluateNicotine(manualEntries, now: now)
             case .cardio:           evaluateCardio(healthSnapshot, now: now)
-            case .strength:         evaluateStrength(manualEntries, healthSnapshot, now: now)
+            case .strength:         evaluateStrength(manualEntries, exerciseEntries, healthSnapshot, now: now)
             case .bodyComposition:  evaluateBodyComposition(healthSnapshot, now: now)
             case .sleep:            evaluateSleep(healthSnapshot, now: now)
             case .alcohol:          evaluateAlcohol(manualEntries, now: now)
@@ -38,11 +39,60 @@ enum PriorityEngine {
             }
         }
 
-        let sortedAll = items.sorted { $0.priorityScore > $1.priorityScore }
+        let amplified = items.map { amplifyForTrend($0) }
+        let sortedAll = amplified.sorted { $0.priorityScore > $1.priorityScore }
         let topItems = selectTopItems(from: sortedAll)
-        let overall = computeOverallStatus(items: items)
+        let overall = computeOverallStatus(items: amplified)
 
         return Result(allItems: sortedAll, topItems: topItems, overallStatus: overall, generatedAt: now)
+    }
+
+    // MARK: - Trend amplification
+    //
+    // When a high-impact domain is trending the wrong way but the status is still good or just
+    // borderline, the per-domain evaluator's cadence (often "quarterly" / "biweekly") is too lax —
+    // worsening trends warrant earlier rechecks even before status flips to bad. We bump the
+    // cadence one tier and shift the next-tracking date to match, so reminders surface sooner.
+
+    private static func amplifyForTrend(_ item: PriorityItem) -> PriorityItem {
+        guard HealthThresholds.Dashboard.highImpactDomains.contains(item.domain) else { return item }
+        guard item.trend == .worsening else { return item }
+        guard item.status == .good || item.status == .borderline else { return item }
+
+        let bumped = bumpUp(item.reminderFrequency)
+        guard bumped != item.reminderFrequency else { return item }
+
+        // Recompute next-tracking date by shifting the existing one closer by the cadence delta.
+        // This keeps the "based on last observation" anchor intact across the bump.
+        guard
+            let currentDays = item.reminderFrequency.days,
+            let bumpedDays  = bumped.days,
+            let oldNext     = item.nextTrackingDate
+        else {
+            return item.withReminderCadence(bumped, nextTrackingDate: item.nextTrackingDate)
+        }
+        let shiftedNext = Calendar.current.date(
+            byAdding: .day,
+            value: -(currentDays - bumpedDays),
+            to: oldNext
+        )
+        return item.withReminderCadence(bumped, nextTrackingDate: shiftedNext)
+    }
+
+    private static func bumpUp(_ freq: ReminderFrequency) -> ReminderFrequency {
+        switch freq {
+        case .never:     .never
+        case .triennial: .biennial
+        case .biennial:  .annual
+        case .annual:    .rare
+        case .rare:      .quarterly
+        case .quarterly: .monthly
+        case .monthly:   .biweekly
+        case .biweekly:  .weekly
+        case .weekly:    .fewDays
+        case .fewDays:   .daily
+        case .daily:     .daily
+        }
     }
 
     // MARK: - Top-item filtering
@@ -327,12 +377,14 @@ enum PriorityEngine {
 
     private static func evaluateStrength(
         _ entries: [ManualEntry],
+        _ exerciseEntries: [ExerciseEntry],
         _ snapshot: HealthKitSnapshot,
         now: Date
     ) -> PriorityItem {
         let lookback = HealthThresholds.Strength.lookbackDays
         let since = Calendar.current.date(byAdding: .day, value: -lookback, to: now) ?? now
         let sinceDouble = Calendar.current.date(byAdding: .day, value: -(lookback * 2), to: now) ?? now
+        let cal = Calendar.current
 
         let hkRecent  = snapshot.strengthWorkoutsLast7Days ?? 0
         let hk28      = snapshot.strengthWorkoutsLast28Days ?? 0
@@ -340,10 +392,18 @@ enum PriorityEngine {
         let manualRecent = TrendAnalyzer.distinctDaysWithYes(entries, type: .strengthTraining, since: since, until: now)
         let manualPrior  = TrendAnalyzer.distinctDaysWithYes(entries, type: .strengthTraining, since: sinceDouble, until: since)
 
-        let recent = hkRecent + manualRecent
-        let prior  = hkPriorWk + manualPrior
-        let lastEntry = TrendAnalyzer.mostRecent(entries, type: .strengthTraining)?.date
-        let hasAnyHistory = (hk28 + manualRecent + manualPrior) > 0
+        // Count distinct days with at least one logged exercise in the Train tab.
+        let trainRecent = Set(exerciseEntries.filter { $0.date >= since && $0.date <= now }
+            .map { cal.startOfDay(for: $0.date) }).count
+        let trainPrior  = Set(exerciseEntries.filter { $0.date >= sinceDouble && $0.date < since }
+            .map { cal.startOfDay(for: $0.date) }).count
+
+        let recent = hkRecent + manualRecent + trainRecent
+        let prior  = hkPriorWk + manualPrior + trainPrior
+        let lastExercise = exerciseEntries.first?.date
+        let lastManual   = TrendAnalyzer.mostRecent(entries, type: .strengthTraining)?.date
+        let lastEntry    = [lastExercise, lastManual].compactMap { $0 }.max()
+        let hasAnyHistory = (hk28 + manualRecent + manualPrior + trainRecent + trainPrior) > 0
 
         var status: DomainStatus
         var reason: String
@@ -355,7 +415,7 @@ enum PriorityEngine {
             reason = "One session this week — one more reaches the target."
         } else if !hasAnyHistory {
             status = .missing
-            reason = "No strength workouts in Apple Health yet. Log workouts there and they'll show up here."
+            reason = "No strength sessions logged yet. Use the Train tab to record workouts."
         } else {
             status = .bad
             reason = "No strength sessions this week."

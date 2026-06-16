@@ -117,8 +117,8 @@ struct AddBloodworkPanelSheet: View {
         Text(tier == .core ? "MUST" : tier == .extended ? "NICE" : "OPTIONAL")
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(tierTint(tier).opacity(0.18), in: Capsule())
             .foregroundStyle(tierTint(tier))
+            .glassChip(tint: tierTint(tier), tintOpacity: 0.25)
     }
 
     private func tierTint(_ tier: BloodworkMarkerCatalog.Tier) -> Color {

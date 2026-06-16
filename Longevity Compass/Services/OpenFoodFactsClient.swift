@@ -8,6 +8,7 @@ struct OpenFoodFactsProduct {
     let servingSizeGrams: Double?
     let novaGroup: Int?               // 1 (whole) … 4 (ultra-processed)
     // Per-100g nutrients
+    let kcal100g: Double?
     let protein100g: Double?
     let fiber100g: Double?
     let carbs100g: Double?
@@ -27,6 +28,7 @@ struct OpenFoodFactsProduct {
         let f = grams / 100.0
         return ScaledNutrients(
             portionGrams: grams,
+            kcalTotal: kcal100g.map { $0 * f },
             protein: protein100g.map { $0 * f },
             fiber: fiber100g.map { $0 * f },
             carbs: carbs100g.map { $0 * f },
@@ -44,6 +46,7 @@ struct OpenFoodFactsProduct {
 
 struct ScaledNutrients {
     let portionGrams: Double?
+    let kcalTotal: Double?
     let protein: Double?
     let fiber: Double?
     let carbs: Double?
@@ -68,6 +71,35 @@ enum OpenFoodFactsError: LocalizedError {
 }
 
 enum OpenFoodFactsClient {
+    static func search(query: String) async throws -> [OpenFoodFactsProduct] {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return [] }
+        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://world.openfoodfacts.org/cgi/search.pl?search_terms=\(encoded)&search_simple=1&action=process&json=1&page_size=25") else {
+            throw OpenFoodFactsError.malformedResponse
+        }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.setValue("LongevityCompass/0.2 (personal)", forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw OpenFoodFactsError.network("No HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw OpenFoodFactsError.network("HTTP \(http.statusCode)")
+        }
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let products = json["products"] as? [[String: Any]] else {
+            throw OpenFoodFactsError.malformedResponse
+        }
+        return products.compactMap { dict in
+            guard let code = dict["code"] as? String, !code.isEmpty else { return nil }
+            let product = parse(product: dict, barcode: code)
+            guard product.name != nil else { return nil }
+            return product
+        }
+    }
+
     static func lookup(barcode: String) async throws -> OpenFoodFactsProduct {
         let normalized = barcode.trimmingCharacters(in: .whitespaces)
         guard !normalized.isEmpty else { throw OpenFoodFactsError.notFound }
@@ -118,6 +150,7 @@ enum OpenFoodFactsClient {
             imageURL: imageString.flatMap { URL(string: $0) },
             servingSizeGrams: servingGrams,
             novaGroup: (product["nova_group"] as? Int) ?? Int((product["nova_group"] as? String) ?? ""),
+            kcal100g:    d("energy-kcal_100g") ?? d("energy_kcal_100g"),
             protein100g: d("proteins_100g"),
             fiber100g:   d("fiber_100g"),
             carbs100g:   d("carbohydrates_100g"),
