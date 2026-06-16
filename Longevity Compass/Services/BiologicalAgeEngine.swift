@@ -110,17 +110,19 @@ struct BioInputReading: Hashable {
 
 // MARK: - V2 Logic Helpers (Task 2 — pure math; aggregator wires them up in Task 3)
 
-/// Direction-agnostic z-score. Returns a SIGNED z where `+` always means
-/// "better than typical".
-///
-/// - For `.higherIsBetter`: `(value - mean) / sd`
-/// - For `.lowerIsBetter`:  `(mean - value) / sd`
-/// - If `sd == 0`, returns 0 as a safeguard.
-func bioZScore(value: Double, mean: Double, sd: Double, direction: BioDirection) -> Double {
-    guard sd > 0 else { return 0 }
-    switch direction {
-    case .higherIsBetter: return (value - mean) / sd
-    case .lowerIsBetter:  return (mean - value) / sd
+extension BioInputReading {
+    /// Direction-agnostic z-score. Returns a SIGNED z where `+` always means
+    /// "better than typical".
+    ///
+    /// - For `.higherIsBetter`: `(value - mean) / sd`
+    /// - For `.lowerIsBetter`:  `(mean - value) / sd`
+    /// - If `sd == 0`, returns 0 as a safeguard.
+    static func zScore(value: Double, mean: Double, sd: Double, direction: BioDirection) -> Double {
+        guard sd > 0 else { return 0 }
+        switch direction {
+        case .higherIsBetter: return (value - mean) / sd
+        case .lowerIsBetter:  return (mean - value) / sd
+        }
     }
 }
 
@@ -133,6 +135,7 @@ func bioZScore(value: Double, mean: Double, sd: Double, direction: BioDirection)
 func interpolateDecadeNorm(age: Double, table: [Int: Double]) -> Double {
     let keys = table.keys.sorted()
     guard let first = keys.first, let last = keys.last else { return 0 }
+    if keys.count == 1 { return table[keys[0]] ?? 0 }
     if age <= Double(first) { return table[first] ?? 0 }
     if age >= Double(last)  { return table[last]  ?? 0 }
     // Find the two adjacent decade keys bracketing `age`.
@@ -148,19 +151,16 @@ func interpolateDecadeNorm(age: Double, table: [Int: Double]) -> Double {
             return loV + (hiV - loV) * t
         }
     }
-    return table[last] ?? 0
+    preconditionFailure("interpolateDecadeNorm fell through clamp logic")
 }
 
 extension BioSignal {
-    /// How many biological-age years one standard deviation of this signal
-    /// is worth in the aggregator. Used as the multiplier on the (capped)
-    /// z-score in Layer A.
-    ///
-    /// Nicotine and alcohol return 0 — they're handled as flat lifestyle
-    /// penalties (see `HealthThresholds.BioAge.V2.nicotineActiveYears` etc.)
-    /// rather than via z-score scaling.
-    var yearsPerSD: Double {
+    /// Years-per-standard-deviation weight used in z-score scaling.
+    /// Returns nil for signals handled as flat penalties (nicotine, alcohol),
+    /// which never participate in z-score math.
+    var yearsPerSD: Double? {
         switch self {
+        case .nicotine, .alcohol: return nil
         case .vo2Max:           return 2.0
         case .rhr:              return 1.0
         case .hrv:              return 0.8
@@ -182,8 +182,6 @@ extension BioSignal {
         case .exerciseMinutes:  return 1.0
         case .strengthSessions: return 0.6
         case .dailySteps:       return 0.4
-        case .nicotine:         return 0.0   // flat; handled separately
-        case .alcohol:          return 0.0   // flat; handled separately
         case .nutrition:        return 0.5
         }
     }
@@ -193,7 +191,7 @@ extension BioFactor {
     /// Maximum absolute years-impact a single factor's combined signals may
     /// contribute. For nicotine/alcohol the cap also represents the magnitude
     /// ceiling of the flat penalty (sign handled by the aggregator).
-    var cap: Double {
+    var yearsCap: Double {
         switch self {
         case .fitness:      return 6
         case .glycemic:     return 5
