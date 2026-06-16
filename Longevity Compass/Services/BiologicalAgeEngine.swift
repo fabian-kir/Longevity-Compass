@@ -4,17 +4,60 @@ import HealthKit
 // MARK: - New Type Scaffolding (Task 1 — pure additive, not yet wired into evaluate())
 
 /// Individual measurable signals that feed into the biological-age engine.
-/// Each signal maps to exactly one `BioFactor` (see `BioInputReading.factor`).
+/// Each signal maps to exactly one `BioFactor` (see `BioSignal.factor`).
 enum BioSignal: String, CaseIterable, Hashable {
     case vo2Max, rhr, hrv
     case hba1c, fastingGlucose, fastingInsulin
     case apoB, ldl, hdl, trigHdlRatio
-    case bp
+    case bloodPressure
     case hsCrp, homocysteine
     case eGFR, alt
     case waist, weightTrend
     case sleep, exerciseMinutes, strengthSessions, dailySteps
     case nicotine, alcohol, nutrition
+
+    /// Whether a higher raw value is healthier (e.g. VO2 max) or a lower raw
+    /// value is healthier (e.g. ApoB). Used by the aggregator to orient the
+    /// z-score sign consistently across signals.
+    var direction: BioDirection {
+        switch self {
+        case .vo2Max, .hrv, .hdl, .eGFR, .dailySteps, .exerciseMinutes,
+             .strengthSessions, .sleep, .nutrition:
+            return .higherIsBetter
+        case .rhr, .hba1c, .fastingGlucose, .fastingInsulin, .apoB, .ldl,
+             .trigHdlRatio, .bloodPressure, .hsCrp, .homocysteine, .alt,
+             .waist, .weightTrend, .nicotine, .alcohol:
+            return .lowerIsBetter
+        }
+    }
+
+    /// The higher-level `BioFactor` group this signal belongs to. Making this
+    /// computed (rather than a separately-stored field on `BioInputReading`)
+    /// enforces the invariant that every signal has exactly one factor.
+    var factor: BioFactor {
+        switch self {
+        case .vo2Max, .rhr, .hrv:
+            return .fitness
+        case .hba1c, .fastingGlucose, .fastingInsulin:
+            return .glycemic
+        case .apoB, .ldl, .hdl, .trigHdlRatio:
+            return .lipids
+        case .bloodPressure:
+            return .hemodynamic
+        case .waist, .weightTrend:
+            return .bodyComp
+        case .hsCrp, .homocysteine:
+            return .inflammation
+        case .eGFR, .alt:
+            return .organ
+        case .sleep, .exerciseMinutes, .strengthSessions, .dailySteps, .nutrition:
+            return .behavior
+        case .nicotine:
+            return .nicotine
+        case .alcohol:
+            return .alcohol
+        }
+    }
 }
 
 /// Higher-level grouping a signal belongs to. Used by Layer A logic (later tasks)
@@ -28,8 +71,8 @@ enum BioFactor: String, CaseIterable, Hashable {
     case inflammation   // hs-CRP, homocysteine
     case organ          // eGFR, ALT
     case behavior       // sleep, exercise, strength, steps, nutrition
-    case nicotine       // own factor (always-counts)
-    case alcohol        // own factor (always-counts)
+    case nicotine       // always contributes; never suppressed by Layer A
+    case alcohol        // always contributes; never suppressed by Layer A
 }
 
 /// Direction of "better" for a signal — does a higher raw value mean healthier
@@ -43,16 +86,24 @@ enum BioDirection {
 /// signal, then potentially marked `suppressedByDownstream` by Layer A.
 struct BioInputReading: Hashable {
     let signal: BioSignal
-    let factor: BioFactor
     let value: Double
     let referenceMean: Double      // age/sex-anchored typical value
     let referenceSD: Double
-    let zScore: Double              // signed: + = better than typical
-    let rawYearsImpact: Double      // z × yearsPerSD, before cap & suppression
+    /// Signed: + = better than typical. Note that the engine flips the sign
+    /// when computing `rawYearsImpact` — a positive z-score yields negative
+    /// years (younger), and vice versa.
+    let zScore: Double
+    let rawYearsImpact: Double      // z × yearsPerSD (sign-flipped), before cap & suppression
     let freshnessWeight: Double     // 0...1
     let qualityWeight: Double       // 0...1
-    /// Set later by Layer A logic (Task 5). Default false for now.
-    let suppressedByDownstream: Bool
+    /// Set later by Layer A logic (Task 5). Mutable so Layer A can flip it
+    /// in place on this value-type struct without reconstructing the whole
+    /// reading. Default false at construction time.
+    var suppressedByDownstream: Bool
+
+    /// Factor membership is derived from `signal` so a reading can never be
+    /// constructed with a mismatched signal/factor pair.
+    var factor: BioFactor { signal.factor }
 
     var effectiveWeight: Double { freshnessWeight * qualityWeight }
 }
