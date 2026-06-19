@@ -100,6 +100,11 @@ struct BioInputReading: Hashable {
     /// in place on this value-type struct without reconstructing the whole
     /// reading. Default false at construction time.
     var suppressedByDownstream: Bool
+    /// Optional one-line note describing any non-trivial signal processing
+    /// applied to `value` before z-scoring (e.g. "smoothed, 7d EWMA half-life"
+    /// for HRV). Nil for raw values. UI surfaces this verbatim under the
+    /// reading row so a reader can audit what they're looking at.
+    var processingNote: String? = nil
 
     /// Factor membership is derived from `signal` so a reading can never be
     /// constructed with a mismatched signal/factor pair.
@@ -124,6 +129,57 @@ extension BioInputReading {
         case .lowerIsBetter:  return (mean - value) / sd
         }
     }
+}
+
+// MARK: - Continuous-time EWMA (density-aware low-pass smoother)
+//
+// Discrete solution to the first-order linear ODE
+//
+//     ds/dt = (x − s) / τ
+//
+// integrated at each incoming sample with Δt = time since the previous sample.
+// β = 1 − exp(−Δt / τ); τ relates to half-life by τ = halfLife / ln(2).
+//
+// Why we want this instead of a flat 28-day mean for HRV:
+//   - Apple Watch SDNN is single-night noisy. A flat mean treats a sample
+//     from 28 days ago and last night identically, which both adds lag AND
+//     fails to attenuate single-night noise.
+//   - Samples arrive at irregular real-time intervals (multiple per night;
+//     sometimes none for several days). Index-based smoothers assume a fixed
+//     grid; this one is parameterised by real Δt so it stays correct under
+//     variable input density.
+//   - The half-life is expressed in REAL DAYS, not sample count, so the
+//     smoother's effective memory is a physically meaningful quantity that
+//     can be reasoned about against the underlying biology.
+
+/// Apply a continuous-time EWMA to a time-stamped sample series and return
+/// the smoothed estimate at the last sample's timestamp.
+///
+/// Samples are sorted by date internally (callers may pass them in any order).
+/// Returns `nil` for an empty series.
+///
+/// - Parameters:
+///   - samples: Time-stamped sample series.
+///   - halfLifeDays: Half-life of the smoother in real days (τ = halfLife / ln 2).
+func continuousTimeEWMA(
+    samples: [(date: Date, value: Double)],
+    halfLifeDays: Double
+) -> Double? {
+    guard !samples.isEmpty, halfLifeDays > 0 else { return nil }
+    let sorted = samples.sorted { $0.date < $1.date }
+    // Time constant τ in seconds. Half-life is in days; β uses Δt/τ as a
+    // dimensionless ratio, so units must agree.
+    let tauSeconds = halfLifeDays * 86_400.0 / log(2.0)
+    var s = sorted[0].value
+    var prev = sorted[0].date
+    for i in 1..<sorted.count {
+        let dt = sorted[i].date.timeIntervalSince(prev)
+        // Negative Δt would mean unsorted input; sort above guarantees Δt ≥ 0.
+        let beta = 1.0 - exp(-dt / tauSeconds)
+        s = beta * sorted[i].value + (1.0 - beta) * s
+        prev = sorted[i].date
+    }
+    return s
 }
 
 /// Linearly interpolate a decade-keyed reference table (e.g. age → norm).
@@ -236,9 +292,8 @@ extension BioFactor {
 
 extension BiologicalAgeEngine {
     /// A downstream reading needs effectiveWeight strictly greater than this to
-    /// suppress its upstream behaviors. We use strict inequality so signals wired
-    /// at exactly 0.5 (e.g. HRV, while its sample-count freshness is still TODO)
-    /// do not single-handedly silence the behavior factor.
+    /// suppress its upstream behaviors. Strict inequality means a signal sitting
+    /// at exactly 0.5 freshness cannot single-handedly silence the behavior factor.
     static let layerASuppressionMinWeight: Double = 0.5
 
     /// Behavior/downstream readings with rawYearsImpact above this count as the
@@ -407,6 +462,76 @@ struct BioAgeEstimate {
     /// Contributors adding biological years, biggest first — framed as opportunities.
     var opportunities: [BioAgeContributor] {
         contributors.filter { $0.years >= 0.25 }.sorted { $0.years > $1.years }
+    }
+}
+
+extension BioAgeEstimate {
+    /// Default perturbation magnitude (fractional) for the sensitivity readout.
+    /// Picked at 10% because it's large enough to escape numerical noise but
+    /// small enough that the local-linearity assumption (Δdelta ≈ slope · Δx)
+    /// still holds well clear of factor caps.
+    static let sensitivityDefaultPerturbation: Double = 0.10
+
+    /// Linearised sensitivity of the bio-age delta to a single signal's input
+    /// value. Returns the change in `delta` (in years) that would result from
+    /// improving the signal by `perturbationPct` in its favourable direction —
+    /// up for `higherIsBetter` signals, down for `lowerIsBetter` signals.
+    ///
+    /// Negative return value = improvement subtracts years (younger bio-age),
+    /// which is the expected sign for an improvement perturbation.
+    ///
+    /// This is a finite-difference approximation to `∂(delta)/∂(value)` scaled
+    /// by `value · perturbationPct`. It's a local slope around the current
+    /// operating point — not a forecast. Factor caps and Layer-A suppression
+    /// can both make the local slope zero even when a larger move would
+    /// change the number (the readout silently returns 0 in that regime).
+    ///
+    /// Returns nil if the signal is not present in this estimate's readings,
+    /// has no `yearsPerSD` (flat penalties — nicotine, alcohol), or has
+    /// zero `referenceSD` (degenerate z-scoring).
+    func sensitivity(
+        of signal: BioSignal,
+        perturbationPct: Double = BioAgeEstimate.sensitivityDefaultPerturbation
+    ) -> Double? {
+        guard let yps = signal.yearsPerSD else { return nil }
+        guard let reading = readings.first(where: { $0.signal == signal }) else { return nil }
+        guard reading.referenceSD > 0 else { return nil }
+        // A suppressed reading contributes 0 to the number; perturbing its
+        // value won't move the delta until suppression flips.
+        if reading.suppressedByDownstream { return 0 }
+
+        let factor = signal.factor
+        let factorReadings = readings.filter { $0.factor == factor && !$0.suppressedByDownstream }
+        let totalWeight = factorReadings.reduce(0.0) { $0 + $1.effectiveWeight }
+        guard totalWeight > 0 else { return 0 }
+
+        // Improvement direction: + for higherIsBetter, − for lowerIsBetter.
+        let dirSign: Double = signal.direction == .higherIsBetter ? 1 : -1
+        let perturbedValue = reading.value * (1.0 + perturbationPct * dirSign)
+        let perturbedZ = BioInputReading.zScore(
+            value: perturbedValue,
+            mean: reading.referenceMean,
+            sd: reading.referenceSD,
+            direction: signal.direction
+        )
+        let perturbedRawYears = -perturbedZ * yps
+
+        // Recompute the factor's weighted-mean + cap pre- and post-perturbation.
+        // Other factors don't change, so Δ(delta) = Δ(this factor's clamped years).
+        let preWeighted = factorReadings.reduce(0.0) {
+            $0 + $1.rawYearsImpact * $1.effectiveWeight
+        } / totalWeight
+        let postWeighted = factorReadings.reduce(0.0) { acc, r in
+            let raw = r.signal == signal ? perturbedRawYears : r.rawYearsImpact
+            return acc + raw * r.effectiveWeight
+        } / totalWeight
+
+        let cap = factor.yearsCap
+        // Inlined min/max chain — the engine's `clamp` helper is private and
+        // not visible from this extension's scope.
+        let preClamped  = min(max(preWeighted,  -cap), cap)
+        let postClamped = min(max(postWeighted, -cap), cap)
+        return postClamped - preClamped
     }
 }
 
@@ -785,7 +910,8 @@ enum BiologicalAgeEngine {
         domain: HealthDomain,
         plausibilityValue: Double? = nil,
         qualityOverride: Double? = nil,
-        zOverride: Double? = nil
+        zOverride: Double? = nil,
+        processingNote: String? = nil
     ) -> ReadingTuple {
         let z = zOverride ?? BioInputReading.zScore(value: value, mean: mean, sd: sd, direction: signal.direction)
         let yps = signal.yearsPerSD ?? 0
@@ -803,7 +929,8 @@ enum BiologicalAgeEngine {
             rawYearsImpact: -z * yps,
             freshnessWeight: freshness,
             qualityWeight: quality,
-            suppressedByDownstream: false
+            suppressedByDownstream: false,
+            processingNote: processingNote
         )
         return (reading, label, detail, domain)
     }
@@ -872,14 +999,41 @@ enum BiologicalAgeEngine {
         chronoYears: Double,
         sex: HKBiologicalSex
     ) -> ReadingTuple? {
-        guard let value = snapshot.hrvAverage28d else { return nil }
         let mean = hrvNorm(age: chronoYears, sex: sex)
         let sd = HealthThresholds.BioAge.V2.hrvSD
-        // Mirror the RHR freshness rule: enough underlying samples → full weight,
-        // sparse coverage → halved. Treat a missing sample count as sparse so an
-        // estimator with only an average but no count exposed stays conservative.
+        // Freshness: mirror the RHR rule — enough underlying samples in the
+        // last 28 days → full weight, sparse coverage → halved. A missing
+        // sample count stays conservative (treated as sparse).
         let samples = snapshot.hrvSampleCount28d ?? 0
         let freshness: Double = samples >= HealthThresholds.BioAge.V2.hrvMinDays ? 1.0 : 0.5
+
+        // Prefer the continuous-time EWMA over the raw 28-day mean when the
+        // sample series has enough points to leave the smoother's warm-up
+        // regime. The smoother weights samples by real elapsed time (not by
+        // sample index), so it stays correct under irregular sampling — see
+        // `continuousTimeEWMA(samples:halfLifeDays:)` for the math.
+        if snapshot.hrvSamples.count >= HealthThresholds.BioAge.V2.hrvEWMAMinSamples,
+           let smoothed = continuousTimeEWMA(
+               samples: snapshot.hrvSamples,
+               halfLifeDays: HealthThresholds.BioAge.V2.hrvEWMAHalfLifeDays
+           ) {
+            return makeReading(
+                signal: .hrv, value: smoothed, mean: mean, sd: sd, freshness: freshness,
+                label: "Heart rate variability",
+                detail: String(format: "%.0f ms vs ~%.0f norm", smoothed, mean),
+                domain: .cardio,
+                processingNote: String(
+                    format: "Smoothed: EWMA, %.0f-day half-life (%d samples)",
+                    HealthThresholds.BioAge.V2.hrvEWMAHalfLifeDays,
+                    snapshot.hrvSamples.count
+                )
+            )
+        }
+
+        // Fallback: no series available (older HealthKit cache, or device
+        // returned only the rollup). Use the raw 28d mean — same behaviour as
+        // before this change.
+        guard let value = snapshot.hrvAverage28d else { return nil }
         return makeReading(
             signal: .hrv, value: value, mean: mean, sd: sd, freshness: freshness,
             label: "Heart rate variability",

@@ -26,6 +26,12 @@ struct HealthKitSnapshot {
     /// `HealthThresholds.BioAge.V2.hrvMinDays`, HRV counts at full weight;
     /// otherwise its contribution is halved.
     var hrvSampleCount28d: Int?
+    /// Raw timestamped HRV (SDNN, ms) samples over the recent past. Used by the
+    /// engine's continuous-time EWMA smoother — each sample carries its own
+    /// timestamp so the smoother weights by real elapsed time (Δt) rather than
+    /// sample index. Do NOT pre-bucket this to daily means; that would lose the
+    /// density information the smoother relies on.
+    var hrvSamples: [(date: Date, value: Double)] = []
     var sleepHoursAverage7d: Double?
     var sleepHoursAverage28d: Double?
     var latestBodyMass: (value: Double, date: Date)?
@@ -165,6 +171,11 @@ final class HealthKitManager {
         snapshot.restingHeartRateAverage90d  = try? await averageDiscrete(.restingHeartRate, days: 90, unit: HKUnit.count().unitDivided(by: .minute()))
         snapshot.hrvAverage28d               = try? await averageDiscrete(.heartRateVariabilitySDNN, days: 28, unit: .secondUnit(with: .milli))
         snapshot.hrvSampleCount28d           = try? await sampleCount(.heartRateVariabilitySDNN, days: 28)
+        snapshot.hrvSamples                  = (try? await sampleSeries(
+            .heartRateVariabilitySDNN,
+            days: HealthThresholds.BioAge.V2.hrvSeriesLookbackDays,
+            unit: .secondUnit(with: .milli)
+        )) ?? []
         let (s7, s28) = await sleepAverages()
         snapshot.sleepHoursAverage7d         = s7
         snapshot.sleepHoursAverage28d        = s28

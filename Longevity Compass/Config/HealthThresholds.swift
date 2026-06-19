@@ -61,17 +61,13 @@ enum HealthThresholds {
     // MARK: - Blood pressure thresholds (mmHg, average across recent readings)
 
     enum BP {
-        static let goodSystolicMax: Double      = 119
-        static let goodDiastolicMax: Double     = 79
         static let borderlineSystolicMin: Double = 120
-        static let borderlineSystolicMax: Double = 129
         static let badSystolicMin: Double       = 130
         static let badDiastolicMin: Double      = 80
         static let urgentSystolicMin: Double    = 180
         static let urgentDiastolicMin: Double   = 120
 
         static let baselineReadingsNeeded = 3
-        static let baselineWindowDays     = 14
         static let recentWindowDays       = 14
         static let priorWindowDays        = 56
         static let stableHistoryDays      = 90
@@ -103,7 +99,6 @@ enum HealthThresholds {
     enum Sleep {
         static let goodHoursLow: Double          = 7.0
         static let goodHoursHigh: Double         = 9.0
-        static let borderlineHoursLow: Double    = 6.0
         static let badHoursMax: Double           = 6.0
         static let lookbackDays: Int             = 14
         static let stalenessDays: Int            = 3
@@ -112,8 +107,6 @@ enum HealthThresholds {
     // MARK: - Body composition
 
     enum BodyComp {
-        static let waistChangeBorderlineCm: Double = 2.0
-        static let waistChangeBadCm: Double        = 5.0
         static let weightChangePercentBorderline: Double = 0.03
         static let weightChangePercentBad: Double        = 0.05
         static let lookbackDays: Int                = 90
@@ -450,6 +443,49 @@ enum HealthThresholds {
             static let hrvMinDays: Int = 14
             /// Minimum days of RHR samples in last 28 to count the signal.
             static let rhrMinDays: Int = 14
+
+            // MARK: - HRV noise handling (continuous-time EWMA)
+            //
+            // Apple Watch SDNN is single-night noisy: a poor night can swing the
+            // raw value 20%+ even when underlying autonomic state has not
+            // changed. We treat the noisy time-series x(t) as the output of a
+            // first-order low-pass filter:
+            //
+            //     ds/dt = (x − s) / τ
+            //
+            // discretised at each incoming sample with Δt = time since the
+            // previous sample:
+            //
+            //     β     = 1 − exp(−Δt / τ)
+            //     s_new = β·x_new + (1−β)·s_prev
+            //     τ     = halfLife / ln(2)
+            //
+            // This is the density-aware (non-uniform-grid) EWMA: a half-life
+            // expressed in REAL DAYS, not sample count. Multiple samples on the
+            // same night each contribute a small β·x_new nudge instead of all
+            // collapsing to a single daily mean; gaps after missing nights
+            // automatically raise β so the next sample carries more weight
+            // (correct — the prior estimate has aged).
+            //
+            // Half-life 7 days → τ ≈ 10.1 days → β at Δt=1d ≈ 0.093.
+
+            /// Half-life of the HRV EWMA smoother, in real days.
+            /// A sample N days old contributes 0.5^(N/halfLife) of its weight
+            /// to the current estimate. 7 days picked to absorb single-night
+            /// jitter while still responding to genuine multi-week shifts.
+            static let hrvEWMAHalfLifeDays: Double = 7.0
+
+            /// Lookback window for raw HRV samples requested from HealthKit.
+            /// Wider than necessary for the smoother's effective memory so a
+            /// sparse user (few samples per week) still accumulates enough
+            /// samples to leave the warm-up regime.
+            static let hrvSeriesLookbackDays: Int = 60
+
+            /// Minimum number of raw HRV samples in the lookback window
+            /// required before the engine uses the smoothed estimate. Below
+            /// this, the engine falls back to the existing 28d mean — the
+            /// smoother needs enough samples to escape its warm-up bias.
+            static let hrvEWMAMinSamples: Int = 6
 
             /// Bloodwork freshness: full weight if drawn within this many months.
             static let bloodworkFullMonths: Int = 6

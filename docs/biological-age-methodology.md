@@ -54,7 +54,7 @@ age.
 
 Layer A (downstream-suppression) zeroes the `rawYearsImpact` on
 upstream-behavior readings when a fresh downstream marker is
-already capturing them in the number (Section 6). Layer B and C
+already capturing them in the number (Section 8). Layer B and C
 operate on the same readings array but only affect UI — never the
 number.
 
@@ -146,11 +146,13 @@ not pinned to a specific NHANES cycle except where noted.
   - Pooled SD: 14. Source: Apple Watch HRV literature (Naschitz et
     al. and derivative analyses; approximate).
 - yearsPerSD: 0.8.
-- Freshness: fixed 0.5 today. Reason: the HealthKit sample-count API
-  for HRV isn't wired through `HealthKitSnapshot` yet, so we cannot
-  enforce `hrvMinDays = 14`. The 0.5 cap prevents one anomalous
-  watch night from dominating the fitness factor. Listed as a known
-  issue in Section 11.
+- Input value: when ≥ `hrvEWMAMinSamples` raw HealthKit SDNN samples
+  are available, the engine feeds the continuous-time EWMA smoothed
+  value (7-day half-life) into z-scoring instead of the raw 28d mean.
+  See Section 5 for the derivation. Falls back to the 28d mean when
+  the series is too sparse (warm-up regime) or unavailable.
+- Freshness: sample-count gated. With ≥ `hrvMinDays = 14` underlying
+  SDNN samples in the last 28 days → 1.0; sparse coverage → 0.5.
 - Plausibility: 1...300.
 
 ### Glycemic
@@ -387,7 +389,169 @@ penalty directly. They are immune to Layer A suppression.
 
 ---
 
-## 5. Worked example — Profile A (Elite endurance 40M)
+## 5. Noise handling — continuous-time EWMA on HRV
+
+Apple Watch HRV (SDNN) is single-night noisy: a poor night can swing
+the raw value 20 % or more even when underlying autonomic state has
+not changed. A flat 28-day mean partially attenuates this but lags
+the signal by roughly two weeks, and weighs a reading from 28 days
+ago identically to last night's. The engine therefore replaces the
+flat mean with a **density-aware first-order low-pass smoother**
+before z-scoring.
+
+### Continuous-time formulation
+
+Treat the noisy time-series `x(t)` as the input to a first-order
+low-pass filter with time constant `τ`:
+
+```
+ds/dt = (x − s) / τ
+```
+
+This is the textbook first-order linear ODE. Its impulse response
+decays as `e^(−t/τ)`. The half-life of that decay is
+`halfLife = τ · ln(2)`, equivalently `τ = halfLife / ln(2)`.
+
+### Discrete update at each sample
+
+Sampled at arbitrary timestamps `t_0, t_1, …` (irregular intervals
+allowed), the closed-form integration of the ODE between two adjacent
+samples gives:
+
+```
+β     = 1 − exp(−Δt / τ)            where Δt = t_new − t_prev
+s_new = β · x_new + (1 − β) · s_prev
+```
+
+`s_0` is initialised to the first sample's value (no warm-up bias
+beyond what the half-life itself imposes).
+
+### Why "density-aware"
+
+The usual textbook discrete EWMA `s_t = α x_t + (1−α) s_{t-1}`
+assumes a fixed sample interval and is **wrong** if input density
+varies — which it always does for HealthKit HRV samples:
+
+- **Multiple samples per night** (Δt ≈ minutes): β ≈ 0, so each one
+  nudges the estimate by a tiny amount. No double-counting from a
+  burst of nightly readings.
+- **One sample per night** (Δt = 1 day): β ≈ 0.093, matching the
+  textbook discrete-EWMA case with 7-day half-life.
+- **Gap of 4 days with no samples** (Δt = 4 days): β ≈ 0.32. The
+  next sample carries more weight, correctly, because the prior
+  estimate has aged.
+- **No new sample today** (latest is N days old): `s` is not
+  refreshed. The age of the estimate then feeds the sample-count
+  freshness gate (Section 11).
+
+The bucket-then-smooth alternative — averaging samples into one
+daily mean and then running a fixed-grid EWMA on that — discards the
+density signal and is rejected.
+
+### Parameter choice
+
+- **Half-life: 7 days.** Picked to absorb single-night jitter
+  (`x_today − x_yesterday` is mostly noise) while still responding
+  to genuine multi-week shifts in autonomic state. With this choice,
+  τ ≈ 10.1 days. A sample from 7 days ago contributes 50 % of its
+  weight to the current estimate; from 14 days ago, 25 %; from 21
+  days ago, 12.5 %.
+- **Minimum samples: 6.** Below this, the smoother's first-sample
+  initialisation dominates and the estimate is misleading. The
+  engine falls back to the raw 28d mean in this regime.
+- **Lookback: 60 days.** Wider than the smoother's effective memory
+  so a sparse user (few samples per week) still accumulates enough
+  history to leave the warm-up regime.
+
+All three live in `BioAge.V2` and carry explanatory comments.
+
+### Impact
+
+On a typical user with daily HRV readings:
+
+- A single-night SDNN excursion of +30 ms (e.g. one well-rested
+  night) shifts the smoothed estimate by `β · 30 ≈ 0.093 · 30 ≈
+  2.8 ms` — small enough to keep one outlier from swinging the
+  fitness factor.
+- A sustained 10 ms upward shift over two weeks moves the smoothed
+  estimate by ~75 % of the change (`1 − 0.5^(14/7) = 0.75`) — still
+  responsive to real trends.
+
+For comparison, the previous flat 28d mean would have shifted by
+30/28 ≈ 1.1 ms on the same outlier (more attenuation) but only
+~50 % of the way to the new equilibrium after two weeks (more lag).
+The EWMA trades a small amount of noise rejection for substantially
+better responsiveness — the right call when the engine's
+factor-cap and `qualityWeight ∈ {0,1}` layers already protect
+against extreme outliers.
+
+---
+
+## 6. Linearised sensitivity
+
+The bio-age delta is an additive sum of per-factor terms, each a
+weighted mean of signed years-per-signal capped at `±yearsCap`. The
+signal-to-delta map is therefore piecewise-linear and locally smooth
+between cap transitions. We expose this structure in the UI as a
+**local slope readout** — for a given input signal, how many years
+would the delta move if the signal improved by a small fraction?
+
+### Definition
+
+For signal `S` with current reading `r_S` and improvement direction
+defined by `S.direction`:
+
+```
+value_perturbed = value · (1 + p · dirSign)
+                  where p = perturbationPct (default 0.10)
+                        dirSign = +1 if higherIsBetter else −1
+
+z_perturbed     = zScore(value_perturbed, mean, sd, S.direction)
+rawYears_pert   = − z_perturbed · S.yearsPerSD
+
+Δ(delta) = clamp(weightedMean_factor_with_pert, ±cap)
+        − clamp(weightedMean_factor_current,  ±cap)
+```
+
+Other factors are untouched, so the per-factor delta IS the total
+delta change.
+
+### Properties
+
+- **Negative return** = an improvement subtracts years (younger
+  bio-age). This is the expected sign and the one shown to the user.
+- **Zero return when capped.** If the factor's weighted mean is
+  already saturated at `±cap` and the perturbation does not lift it
+  back into the linear region, the readout reads 0. This is honest:
+  pushing the signal further does not move *this user's* number.
+- **Zero return for suppressed readings.** Layer-A-suppressed
+  upstream behaviors contribute 0 to the number regardless of
+  perturbation; the readout matches.
+- **Linearity assumption.** 10% is small enough that within the
+  factor's linear region the finite-difference approximates
+  `∂(delta)/∂(value) · value · p` cleanly. Cap transitions inside
+  the ±10% window introduce a fold but the readout still reports
+  the actual finite difference, not the (now-invalid) local slope.
+
+### Surface
+
+Surfaced in the bio-age detail sheet on **fitness signals only**
+(VO2 max, RHR, HRV) as a small caption under the reading row:
+`10% better → −0.4 y on delta`. Hidden when |Δ| < 0.1 y to avoid
+adding noise that's smaller than the per-factor calibration
+uncertainty. Other factors are not (yet) surfaced — the fitness
+cluster is the engineering-flavoured one and gets the linearised
+readout to drive home the "this is a transparent multi-input
+estimator with explicit local sensitivities" framing.
+
+### Code reference
+
+`BioAgeEstimate.sensitivity(of:perturbationPct:)`. Default
+`perturbationPct = 0.10` (see `sensitivityDefaultPerturbation`).
+
+---
+
+## 7. Worked example — Profile A (Elite endurance 40M)
 
 Profile A from `BioAgeProfileTests.swift`. The harness asserts the
 delta lands in `[-12.0, -3.0]`. The exact engine-observed delta is
@@ -476,7 +640,7 @@ assertion.
 
 ---
 
-## 6. Layer A — downstream suppression
+## 8. Layer A — downstream suppression
 
 Rule: a behavior reading's `rawYearsImpact` is set to 0 when ANY
 downstream signal in any of the behavior's target factors is present
@@ -538,7 +702,7 @@ value), so one suppression pass is exhaustive.
 
 ---
 
-## 7. Layer B — drivers map
+## 9. Layer B — drivers map
 
 Each downstream marker has a hand-curated list of upstream-behavior
 drivers ordered by typical mechanistic importance. This list is the
@@ -600,7 +764,7 @@ detail sheet uses it to render "common drivers of your high X" plus
 
 ---
 
-## 8. Layer C — top lever
+## 10. Layer C — top lever
 
 Ranks the user's strongest upstream-behavior opportunity. Algorithm:
 
@@ -637,7 +801,7 @@ permits either nil or low-magnitude (<1y).
 
 ---
 
-## 9. Confidence
+## 11. Confidence
 
 ```
 confidence = clamp( Σ readings effectiveWeight / targetCoverage, 0, 1 )
@@ -677,7 +841,7 @@ the engine has "enough" signal to call the estimate high-confidence.
 
 ---
 
-## 10. Trend
+## 12. Trend
 
 A 90-day directional indicator derived from a small subset of signals
 that have a clean "then vs now" pair available in the snapshot.
@@ -718,7 +882,7 @@ signals AND/OR a weight drift before we surface it as a direction.
 
 ---
 
-## 11. Limitations & known issues
+## 13. Limitations & known issues
 
 - **Not an epigenetic clock.** We have no DNA-methylation input. This
   is a behavioral / biomarker proxy.
@@ -728,12 +892,15 @@ signals AND/OR a weight drift before we surface it as a direction.
   comment block in `BioAge.V2` is explicit about this.
 - **No personal calibration.** The engine doesn't learn from the
   user. Two users with identical signals get identical deltas.
-- **HRV freshness fixed at 0.5.** The HealthKit sample-count surface
-  for HRV is not yet wired through `HealthKitSnapshot`. Until that
-  lands, HRV gets a permanent half weight to keep one anomalous
-  watch night from dominating fitness. This also means HRV alone
-  never triggers Layer A suppression (its effW = 0.5 fails the
-  strict-greater-than test).
+- **HRV noise model is a single-time-constant low-pass.** Section 5
+  motivates this on practical grounds (HealthKit SDNN is single-night
+  noisy; the 7-day half-life balances responsiveness vs. jitter
+  rejection) but does not pretend the underlying process is genuinely
+  first-order. A non-stationary user — e.g. transitioning into a
+  training block — will see the smoother lag genuine state changes
+  by a fraction of the half-life. Acceptable for a bio-age summary;
+  not acceptable for any acute-decision use case (recovery scoring
+  etc.) that this engine is not built for.
 - **TG-without-HDL is dropped.** Bare triglycerides are noisier than
   the ratio and we don't want to double-count when HDL arrives in
   the next panel.
@@ -758,7 +925,7 @@ signals AND/OR a weight drift before we surface it as a direction.
 
 ---
 
-## 12. Cross-reference to the code
+## 14. Cross-reference to the code
 
 - **Engine logic**: `Longevity Compass/Services/BiologicalAgeEngine.swift`.
   - `evaluate(...)`: orchestrator that gathers readings, applies
@@ -773,6 +940,13 @@ signals AND/OR a weight drift before we surface it as a direction.
   - `layerBDriversByDownstream` + `BioAgeEstimate.upstreamDrivers`:
     Layer B.
   - `BioAgeEstimate.topLever`: Layer C.
+  - `continuousTimeEWMA(samples:halfLifeDays:)`: density-aware
+    first-order low-pass smoother applied to HRV before z-scoring
+    (Section 5). Used inside `hrvReading`.
+  - `BioAgeEstimate.sensitivity(of:perturbationPct:)`: finite-
+    difference local slope of `delta` against a single signal's
+    input value (Section 6). Surfaced on fitness rows of the
+    bio-age detail sheet.
   - `compute90DayTrend`: trend.
 - **Reference constants**: `Longevity Compass/Config/HealthThresholds.swift`,
   `enum BioAge.V2`. Every mean, SD, decade norm, freshness window,
@@ -790,7 +964,7 @@ signals AND/OR a weight drift before we surface it as a direction.
 
 ---
 
-## 13. References
+## 15. References
 
 The numeric anchors above are drawn from the following population
 sources. Where the precise cycle or paper is not pinned in code, the

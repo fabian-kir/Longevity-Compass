@@ -173,7 +173,7 @@ struct BioAgeDetailSheet: View {
                 .foregroundStyle(.secondary)
         } else {
             ForEach(groups, id: \.factor) { group in
-                FactorSection(factor: group.factor, readings: group.readings)
+                FactorSection(factor: group.factor, readings: group.readings, estimate: estimate)
             }
         }
     }
@@ -232,6 +232,7 @@ struct BioAgeDetailSheet: View {
 private struct FactorSection: View {
     let factor: BioFactor
     let readings: [BioInputReading]
+    let estimate: BioAgeEstimate
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -242,7 +243,7 @@ private struct FactorSection: View {
                 .padding(.horizontal, 4)
             VStack(spacing: 8) {
                 ForEach(readings, id: \.signal) { reading in
-                    LeverRow(reading: reading)
+                    LeverRow(reading: reading, estimate: estimate)
                 }
             }
             .padding(12)
@@ -256,11 +257,29 @@ private struct FactorSection: View {
 
 private struct LeverRow: View {
     let reading: BioInputReading
+    let estimate: BioAgeEstimate
+
+    /// Minimum |Δyears| to surface the sensitivity caption. Below this the
+    /// number adds noise more than insight (e.g. signals near a factor cap, or
+    /// signals whose effective weight is small relative to other readings in
+    /// the same factor).
+    private static let sensitivityDisplayThreshold: Double = 0.1
 
     private var accent: Color {
         if reading.rawYearsImpact < -0.25 { return .green }
         if reading.rawYearsImpact >  0.25 { return .orange }
         return .secondary
+    }
+
+    /// Sensitivity caption — only surfaced on fitness rows for now (the
+    /// engineering-flavoured signals where a local-slope readout reads as
+    /// "tunable lever"). Hidden when below the display threshold.
+    private var sensitivityCaption: String? {
+        guard reading.signal.factor == .fitness else { return nil }
+        guard let dDelta = estimate.sensitivity(of: reading.signal) else { return nil }
+        guard abs(dDelta) >= Self.sensitivityDisplayThreshold else { return nil }
+        let sign = dDelta < 0 ? "−" : "+"
+        return String(format: "10%% better → %@%.1f y on delta", sign, abs(dDelta))
     }
 
     var body: some View {
@@ -279,6 +298,18 @@ private struct LeverRow: View {
                     Text(valueDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let note = reading.processingNote {
+                    Text(note)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+                if let caption = sensitivityCaption {
+                    Text(caption)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
             }
