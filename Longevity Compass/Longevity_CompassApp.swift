@@ -29,10 +29,6 @@ struct Longevity_CompassApp: App {
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-
-        #if DEBUG
-        BioAgeProfileTests.runAll()
-        #endif
     }
 
     var body: some Scene {

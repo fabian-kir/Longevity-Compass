@@ -1,36 +1,22 @@
-#if DEBUG
-import Foundation
+import XCTest
 import HealthKit
+@testable import Longevity_Compass
 
-/// Profile-based sanity harness for `BiologicalAgeEngine`.
+/// Profile-based sanity tests for `BiologicalAgeEngine`.
 ///
-/// There is no XCTest target in this project; instead these are synthetic
-/// "representative user" profiles whose engine output is asserted via
-/// `precondition` so regressions trip the harness loudly in DEBUG builds.
-///
-/// Invoke explicitly via `BioAgeProfileTests.runAll()` (e.g. from app init in
-/// DEBUG) — the harness is intentionally NOT wired into `evaluate(...)`.
-///
-/// The numeric bounds are deliberately wide — the harness validates the engine
-/// lands in the right neighbourhood for each profile, not a pinned exact value.
-enum BioAgeProfileTests {
+/// Four synthetic "representative user" profiles whose engine output is
+/// asserted against deliberately wide numeric bounds — the goal is to detect
+/// regressions in the neighbourhood the engine should land in, not to pin
+/// exact values.
+final class BioAgeProfileTests: XCTestCase {
 
-    /// Run every profile sanity test. Each profile prints a marker line on
-    /// success; any failing precondition aborts with a profile-named message.
-    static func runAll(now: Date = Date()) {
-        runEliteEndurance40M(now: now)
-        runMetabolicSyndrome45MNoBloodwork(now: now)
-        runMetabolicSyndrome45MWithBloodwork(now: now)
-        runVeganLightDrinkerLowExerciseData(now: now)
-        print("[BioAge] All profile tests passed.")
-    }
+    private let now = Date()
 
     // MARK: - Profile A: Elite endurance 40M
 
     /// Watch-rich athlete with clean bloodwork. Expectation: substantially
     /// younger than chronological, high confidence, no major "top lever".
-    static func runEliteEndurance40M(now: Date = Date()) {
-        let profile = "Profile A — Elite endurance 40M"
+    func testEliteEndurance40M() {
         let dob = yearsAgo(40, from: now)
 
         var snapshot = HealthKitSnapshot()
@@ -76,29 +62,23 @@ enum BioAgeProfileTests {
             bloodworkPanels: [panel],
             now: now
         ) else {
-            preconditionFailure("[\(profile)] evaluate(...) returned nil")
+            XCTFail("evaluate(...) returned nil")
+            return
         }
 
         // 1. delta in expected (younger) range.
-        precondition(
-            estimate.delta >= -12.0 && estimate.delta <= -3.0,
-            "[\(profile)] expected delta in [-12.0, -3.0], got \(estimate.delta)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.delta, -12.0, "delta below floor")
+        XCTAssertLessThanOrEqual(estimate.delta, -3.0, "delta above ceiling")
 
         // 2. confidence is high — bloodwork + watch all present.
-        precondition(
-            estimate.confidence >= 0.7,
-            "[\(profile)] expected confidence >= 0.7, got \(estimate.confidence)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.confidence, 0.7)
 
         // 3. topLever should be nil OR carry a small potential (this user has
         //    no meaningful weakness lever to push).
         if let lever = estimate.topLever, let yps = lever.signal.yearsPerSD {
             let potential = abs(lever.zScore * yps)
-            precondition(
-                potential < 1.0,
-                "[\(profile)] expected topLever to be nil or low magnitude (<1y), got \(lever.signal) at \(potential)y"
-            )
+            XCTAssertLessThan(potential, 1.0,
+                "expected topLever nil or low magnitude, got \(lever.signal) at \(potential)y")
         }
     }
 
@@ -106,8 +86,7 @@ enum BioAgeProfileTests {
 
     /// Watch-only, no bloodwork. Multiple behavior + flat-penalty signals
     /// stack to push bio-age substantially older with moderate confidence.
-    static func runMetabolicSyndrome45MNoBloodwork(now: Date = Date()) {
-        let profile = "Profile B — Metabolic syndrome 45M no bloodwork"
+    func testMetabolicSyndrome45M_NoBloodwork() {
         let dob = yearsAgo(45, from: now)
 
         var snapshot = HealthKitSnapshot()
@@ -117,7 +96,7 @@ enum BioAgeProfileTests {
         snapshot.restingHeartRateAverage28d = 78
         snapshot.restingHeartRateSeries = []
         snapshot.hrvAverage28d = 22
-        snapshot.hrvSampleCount28d = 28   // full 28d coverage → freshness 1.0
+        snapshot.hrvSampleCount28d = 28
         snapshot.sleepHoursAverage7d = 5.5
         snapshot.exerciseMinutesPerWeek = 30
         snapshot.strengthWorkoutsLast7Days = 0
@@ -137,30 +116,26 @@ enum BioAgeProfileTests {
             bloodworkPanels: [],
             now: now
         ) else {
-            preconditionFailure("[\(profile)] evaluate(...) returned nil")
+            XCTFail("evaluate(...) returned nil")
+            return
         }
 
         // 1. delta in expected older range.
-        precondition(
-            estimate.delta >= 8.0 && estimate.delta <= 18.0,
-            "[\(profile)] expected delta in [8.0, 18.0], got \(estimate.delta)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.delta, 8.0)
+        XCTAssertLessThanOrEqual(estimate.delta, 18.0)
 
         // 2. moderate confidence — watch signals present, no bloodwork.
-        precondition(
-            estimate.confidence >= 0.3 && estimate.confidence <= 0.6,
-            "[\(profile)] expected confidence in [0.3, 0.6], got \(estimate.confidence)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.confidence, 0.3)
+        XCTAssertLessThanOrEqual(estimate.confidence, 0.6)
 
         // 3. topLever should be present and point at a behavior factor.
         guard let lever = estimate.topLever else {
-            preconditionFailure("[\(profile)] expected non-nil topLever")
+            XCTFail("expected non-nil topLever")
+            return
         }
         let acceptable: Set<BioSignal> = [.exerciseMinutes, .sleep, .nutrition]
-        precondition(
-            acceptable.contains(lever.signal),
-            "[\(profile)] expected topLever in \(acceptable), got \(lever.signal)"
-        )
+        XCTAssertTrue(acceptable.contains(lever.signal),
+            "expected topLever in \(acceptable), got \(lever.signal)")
     }
 
     // MARK: - Profile C: Metabolic syndrome 45M WITH bloodwork
@@ -169,8 +144,7 @@ enum BioAgeProfileTests {
     /// elevated HbA1c / ApoB / hs-CRP / triglycerides. Verifies Layer A
     /// correctly marks sleep + nutrition as suppressed by the fresh
     /// downstream signals, and that delta stacks even further.
-    static func runMetabolicSyndrome45MWithBloodwork(now: Date = Date()) {
-        let profile = "Profile C — Metabolic syndrome 45M with bloodwork"
+    func testMetabolicSyndrome45M_WithBloodwork() {
         let dob = yearsAgo(45, from: now)
 
         var snapshot = HealthKitSnapshot()
@@ -180,7 +154,7 @@ enum BioAgeProfileTests {
         snapshot.restingHeartRateAverage28d = 78
         snapshot.restingHeartRateSeries = []
         snapshot.hrvAverage28d = 22
-        snapshot.hrvSampleCount28d = 28   // full 28d coverage → freshness 1.0
+        snapshot.hrvSampleCount28d = 28
         snapshot.sleepHoursAverage7d = 5.5
         snapshot.exerciseMinutesPerWeek = 30
         snapshot.strengthWorkoutsLast7Days = 0
@@ -228,55 +202,40 @@ enum BioAgeProfileTests {
             bloodworkPanels: [panel],
             now: now
         ) else {
-            preconditionFailure("[\(profile)] evaluate(...) returned nil")
+            XCTFail("evaluate(...) returned nil")
+            return
         }
 
         // 1. delta stacks higher than profile B with multiple bad markers.
-        precondition(
-            estimate.delta >= 12.0 && estimate.delta <= 25.0,
-            "[\(profile)] expected delta in [12.0, 25.0], got \(estimate.delta)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.delta, 12.0)
+        XCTAssertLessThanOrEqual(estimate.delta, 25.0)
 
         // 2. confidence is high — bloodwork + watch + behaviors all present.
-        precondition(
-            estimate.confidence >= 0.6,
-            "[\(profile)] expected confidence >= 0.6, got \(estimate.confidence)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.confidence, 0.6)
 
         // 3. Layer A: sleep should be in readings with suppressedByDownstream
         //    = true (fresh HbA1c trips its glycemic dependency).
         let sleepReading = estimate.readings.first { $0.signal == .sleep }
-        precondition(
-            sleepReading != nil,
-            "[\(profile)] expected a .sleep reading in readings"
-        )
-        precondition(
-            sleepReading?.suppressedByDownstream == true,
-            "[\(profile)] expected .sleep to be suppressedByDownstream by fresh bloodwork"
-        )
+        XCTAssertNotNil(sleepReading, "expected a .sleep reading in readings")
+        XCTAssertEqual(sleepReading?.suppressedByDownstream, true,
+            "expected .sleep to be suppressedByDownstream by fresh bloodwork")
 
         // 4. Layer A: nutrition should be in readings with suppressedByDownstream
         //    = true (fresh HbA1c / hsCRP / ApoB trip its dependencies).
         let nutritionReading = estimate.readings.first { $0.signal == .nutrition }
-        precondition(
-            nutritionReading != nil,
-            "[\(profile)] expected a .nutrition reading in readings"
-        )
-        precondition(
-            nutritionReading?.suppressedByDownstream == true,
-            "[\(profile)] expected .nutrition to be suppressedByDownstream by fresh bloodwork"
-        )
+        XCTAssertNotNil(nutritionReading, "expected a .nutrition reading in readings")
+        XCTAssertEqual(nutritionReading?.suppressedByDownstream, true,
+            "expected .nutrition to be suppressedByDownstream by fresh bloodwork")
 
         // 5. topLever surfaces a suppressed-but-actionable behavior. Engine's
         //    tie-break / multiCause logic picks either sleep or nutrition.
         guard let lever = estimate.topLever else {
-            preconditionFailure("[\(profile)] expected non-nil topLever")
+            XCTFail("expected non-nil topLever")
+            return
         }
         let acceptable: Set<BioSignal> = [.sleep, .nutrition]
-        precondition(
-            acceptable.contains(lever.signal),
-            "[\(profile)] expected topLever in \(acceptable), got \(lever.signal)"
-        )
+        XCTAssertTrue(acceptable.contains(lever.signal),
+            "expected topLever in \(acceptable), got \(lever.signal)")
     }
 
     // MARK: - Profile D: Vegan light-drinker, no exercise data, no bloodwork
@@ -284,8 +243,7 @@ enum BioAgeProfileTests {
     /// Sparse-signal user: no watch, no bloodwork, only sleep + steps +
     /// light alcohol. Should land on-par with chronological age at low
     /// confidence and have no surfaced top lever.
-    static func runVeganLightDrinkerLowExerciseData(now: Date = Date()) {
-        let profile = "Profile D — Vegan light-drinker low data"
+    func testVeganLightDrinker_LowExerciseData() {
         let dob = yearsAgo(35, from: now)
 
         var snapshot = HealthKitSnapshot()
@@ -311,45 +269,39 @@ enum BioAgeProfileTests {
             bloodworkPanels: [],
             now: now
         ) else {
-            preconditionFailure("[\(profile)] evaluate(...) returned nil")
+            XCTFail("evaluate(...) returned nil")
+            return
         }
 
         // 1. delta near zero — sleep at typical + steps slightly above typical.
-        precondition(
-            estimate.delta >= -2.0 && estimate.delta <= 2.0,
-            "[\(profile)] expected delta in [-2.0, 2.0], got \(estimate.delta)"
-        )
+        XCTAssertGreaterThanOrEqual(estimate.delta, -2.0)
+        XCTAssertLessThanOrEqual(estimate.delta, 2.0)
 
         // 2. confidence is low — very few signals.
-        precondition(
-            estimate.confidence <= 0.4,
-            "[\(profile)] expected confidence <= 0.4, got \(estimate.confidence)"
-        )
+        XCTAssertLessThanOrEqual(estimate.confidence, 0.4)
 
         // 3. topLever is nil OR very small magnitude (user has no real lever).
         if let lever = estimate.topLever, let yps = lever.signal.yearsPerSD {
             let potential = abs(lever.zScore * yps)
-            precondition(
-                potential < 1.0,
-                "[\(profile)] expected topLever to be nil or low magnitude (<1y), got \(lever.signal) at \(potential)y"
-            )
+            XCTAssertLessThan(potential, 1.0,
+                "expected topLever nil or low magnitude, got \(lever.signal) at \(potential)y")
         }
     }
 
     // MARK: - Helpers
 
-    private static func yearsAgo(_ years: Int, from date: Date) -> Date {
+    private func yearsAgo(_ years: Int, from date: Date) -> Date {
         Calendar.current.date(byAdding: .year, value: -years, to: date) ?? date
     }
 
-    private static func daysAgo(_ days: Int, from date: Date) -> Date {
+    private func daysAgo(_ days: Int, from date: Date) -> Date {
         Calendar.current.date(byAdding: .day, value: -days, to: date) ?? date
     }
 
     /// Build a NutritionBucketRollup with just the fields the engine reads
-    /// (bucket + status). The other fields are filled with neutral values
-    /// since the engine's nutrition contributor only inspects `status`.
-    private static func makeRollup(_ bucket: NutrientBucket, status: BucketStatus) -> NutritionBucketRollup {
+    /// (bucket + status). Other fields filled with neutral values since the
+    /// nutrition contributor only inspects `status`.
+    private func makeRollup(_ bucket: NutrientBucket, status: BucketStatus) -> NutritionBucketRollup {
         NutritionBucketRollup(
             bucket: bucket,
             status: status,
@@ -362,4 +314,3 @@ enum BioAgeProfileTests {
         )
     }
 }
-#endif
