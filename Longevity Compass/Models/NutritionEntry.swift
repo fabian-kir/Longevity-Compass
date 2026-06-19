@@ -4,13 +4,11 @@ import SwiftData
 enum NutritionSource: String, Codable, CaseIterable {
     case barcode
     case photo
-    case text
 
     var displayLabel: String {
         switch self {
         case .barcode: "Barcode"
         case .photo:   "Photo"
-        case .text:    "Description"
         }
     }
 
@@ -18,7 +16,6 @@ enum NutritionSource: String, Codable, CaseIterable {
         switch self {
         case .barcode: "barcode.viewfinder"
         case .photo:   "camera"
-        case .text:    "text.bubble"
         }
     }
 }
@@ -109,7 +106,7 @@ final class NutritionEntry {
         self.imageFileName = imageFileName
     }
 
-    var source: NutritionSource { NutritionSource(rawValue: sourceRaw) ?? .text }
+    var source: NutritionSource { NutritionSource(rawValue: sourceRaw) ?? .photo }
 
     var displayTitle: String {
         productName ?? (rawInput.isEmpty ? source.displayLabel : rawInput)

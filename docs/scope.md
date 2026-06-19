@@ -1,0 +1,89 @@
+# Scope — Longevity Compass v1
+
+The complete user-facing feature list for v1, organized by tab. Anything not on this list is out of scope.
+
+---
+
+## Focus tab
+
+The single-screen "what should I do today" view.
+
+- **Biological-age panel** — current bio-age vs chronological age, year delta, trend (improving / holding / aging faster), confidence indicator, biggest lever. Tap to open the full breakdown sheet.
+- **Bio-age detail sheet** — per-factor contributions with z-score bars, suppressed-levers section, "sharpen your estimate" suggestions with deep-links into Track / Bloodwork / Apple Health.
+- **Top priority hero card** — the one thing to focus on, with why-it-matters rationale, two recommended actions, and a primary CTA (Open Apple Health or Log in app).
+- **Secondary priorities row** — up to two compact rows for the next most urgent items.
+- **Wins strip** — horizontally scrolling pills celebrating signals that are clearly on track.
+- **Contributors section** — top three "working in your favor" and top three "biggest opportunities" pulled from the bio-age engine.
+- **All-clear state** — friendly empty state when nothing is urgent.
+- **Refresh control** — pull-to-refresh and toolbar refresh button.
+- **Settings link** — toolbar leading button → `DataExportView`.
+
+## Track tab
+
+Daily logging for everything HealthKit can't auto-capture.
+
+- **Track Now / Coming Up / On Track sections** — adaptive sectioning of priorities by urgency.
+- **Inline logging** — blood pressure (systolic/diastolic with validation), nicotine yes/no, alcohol yes/no, dental flossing.
+- **Apple Health write-back** — BP entries persist to HealthKit; failures surface inline.
+- **Empty state** — "Nothing to track right now" with checkmark when everything is current.
+
+## Train tab
+
+Strength-training log.
+
+- **Exercise log** — entries grouped by date, swipe to edit/delete.
+- **Add/edit exercise sheet** — pick from library, set sets/reps/weight, notes.
+- **Exercise library** — seeded with default exercises; user can add custom ones with optional AI-generated icons (Gemini 2.5 Flash Image).
+- **Empty state** — `ContentUnavailableView` with call-to-action.
+
+## Nutrition tab
+
+Camera-first meal logging with hybrid local/cloud AI.
+
+- **Camera capture** — full-screen camera as the primary entry point.
+- **Post-capture sheet** — preview, retake, save.
+- **Barcode path** — local Vision barcode detection → OpenFoodFacts lookup.
+- **Photo path** — image sent to OpenRouter (Claude Sonnet 4.6 vision) for category fingerprint extraction (plate fractions, plant ingredients, macros per 100g, typical serving grams). AI never estimates absolute grams.
+- **Offline queue** — `NWPathMonitor`-backed pending-meal queue; entries upload when connectivity returns.
+- **Food search sheet** — text search via OpenFoodFacts for manual lookup.
+- **Manual edit / detail view** — review and adjust any logged entry; view fingerprint breakdown.
+- **Permission-denied fallback** — clear message with Settings deep-link when camera access is refused.
+- **Empty state** — "Snap your first meal to get started."
+
+## Bloodwork tab
+
+Manual bloodwork panel entry and tracking.
+
+- **Panel list** — chronological list of bloodwork panels.
+- **Add panel sheet** — enter individual markers (ApoB, LDL, HDL, triglycerides, hs-CRP, HbA1c, fasting glucose/insulin, homocysteine, eGFR, ALT) with date.
+- **Panel detail view** — per-marker values with status coloring.
+- **Marker guide** — reference ranges and what each marker means.
+- **Cadence summary** — status-dependent text ("Book a baseline panel" / "Next draw recommended in N months").
+- **Empty state** — "No panels yet" with CTA + marker-guide link.
+
+---
+
+## Secondary screens (reachable from tabs)
+
+- **Trends view** — 7/28/90-day mini-charts for steps, sleep, RHR, BP, VO₂ max, body weight, habit completion.
+- **History view** — full audit log of manual entries (BP, nicotine, alcohol, dental); group by date, swipe to delete.
+- **Data export view** (Settings) — Apple Health sync status, OpenRouter API key (Keychain-stored), nutrition & exercise-icon cost tracking, notification scheduler, JSON export, delete-all-data option.
+
+---
+
+## Engines (not screens, but part of v1)
+
+- **`BiologicalAgeEngine`** — 24 HealthKit + bloodwork + behavior signals → 10 factors → years-of-age delta. Z-scored against age/sex norms, freshness-weighted, with three layers of cross-signal reasoning (downstream suppression, upstream drivers, top lever).
+- **`PriorityEngine`** — impact × friction × status × trend scoring across 12 health domains.
+- **`TrackingRecommendationEngine`** — what to surface on the Track tab and when.
+- **`NotificationManager`** — quiet-hours-aware reminders driven by per-domain status (urgent → daily, good-with-baseline → quarterly, etc.).
+
+---
+
+## Anti-scope (explicitly out)
+
+- No backend, no cloud user accounts, no auth.
+- No Apple Watch app.
+- No Android / multi-platform port.
+- No on-device LLM (Foundation Models) — deferred until capable hardware is available.
+- No AI gram-estimation from text descriptions.
