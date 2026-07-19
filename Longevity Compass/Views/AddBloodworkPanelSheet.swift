@@ -7,15 +7,8 @@ struct AddBloodworkPanelSheet: View {
     @State private var date: Date = .now
     @State private var labName: String = ""
     @State private var notes: String = ""
-    @State private var drafts: [MarkerDraft] = BloodworkMarkerCatalog.defaults.map {
-        MarkerDraft(
-            name: $0.name,
-            unit: $0.unit,
-            tier: $0.tier,
-            purpose: $0.purpose,
-            detail: $0.detail
-        )
-    }
+    @State private var acutePhase: Bool = false
+    @State private var drafts: [MarkerDraft] = BloodworkMarkerCatalog.defaults.map(MarkerDraft.init)
 
     @State private var showAddCustom = false
     @State private var customName = ""
@@ -28,6 +21,8 @@ struct AddBloodworkPanelSheet: View {
                 Section("When") {
                     DatePicker("Draw date", selection: $date, in: ...Date.now, displayedComponents: .date)
                     TextField("Lab name (optional)", text: $labName)
+                    Toggle("Drawn during illness or injury", isOn: $acutePhase)
+                        .toggleStyle(.switch)
                 }
 
                 ForEach(BloodworkMarkerCatalog.Tier.allCases) { tier in
@@ -39,12 +34,16 @@ struct AddBloodworkPanelSheet: View {
                         ForEach(customIndices, id: \.self) { idx in
                             MarkerDraftRow(
                                 draft: $drafts[idx],
+                                acutePhase: acutePhase,
+                                profile: services.healthSnapshot,
                                 onShowDetail: nil
                             )
                         }
                         .onDelete(perform: deleteCustomMarkers)
                     } header: {
                         Text("Custom")
+                    } footer: {
+                        Text("Custom markers aren't in the reference library, so the app stores them without a status.")
                     }
                 }
 
@@ -55,7 +54,9 @@ struct AddBloodworkPanelSheet: View {
                         Label("Add custom marker", systemImage: "plus.circle")
                     }
                 } footer: {
-                    Text("Leave any row blank if you didn't test it — only filled rows are saved. Flag each result good / borderline / bad based on your lab's reference range.")
+                    Text(acutePhase
+                         ? "Acute-phase reactants (hs-CRP, ferritin, albumin) will be stored but not flagged — their interpretation is unreliable when you're sick."
+                         : "Leave any row blank if you didn't test it — only filled rows are saved. The app evaluates each value against research-backed bands using your age and biological sex.")
                 }
 
                 Section("Notes") {
@@ -97,6 +98,8 @@ struct AddBloodworkPanelSheet: View {
                 ForEach(indices, id: \.self) { idx in
                     MarkerDraftRow(
                         draft: $drafts[idx],
+                        acutePhase: acutePhase,
+                        profile: services.healthSnapshot,
                         onShowDetail: { detailMarker = drafts[idx] }
                     )
                 }
@@ -141,7 +144,6 @@ struct AddBloodworkPanelSheet: View {
 
     private func deleteCustomMarkers(at offsets: IndexSet) {
         let targets = offsets.map { customIndices[$0] }
-        // Delete from highest to lowest so earlier indices remain valid.
         for i in targets.sorted(by: >) {
             drafts.remove(at: i)
         }
@@ -156,7 +158,9 @@ struct AddBloodworkPanelSheet: View {
         guard !trimmedName.isEmpty else { resetCustomInputs(); return }
         let trimmedUnit = customUnit.trimmingCharacters(in: .whitespaces)
         drafts.append(MarkerDraft(
+            id: UUID().uuidString,
             name: trimmedName,
+            unitOptions: [trimmedUnit],
             unit: trimmedUnit,
             tier: nil,
             purpose: nil,
@@ -179,13 +183,14 @@ struct AddBloodworkPanelSheet: View {
                 value: trimmedValue,
                 unit: draft.unit.isEmpty ? nil : draft.unit,
                 referenceRange: nil,
-                flag: draft.flag
+                flag: .unknown
             )
         }
         let panel = BloodworkPanel(
             date: date,
             labName: labName.trimmingCharacters(in: .whitespaces).isEmpty ? nil : labName,
             notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes,
+            acutePhaseAtDraw: acutePhase,
             markers: markers
         )
         Task {
@@ -198,22 +203,64 @@ struct AddBloodworkPanelSheet: View {
 // MARK: - Marker draft
 
 struct MarkerDraft: Identifiable {
-    let id = UUID()
+    let id: String
     var name: String
+    /// Units the user can choose from. Primary first, then any alternates the
+    /// research JSON declares for this marker (e.g. mg/dL, mmol/L for LDL-C).
+    var unitOptions: [String]
     var unit: String
     var tier: BloodworkMarkerCatalog.Tier?     // nil → custom marker
     var purpose: String?
     var detail: String?
     var value: String = ""
-    var flag: BloodworkFlag = .unknown
+
+    init(
+        id: String,
+        name: String,
+        unitOptions: [String],
+        unit: String,
+        tier: BloodworkMarkerCatalog.Tier?,
+        purpose: String?,
+        detail: String?,
+        value: String = ""
+    ) {
+        self.id = id
+        self.name = name
+        self.unitOptions = unitOptions.filter { !$0.isEmpty }
+        self.unit = unit
+        self.tier = tier
+        self.purpose = purpose
+        self.detail = detail
+        self.value = value
+    }
+
+    init(_ suggestion: BloodworkMarkerCatalog.Suggestion) {
+        let entry = BloodworkResearch.entry(for: suggestion.name)
+        let alternates = entry?.unit.alternates.map(\.unit) ?? []
+        var options = [suggestion.unit]
+        for alt in alternates where !options.contains(alt) {
+            options.append(alt)
+        }
+        self.init(
+            id: suggestion.id,
+            name: suggestion.name,
+            unitOptions: options,
+            unit: suggestion.unit,
+            tier: suggestion.tier,
+            purpose: suggestion.purpose,
+            detail: suggestion.detail
+        )
+    }
 }
 
 private struct MarkerDraftRow: View {
     @Binding var draft: MarkerDraft
+    let acutePhase: Bool
+    let profile: HealthKitSnapshot
     let onShowDetail: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(draft.name)
                     .font(.subheadline.weight(.semibold))
@@ -232,10 +279,7 @@ private struct MarkerDraftRow: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 90)
-                Text(draft.unit)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 50, alignment: .leading)
+                unitControl
             }
             if let purpose = draft.purpose {
                 Text(purpose)
@@ -244,15 +288,75 @@ private struct MarkerDraftRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !draft.value.trimmingCharacters(in: .whitespaces).isEmpty {
-                Picker("Flag", selection: $draft.flag) {
-                    ForEach(BloodworkFlag.allCases) { flag in
-                        Text(flag.displayLabel).tag(flag)
-                    }
-                }
-                .pickerStyle(.segmented)
+                livePreview
             }
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var unitControl: some View {
+        if draft.unitOptions.count > 1 {
+            Menu {
+                ForEach(draft.unitOptions, id: \.self) { option in
+                    Button(option) { draft.unit = option }
+                }
+            } label: {
+                HStack(spacing: 2) {
+                    Text(draft.unit)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 50, alignment: .leading)
+            }
+        } else {
+            Text(draft.unit)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 50, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var livePreview: some View {
+        let result = BloodworkEvaluator.evaluate(
+            markerName: draft.name,
+            rawValue: draft.value,
+            unit: draft.unit,
+            sex: profile.biologicalSex,
+            dateOfBirth: profile.dateOfBirth,
+            acutePhaseAtDraw: acutePhase
+        )
+        HStack(spacing: 6) {
+            Circle()
+                .fill(tint(for: result.flag))
+                .frame(width: 8, height: 8)
+            if let band = result.band {
+                Text("\(result.flag.displayLabel) · \(band.label)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let reason = result.suppressedReason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            } else {
+                Text("Logged")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func tint(for flag: BloodworkFlag) -> Color {
+        switch flag {
+        case .good:       .green
+        case .borderline: .orange
+        case .bad:        .red
+        case .unknown:    .gray
+        }
     }
 }
 

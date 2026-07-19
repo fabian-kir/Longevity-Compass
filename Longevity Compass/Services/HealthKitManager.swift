@@ -98,6 +98,9 @@ final class HealthKitManager {
     }
 
     func requestAuthorization() async {
+        #if DEBUG
+        if MockMode.isActive { authorizationRequested = true; return }
+        #endif
         guard isAvailable else {
             lastError = HealthKitError.notAvailableOnDevice.localizedDescription
             return
@@ -156,6 +159,13 @@ final class HealthKitManager {
     // MARK: - Public read
 
     func refreshSnapshot() async -> HealthKitSnapshot {
+        #if DEBUG
+        if MockMode.isActive {
+            let mock = MockData.snapshot()
+            lastSyncDate = mock.sampledAt
+            return mock
+        }
+        #endif
         guard isAvailable else { return HealthKitSnapshot() }
 
         var snapshot = HealthKitSnapshot()
@@ -414,7 +424,10 @@ final class HealthKitManager {
     // MARK: - Historical series (for Trends view)
 
     func dailyStepsSeries(days: Int = 30) async throws -> [(date: Date, value: Double)] {
-        try await dailyBucketSeries(.stepCount, days: days, unit: .count(), options: .cumulativeSum)
+        #if DEBUG
+        if MockMode.isActive { return MockData.stepsSeries(days: days) }
+        #endif
+        return try await dailyBucketSeries(.stepCount, days: days, unit: .count(), options: .cumulativeSum)
     }
 
     func dailyExerciseMinutesSeries(days: Int = 30) async throws -> [(date: Date, value: Double)] {
@@ -422,7 +435,10 @@ final class HealthKitManager {
     }
 
     func restingHeartRateSeries(days: Int = 60) async throws -> [(date: Date, value: Double)] {
-        try await dailyBucketSeries(
+        #if DEBUG
+        if MockMode.isActive { return MockData.rhrSeries(days: days) }
+        #endif
+        return try await dailyBucketSeries(
             .restingHeartRate,
             days: days,
             unit: HKUnit.count().unitDivided(by: .minute()),
@@ -432,14 +448,23 @@ final class HealthKitManager {
     }
 
     func bodyMassSeries(days: Int = 180) async throws -> [(date: Date, value: Double)] {
-        try await sampleSeries(.bodyMass, days: days, unit: .gramUnit(with: .kilo))
+        #if DEBUG
+        if MockMode.isActive { return MockData.bodyMassSeries(days: days) }
+        #endif
+        return try await sampleSeries(.bodyMass, days: days, unit: .gramUnit(with: .kilo))
     }
 
     func vo2MaxSeries(days: Int = 365) async throws -> [(date: Date, value: Double)] {
-        try await sampleSeries(.vo2Max, days: days, unit: HKUnit(from: "ml/(kg*min)"))
+        #if DEBUG
+        if MockMode.isActive { return MockData.vo2MaxSeries(days: days) }
+        #endif
+        return try await sampleSeries(.vo2Max, days: days, unit: HKUnit(from: "ml/(kg*min)"))
     }
 
     func sleepNightlySeries(days: Int = 30) async throws -> [(date: Date, value: Double)] {
+        #if DEBUG
+        if MockMode.isActive { return MockData.sleepSeries(days: days) }
+        #endif
         guard let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
         let (start, end) = dateRange(days: days)
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
@@ -454,7 +479,10 @@ final class HealthKitManager {
     }
 
     func bloodPressureSeries(days: Int = 90) async throws -> [BloodPressureReading] {
-        try await bloodPressureSamples(days: days)
+        #if DEBUG
+        if MockMode.isActive { return MockData.bloodPressureSeries(days: days) }
+        #endif
+        return try await bloodPressureSamples(days: days)
     }
 
     // MARK: - Series helpers

@@ -158,15 +158,16 @@ final class OpenRouterClient {
         }
 
         let prompt = """
-        Generate an anatomical exercise-diagram illustration for the strength/fitness exercise: "\(exerciseName)", in the style used by professional gym exercise guides (e.g. ExRx, Muscle & Motion style diagrams).
+        Generate an exercise-diagram illustration for the strength/fitness exercise: "\(exerciseName)", in the style used by professional gym exercise guides.
         Style requirements (apply to every image so the icon set looks uniform):
-        - 3D-rendered anatomical figure performing the exercise mid-repetition, shown from whichever side/angle best reveals the movement
-        - Skin rendered in a neutral grey tone; the primary muscle(s) trained by this exercise are highlighted in vivid red/orange so they're instantly identifiable
-        - Any gym equipment (machine, bench, bar, dumbbells) rendered as simple light-grey/white 3D geometry with minimal detail, matching the muscle-diagram aesthetic
-        - Plain white background, soft neutral studio lighting, no harsh shadows
+        - A smooth, featureless grey 3D mannequin figure (like a posable artist's dummy / 3D stickman), NOT a detailed skin-stripped anatomical body — no visible muscle fibers, tendons, or dissection detail
+        - The figure is shown mid-repetition, from whichever side/angle best reveals the movement
+        - Highlight ONLY the specific muscle actually worked by this exercise in vivid red — a single localized region, not the whole limb, not the whole body part, and never the entire figure. The rest of the mannequin stays plain grey
+        - Any gym equipment (machine, bench, bar, dumbbells) rendered as simple light-grey/white 3D geometry with minimal detail
+        - Plain flat white background, even flat lighting, NO shadows, NO reflections, NO gradients, NO lighting effects
         - Subject centered with generous padding, square format
         - No text, no labels, no logos, no watermarks, no brand names
-        - Consistent rendering style, proportions, and lighting across every exercise so the full icon set looks like one cohesive reference set
+        - Consistent mannequin style and proportions across every exercise so the full icon set looks like one cohesive reference set
         """
 
         let body: [String: Any] = [

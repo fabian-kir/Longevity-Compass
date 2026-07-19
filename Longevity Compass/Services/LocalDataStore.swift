@@ -108,7 +108,7 @@ final class LocalDataStore {
 
     func fetchAllExerciseDefs() -> [ExerciseDef] {
         let descriptor = FetchDescriptor<ExerciseDef>(
-            sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.name)]
+            sortBy: [SortDescriptor(\.name)]
         )
         return (try? context.fetch(descriptor)) ?? []
     }

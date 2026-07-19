@@ -17,14 +17,21 @@ struct Longevity_CompassApp: App {
             BloodworkPanel.self,
             BloodworkMarker.self,
         ])
+        var inMemory = false
+        #if DEBUG
+        inMemory = MockMode.isActive
+        #endif
         let config = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: false,
+            isStoredInMemoryOnly: inMemory,
             cloudKitDatabase: .none
         )
         do {
             let container = try ModelContainer(for: schema, configurations: [config])
             self.modelContainer = container
+            #if DEBUG
+            if MockMode.isActive { MockData.seed(into: container.mainContext) }
+            #endif
             self._services = State(initialValue: AppServices(context: container.mainContext))
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
