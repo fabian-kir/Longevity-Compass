@@ -3,7 +3,7 @@ import SwiftData
 
 struct ExerciseLibraryView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \ExerciseDef.sortOrder) private var exercises: [ExerciseDef]
+    @Query(sort: \ExerciseDef.name) private var exercises: [ExerciseDef]
 
     @State private var showAddSheet = false
 
@@ -18,12 +18,6 @@ struct ExerciseLibraryView: View {
             }
             .onDelete { offsets in
                 for i in offsets { context.delete(exercises[i]) }
-                try? context.save()
-            }
-            .onMove { from, to in
-                var mutable = exercises
-                mutable.move(fromOffsets: from, toOffset: to)
-                for (i, ex) in mutable.enumerated() { ex.sortOrder = i }
                 try? context.save()
             }
         }

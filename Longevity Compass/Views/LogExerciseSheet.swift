@@ -54,6 +54,7 @@ struct SetLoggerView: View {
     @State private var selectedSetID: UUID?
     @State private var pickerWeightKg: Double = 0
     @State private var pickerReps: Int = 1
+    @State private var selectedChartLabel: String?
 
     @Query private var history: [ExerciseEntry]
     @Query private var matchedDefs: [ExerciseDef]
@@ -118,20 +119,93 @@ struct SetLoggerView: View {
         sets.reduce(0) { $0 + $1.weightKg * Double($1.reps) }
     }
 
+    /// Set positions that get a dedicated legend colour; extra sets fold into the
+    /// last colour so the stack total still equals the session volume.
+    private static let maxTrackedSetLines = 3
+
     private struct VolumePoint: Identifiable {
         let id = UUID()
+        let index: Int
+        let label: String           // categorical x value (unique per session)
         let date: Date
-        let volume: Double
+        let volume: Double          // total session volume → full stack height
+        let setVolumes: [Double]    // raw per-set volume, ordered
         let isCurrent: Bool
     }
 
+    /// Up to 10 most recent sessions (incl. the one being edited), evenly spaced by
+    /// ordinal index so untrained days don't leave empty gaps on the x-axis.
     private var volumeChartData: [VolumePoint] {
-        var data = pastSessions.prefix(10).reversed().map { entry in
-            let v = entry.sets.reduce(0) { $0 + $1.weightKg * Double($1.reps) }
-            return VolumePoint(date: entry.date, volume: v, isCurrent: false)
+        var raw: [(date: Date, sets: [WorkoutSet], isCurrent: Bool)] =
+            pastSessions.prefix(9).reversed().map { ($0.date, $0.sets, false) }
+        raw.append((date, sets, true))
+        return raw.enumerated().map { i, s in
+            VolumePoint(
+                index: i,
+                label: String(i),
+                date: s.date,
+                volume: s.sets.reduce(0) { $0 + $1.weightKg * Double($1.reps) },
+                setVolumes: s.sets.map { $0.weightKg * Double($0.reps) },
+                isCurrent: s.isCurrent
+            )
         }
-        data.append(VolumePoint(date: date, volume: currentVolume, isCurrent: true))
-        return data
+    }
+
+    private struct SetSegment: Identifiable {
+        let id = UUID()
+        let label: String           // parent session (categorical x)
+        let setNumber: Int          // 1-based
+        let volume: Double          // raw per-set volume → segment height
+        let isCurrent: Bool
+    }
+
+    /// One stack segment per set, at its true volume. Segments sharing an x auto-stack,
+    /// so the full stack height equals the session's total volume.
+    private var setSegments: [SetSegment] {
+        volumeChartData.flatMap { p in
+            p.setVolumes.enumerated().map { j, v in
+                SetSegment(
+                    label: p.label,
+                    setNumber: j + 1,
+                    volume: v,
+                    isCurrent: p.isCurrent
+                )
+            }
+        }
+    }
+
+    /// How many set positions get a distinct legend colour (0…3).
+    private var trackedSetLineCount: Int {
+        min(Self.maxTrackedSetLines, volumeChartData.map(\.setVolumes.count).max() ?? 0)
+    }
+
+    private func setColor(_ n: Int) -> Color {
+        switch n {
+        case 1: return .green
+        case 2: return .yellow
+        default: return .orange
+        }
+    }
+
+    private var selectedVolumePoint: VolumePoint? {
+        guard let label = selectedChartLabel else { return nil }
+        return volumeChartData.first { $0.label == label }
+    }
+
+    /// Headroom above the tallest stack so top markers + tooltip aren't clipped.
+    private var volumeYMax: Double {
+        max(volumeChartData.map(\.volume).max() ?? 1, 1) * 1.2
+    }
+
+    /// ~5 evenly spaced x-axis ticks (always including first and last) so date
+    /// labels stay readable regardless of how many sessions are plotted.
+    private var volumeAxisTicks: [Int] {
+        let n = volumeChartData.count
+        guard n > 1 else { return volumeChartData.map(\.index) }
+        let step = max(1, Int((Double(n) / 5).rounded()))
+        var ticks = Array(stride(from: 0, to: n, by: step))
+        if ticks.last != n - 1 { ticks.append(n - 1) }
+        return ticks
     }
 
     // MARK: - Insight data (rendered cards)
@@ -305,19 +379,8 @@ struct SetLoggerView: View {
             }
 
             if !pastSessions.isEmpty {
-                Section("Volume per session") {
-                    Chart(volumeChartData) { point in
-                        BarMark(
-                            x: .value("Date", point.date, unit: .day),
-                            y: .value("Volume", point.volume)
-                        )
-                        .foregroundStyle(point.isCurrent ? Color.accentColor : Color.secondary.opacity(0.5))
-                        .cornerRadius(3)
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .frame(height: 140)
+                Section("Volume + per-set") {
+                    volumeChart
                 }
 
                 workingWeightCard
@@ -348,6 +411,101 @@ struct SetLoggerView: View {
                     .disabled(sets.isEmpty)
             }
         }
+    }
+
+    // MARK: - Volume chart
+
+    private func volumeShort(_ v: Double) -> String {
+        v >= 100 ? "\(Int(v.rounded()))" : String(format: "%.0f", v)
+    }
+
+    @ViewBuilder
+    private var volumeChart: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Chart {
+                ForEach(setSegments) { seg in
+                    BarMark(
+                        x: .value("Session", seg.label),
+                        y: .value("Set volume", seg.volume),
+                        width: .ratio(0.6)
+                    )
+                    .foregroundStyle(setColor(seg.setNumber))
+                    .opacity(seg.isCurrent ? 1 : 0.5)
+                }
+
+                if let sel = selectedVolumePoint {
+                    RuleMark(x: .value("Session", sel.label))
+                        .foregroundStyle(Color.secondary.opacity(0.3))
+                        .annotation(
+                            position: .top,
+                            spacing: 4,
+                            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .plot))
+                        ) {
+                            volumeTooltip(sel)
+                        }
+                }
+            }
+            .chartXSelection(value: $selectedChartLabel)
+            .chartYScale(domain: 0...volumeYMax)
+            .chartXAxis {
+                AxisMarks(values: volumeAxisTicks.map(String.init)) { value in
+                    if let s = value.as(String.self),
+                       let p = volumeChartData.first(where: { $0.label == s }) {
+                        AxisGridLine()
+                        AxisValueLabel {
+                            Text(p.date, format: .dateTime.day().month(.abbreviated))
+                        }
+                    }
+                }
+            }
+            .chartYAxis { AxisMarks(position: .leading) }
+            .frame(height: 170)
+
+            volumeLegend
+        }
+    }
+
+    @ViewBuilder
+    private var volumeLegend: some View {
+        HStack(spacing: 14) {
+            Text("Stack = volume")
+            ForEach(1...max(1, trackedSetLineCount), id: \.self) { n in
+                legendItem(color: setColor(n), label: "Set \(n)")
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private func legendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 1.5).fill(color).frame(width: 9, height: 9)
+            Text(label)
+        }
+    }
+
+    @ViewBuilder
+    private func volumeTooltip(_ p: VolumePoint) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(p.date, format: .dateTime.day().month(.abbreviated).year())
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("Vol \(volumeShort(p.volume))")
+                .font(.caption.weight(.semibold).monospacedDigit())
+            if !p.setVolumes.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(Array(p.setVolumes.enumerated()), id: \.offset) { i, v in
+                        Text("\(volumeShort(v))")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(setColor(i + 1))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     // MARK: - Insight cards
