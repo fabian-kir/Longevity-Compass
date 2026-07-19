@@ -4,7 +4,7 @@ import SwiftData
 struct TrainingView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \ExerciseEntry.date, order: .reverse) private var allEntries: [ExerciseEntry]
-    @Query(sort: \ExerciseDef.sortOrder) private var defs: [ExerciseDef]
+    @Query(sort: \ExerciseDef.name) private var defs: [ExerciseDef]
 
     @State private var showLogSheet = false
     @State private var editingEntry: ExerciseEntry?
@@ -18,10 +18,26 @@ struct TrainingView: View {
                     description: Text("Tap \"Log Exercise\" to record your first set.")
                 )
             } else {
+                if !weeklyBalance.isEmpty {
+                    Section("This week — sets per muscle") {
+                        let maxV = weeklyBalance.map(\.sets).max() ?? 1
+                        ForEach(weeklyBalance) { load in
+                            MuscleBalanceBar(
+                                label: load.region.displayName,
+                                fraction: maxV > 0 ? load.sets / maxV : 0,
+                                tint: AppTab.train.tint
+                            )
+                        }
+                    }
+                }
+
                 ForEach(groupedEntries, id: \.key) { group in
                     Section(sectionTitle(for: group.key)) {
                         ForEach(group.value) { entry in
-                            ExerciseEntryRow(entry: entry)
+                            ExerciseEntryRow(
+                                entry: entry,
+                                photoData: defs.first(where: { $0.name == entry.exerciseName })?.photoData
+                            )
                                 .onTapGesture { editingEntry = entry }
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
@@ -112,6 +128,32 @@ struct TrainingView: View {
         .task { seedIfNeeded() }
     }
 
+    // MARK: - Weekly muscle balance
+
+    private struct RegionLoad: Identifiable {
+        let id = UUID()
+        let region: MuscleRegion
+        let sets: Double
+    }
+
+    /// Set-count share per muscle region over the last 7 days. Primary muscles
+    /// count full, secondary count half. Set-based (not volume) so heavy
+    /// compound lifts don't drown out everything else.
+    private var weeklyBalance: [RegionLoad] {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
+        var totals: [MuscleRegion: Double] = [:]
+        for entry in allEntries where entry.date >= weekAgo {
+            guard let def = defs.first(where: { $0.name == entry.exerciseName }) else { continue }
+            let count = Double(entry.sets.count)
+            guard count > 0 else { continue }
+            for m in def.primaryMuscles   { totals[m.region, default: 0] += count }
+            for m in def.secondaryMuscles { totals[m.region, default: 0] += count * 0.5 }
+        }
+        return totals
+            .sorted { $0.value > $1.value }
+            .map { RegionLoad(region: $0.key, sets: $0.value) }
+    }
+
     // MARK: - Grouping
 
     private var groupedEntries: [(key: Date, value: [ExerciseEntry])] {
@@ -150,34 +192,51 @@ struct TrainingView: View {
 
 struct ExerciseEntryRow: View {
     let entry: ExerciseEntry
+    let photoData: Data?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Image(systemName: entry.exerciseSymbol)
-                    .foregroundStyle(.tint)
-                    .frame(width: 20)
-                Text(entry.exerciseName)
-                    .font(.headline)
-                Spacer()
-                Text(entry.date, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if !entry.sets.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(Array(entry.sets.enumerated()), id: \.element.id) { i, set in
-                            Text(setLabel(i: i, set: set))
-                                .font(.caption.monospacedDigit())
-                                .padding(.horizontal, 8).padding(.vertical, 3)
-                                .glassEffect(.regular, in: Capsule())
+        HStack(alignment: .center, spacing: 12) {
+            icon
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(entry.exerciseName)
+                        .font(.headline)
+                    Spacer()
+                    Text(entry.date, style: .time)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if !entry.sets.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(Array(entry.sets.enumerated()), id: \.element.id) { i, set in
+                                Text(setLabel(i: i, set: set))
+                                    .font(.caption.monospacedDigit())
+                                    .padding(.horizontal, 8).padding(.vertical, 3)
+                                    .glassEffect(.regular, in: Capsule())
+                            }
                         }
                     }
                 }
             }
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if let data = photoData, let img = UIImage(data: data) {
+            Image(uiImage: img)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 52, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        } else {
+            Image(systemName: entry.exerciseSymbol)
+                .font(.title2)
+                .foregroundStyle(.tint)
+                .frame(width: 52, height: 52)
+        }
     }
 
     private func setLabel(i: Int, set: WorkoutSet) -> String {

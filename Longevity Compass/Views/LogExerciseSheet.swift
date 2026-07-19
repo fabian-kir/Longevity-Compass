@@ -5,7 +5,7 @@ import Charts
 struct LogExerciseSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    @Query(sort: \ExerciseDef.sortOrder) private var exercises: [ExerciseDef]
+    @Query(sort: \ExerciseDef.name) private var exercises: [ExerciseDef]
 
     var body: some View {
         NavigationStack {
@@ -56,12 +56,14 @@ struct SetLoggerView: View {
     @State private var pickerReps: Int = 1
 
     @Query private var history: [ExerciseEntry]
+    @Query private var matchedDefs: [ExerciseDef]
     private let initialDate: Date
 
-    // 0–29.5 kg in 0.5 steps, then 30–300 kg in 5 steps
+    // 0–29.5 kg in 0.5 steps, 30–49 kg in 1 steps, then 50–300 kg in 5 steps
     private static let weightValues: [Double] =
         stride(from: 0.0, through: 29.5, by: 0.5).map { $0 } +
-        stride(from: 30.0, through: 300.0, by: 5.0).map { $0 }
+        stride(from: 30.0, through: 49.0, by: 1.0).map { $0 } +
+        stride(from: 50.0, through: 300.0, by: 5.0).map { $0 }
 
     init(exerciseName: String, photoData: Data? = nil, initialSets: [WorkoutSet] = [], initialDate: Date = .now, onSave: @escaping (Date, [WorkoutSet]) -> Void) {
         self.exerciseName = exerciseName
@@ -81,6 +83,7 @@ struct SetLoggerView: View {
             filter: #Predicate<ExerciseEntry> { $0.exerciseName == name },
             sort: [SortDescriptor(\.date, order: .reverse)]
         )
+        _matchedDefs = Query(filter: #Predicate<ExerciseDef> { $0.name == name })
     }
 
     private var selectedIndex: Int? {
@@ -131,21 +134,84 @@ struct SetLoggerView: View {
         return data
     }
 
+    // MARK: - Insight data (rendered cards)
+
+    /// Past sessions oldest→newest, capped, for the trend charts.
+    private var trendSessions: [ExerciseEntry] {
+        Array(pastSessions.prefix(8)).reversed()
+    }
+
+    private var currentTopSet: Double { sets.map(\.weightKg).max() ?? 0 }
+
+    private var previousTopSet: Double? {
+        pastSessions.first.map { $0.sets.map(\.weightKg).max() ?? 0 }
+    }
+
+    private var topSetDelta: Double? {
+        guard let prev = previousTopSet else { return nil }
+        return currentTopSet - prev
+    }
+
+    private struct BandPoint: Identifiable {
+        let id = UUID()
+        let date: Date
+        let heaviest: Double
+        let lightest: Double
+    }
+
+    /// Heaviest→lightest set spread per session (+ the one being edited).
+    private var bandData: [BandPoint] {
+        var pts = trendSessions.map { e -> BandPoint in
+            let w = e.sets.map(\.weightKg)
+            return BandPoint(date: e.date, heaviest: w.max() ?? 0, lightest: w.min() ?? 0)
+        }
+        let cw = sets.map(\.weightKg)
+        pts.append(BandPoint(date: date, heaviest: cw.max() ?? 0, lightest: cw.min() ?? 0))
+        return pts
+    }
+
+    /// How many set positions to draw per-set trends for.
+    private var trackedSetPositions: Int { min(sets.count, 4) }
+
+    private struct SetSeriesPoint: Identifiable {
+        let id = UUID()
+        let order: Int
+        let weight: Double
+    }
+
+    /// Weight at set position `i` across trend sessions + current.
+    private func series(forPosition i: Int) -> [SetSeriesPoint] {
+        var out: [SetSeriesPoint] = []
+        var order = 0
+        for e in trendSessions {
+            let s = e.sets
+            if i < s.count {
+                out.append(SetSeriesPoint(order: order, weight: s[i].weightKg))
+                order += 1
+            }
+        }
+        if i < sets.count {
+            out.append(SetSeriesPoint(order: order, weight: sets[i].weightKg))
+        }
+        return out
+    }
+
+    private var primaryMuscles: [MuscleGroup] { matchedDefs.first?.primaryMuscles ?? [] }
+    private var secondaryMuscles: [MuscleGroup] { matchedDefs.first?.secondaryMuscles ?? [] }
+
+    private func weightShort(_ kg: Double) -> String {
+        kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))" : String(format: "%.1f", kg)
+    }
+
+    private func trendColor(_ s: [SetSeriesPoint]) -> Color {
+        guard let f = s.first?.weight, let l = s.last?.weight else { return .secondary }
+        if l > f + 0.01 { return .green }
+        if l < f - 0.01 { return .orange }
+        return .secondary
+    }
+
     var body: some View {
         Form {
-            if let data = photoData, let img = UIImage(data: data) {
-                Section {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 200)
-                        .clipped()
-                        .listRowInsets(EdgeInsets())
-                }
-                .listRowBackground(Color.clear)
-            }
-
             Section {
                 ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
                     Button {
@@ -253,14 +319,139 @@ struct SetLoggerView: View {
                     }
                     .frame(height: 140)
                 }
+
+                workingWeightCard
+                lastTimeCard
+                perSetTrendCard
             }
+
+            musclesCard
         }
         .navigationTitle(exerciseName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 8) {
+                    if let data = photoData, let img = UIImage(data: data) {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 24, height: 24)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
+                    Text(exerciseName)
+                        .font(.headline)
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { onSave(date, sets) }
                     .disabled(sets.isEmpty)
+            }
+        }
+    }
+
+    // MARK: - Insight cards
+
+    @ViewBuilder
+    private var workingWeightCard: some View {
+        Section("Working weight") {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(weightLabel(currentTopSet)).font(.title2.weight(.bold))
+                Text("top set").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if let d = topSetDelta, abs(d) >= 0.5 {
+                    Label(String(format: "%+.1f kg", d),
+                          systemImage: d > 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(d > 0 ? .green : .orange)
+                }
+            }
+            Chart(bandData) { p in
+                AreaMark(
+                    x: .value("Date", p.date, unit: .day),
+                    yStart: .value("Lightest", p.lightest),
+                    yEnd: .value("Heaviest", p.heaviest)
+                )
+                .foregroundStyle(Color.accentColor.opacity(0.12))
+                LineMark(
+                    x: .value("Date", p.date, unit: .day),
+                    y: .value("Heaviest", p.heaviest)
+                )
+                .foregroundStyle(Color.accentColor)
+                .interpolationMethod(.catmullRom)
+            }
+            .chartYAxis { AxisMarks(position: .leading) }
+            .frame(height: 120)
+        }
+    }
+
+    @ViewBuilder
+    private var lastTimeCard: some View {
+        if let last = pastSessions.first {
+            Section {
+                ForEach(Array(last.sets.enumerated()), id: \.offset) { i, s in
+                    HStack {
+                        Text("Set \(i + 1)").foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(weightLabel(s.weightKg)) · \(s.reps)")
+                    }
+                    .font(.subheadline)
+                }
+            } header: {
+                HStack {
+                    Text("Last time")
+                    Spacer()
+                    Text(last.date, format: .relative(presentation: .named))
+                        .textCase(nil)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var perSetTrendCard: some View {
+        if !trendSessions.isEmpty, trackedSetPositions > 0 {
+            Section("Per-set trend") {
+                ForEach(0..<trackedSetPositions, id: \.self) { i in
+                    let s = series(forPosition: i)
+                    HStack(spacing: 10) {
+                        Text("Set \(i + 1)")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .frame(width: 42, alignment: .leading)
+                        if let first = s.first {
+                            Text(weightShort(first.weight))
+                                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                .frame(width: 40, alignment: .trailing)
+                        }
+                        Chart(s) { p in
+                            LineMark(x: .value("i", p.order), y: .value("kg", p.weight))
+                                .interpolationMethod(.catmullRom)
+                                .foregroundStyle(trendColor(s))
+                        }
+                        .chartXAxis(.hidden)
+                        .chartYAxis(.hidden)
+                        .frame(height: 22)
+                        if let last = s.last {
+                            Text(weightShort(last.weight))
+                                .font(.caption.monospacedDigit().weight(.semibold))
+                                .frame(width: 48, alignment: .trailing)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var musclesCard: some View {
+        if !primaryMuscles.isEmpty || !secondaryMuscles.isEmpty {
+            Section("Muscles worked") {
+                FlowLayout(spacing: 6) {
+                    ForEach(primaryMuscles) { MuscleChip(group: $0, emphasized: true) }
+                    ForEach(secondaryMuscles) { MuscleChip(group: $0, emphasized: false) }
+                }
+                .padding(.vertical, 2)
             }
         }
     }

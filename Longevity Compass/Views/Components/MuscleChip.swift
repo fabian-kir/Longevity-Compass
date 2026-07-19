@@ -19,6 +19,38 @@ struct MuscleChip: View {
     }
 }
 
+/// Horizontal progress bar for one muscle region's share of weekly training.
+struct MuscleBalanceBar: View {
+    let label: String
+    /// 0…1, relative to the most-trained region this week.
+    let fraction: Double
+    var tint: Color = .accentColor
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .frame(width: 74, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.secondary.opacity(0.18))
+                    Capsule().fill(tint)
+                        .frame(width: max(4, geo.size.width * fraction.clamped01))
+                }
+            }
+            .frame(height: 8)
+            Text("\(Int((fraction * 100).rounded()))%")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 38, alignment: .trailing)
+        }
+    }
+}
+
+private extension Double {
+    var clamped01: Double { Swift.min(1, Swift.max(0, self)) }
+}
+
 /// Left-to-right wrapping layout (chips flow onto new rows as width runs out).
 struct FlowLayout: Layout {
     var spacing: CGFloat = 6
