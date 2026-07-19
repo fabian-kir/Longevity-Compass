@@ -236,7 +236,8 @@ enum HealthThresholds {
         static let httpReferer = "https://github.com/fabian-kir/longevity-compass"
         static let appTitle    = "Longevity Compass"
 
-        // Cheap image-output model used for auto-generated exercise icons.
+        // Image-output model used for auto-generated exercise icons.
+        // Must support chat-completions image+text output modalities on OpenRouter.
         // Each image ~1290 image-output tokens → roughly $0.04 per icon.
         static let imageModel = "google/gemini-2.5-flash-image"
         static let imageInputUSDPerMillion:  Double = 0.30

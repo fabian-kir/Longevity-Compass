@@ -149,14 +149,15 @@ final class OpenRouterClient {
         }
 
         let prompt = """
-        Generate a small app-icon style illustration for the strength/fitness exercise: "\(exerciseName)".
+        Generate an anatomical exercise-diagram illustration for the strength/fitness exercise: "\(exerciseName)", in the style used by professional gym exercise guides (e.g. ExRx, Muscle & Motion style diagrams).
         Style requirements (apply to every image so the icon set looks uniform):
-        - Flat, minimalist vector illustration
-        - Bold simple shapes, soft rounded lines, no gradients beyond a subtle shadow
-        - Monochromatic palette in shades of warm orange (#FF8A00 family) with a soft off-white background
-        - Centered subject, generous padding around the edges, square format
-        - No text, no labels, no logos, no watermarks, no human faces
-        - Instantly recognizable representation of the exercise
+        - 3D-rendered anatomical figure performing the exercise mid-repetition, shown from whichever side/angle best reveals the movement
+        - Skin rendered in a neutral grey tone; the primary muscle(s) trained by this exercise are highlighted in vivid red/orange so they're instantly identifiable
+        - Any gym equipment (machine, bench, bar, dumbbells) rendered as simple light-grey/white 3D geometry with minimal detail, matching the muscle-diagram aesthetic
+        - Plain white background, soft neutral studio lighting, no harsh shadows
+        - Subject centered with generous padding, square format
+        - No text, no labels, no logos, no watermarks, no brand names
+        - Consistent rendering style, proportions, and lighting across every exercise so the full icon set looks like one cohesive reference set
         """
 
         let body: [String: Any] = [
