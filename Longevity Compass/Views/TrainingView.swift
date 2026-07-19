@@ -93,6 +93,7 @@ struct TrainingView: View {
             NavigationStack {
                 SetLoggerView(
                     exerciseName: entry.exerciseName,
+                    photoData: defs.first(where: { $0.name == entry.exerciseName })?.photoData,
                     initialSets: entry.sets,
                     initialDate: entry.date
                 ) { date, sets in

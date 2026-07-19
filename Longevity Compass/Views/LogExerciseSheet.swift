@@ -17,7 +17,7 @@ struct LogExerciseSheet: View {
             .navigationTitle("Log Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: ExerciseDef.self) { def in
-                SetLoggerView(exerciseName: def.name) { date, sets in
+                SetLoggerView(exerciseName: def.name, photoData: def.photoData) { date, sets in
                     let entry = ExerciseEntry(date: date, name: def.name, symbol: def.sfSymbol, sets: sets)
                     context.insert(entry)
                     try? context.save()
@@ -46,6 +46,7 @@ struct LogExerciseSheet: View {
 
 struct SetLoggerView: View {
     let exerciseName: String
+    let photoData: Data?
     let onSave: (Date, [WorkoutSet]) -> Void
 
     @State private var sets: [WorkoutSet]
@@ -62,8 +63,9 @@ struct SetLoggerView: View {
         stride(from: 0.0, through: 29.5, by: 0.5).map { $0 } +
         stride(from: 30.0, through: 300.0, by: 5.0).map { $0 }
 
-    init(exerciseName: String, initialSets: [WorkoutSet] = [], initialDate: Date = .now, onSave: @escaping (Date, [WorkoutSet]) -> Void) {
+    init(exerciseName: String, photoData: Data? = nil, initialSets: [WorkoutSet] = [], initialDate: Date = .now, onSave: @escaping (Date, [WorkoutSet]) -> Void) {
         self.exerciseName = exerciseName
+        self.photoData = photoData
         self.initialDate = initialDate
         self.onSave = onSave
         let s = initialSets.isEmpty ? [WorkoutSet()] : initialSets
@@ -131,6 +133,19 @@ struct SetLoggerView: View {
 
     var body: some View {
         Form {
+            if let data = photoData, let img = UIImage(data: data) {
+                Section {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .clipped()
+                        .listRowInsets(EdgeInsets())
+                }
+                .listRowBackground(Color.clear)
+            }
+
             Section {
                 ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
                     Button {
