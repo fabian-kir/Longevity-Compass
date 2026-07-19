@@ -66,7 +66,15 @@ struct ExerciseDefRow: View {
                     .frame(width: 38, height: 38)
                     .glassEffect(.regular.tint(AppTab.train.tint.opacity(0.22)), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
-            Text(def.name)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(def.name)
+                if !def.primaryMuscles.isEmpty {
+                    Text(def.primaryMuscles.map(\.displayName).joined(separator: " · "))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
         }
     }
 }

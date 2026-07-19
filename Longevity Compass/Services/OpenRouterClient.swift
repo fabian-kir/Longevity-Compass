@@ -16,6 +16,15 @@ struct GeneratedExerciseImage {
     let costUSD: Double
 }
 
+struct ExerciseMuscleClassification {
+    let primary: [MuscleGroup]
+    let secondary: [MuscleGroup]
+    let model: String
+    let inputTokens: Int
+    let outputTokens: Int
+    let costUSD: Double
+}
+
 enum OpenRouterError: LocalizedError {
     case missingAPIKey
     case http(Int, String)
@@ -243,6 +252,114 @@ final class OpenRouterClient {
         return Data(base64Encoded: b64) ?? Data(base64Encoded: b64, options: .ignoreUnknownCharacters)
     }
 
+    // MARK: - Exercise muscle-group classification (text)
+
+    /// Ask the chat model which muscle groups an exercise trains, constrained to
+    /// the fixed `MuscleGroup` vocabulary. A cheap text call (~a few hundred
+    /// tokens) fired once per exercise — deterministic buckets, no manual tagging.
+    func classifyExerciseMuscles(exerciseName: String) async throws -> ExerciseMuscleClassification {
+        guard let key = Keychain.get(.openRouterAPIKey), !key.isEmpty else {
+            throw OpenRouterError.missingAPIKey
+        }
+
+        let body: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system", "content": muscleClassifierSystemPrompt],
+                ["role": "user",   "content": "Exercise: \"\(exerciseName)\". Return the JSON object."],
+            ],
+            "response_format": ["type": "json_object"],
+            "max_tokens": 200,
+            "temperature": 0.0,
+        ]
+
+        var request = URLRequest(url: HealthThresholds.OpenRouter.endpoint)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(key)",                         forHTTPHeaderField: "Authorization")
+        request.setValue("application/json",                       forHTTPHeaderField: "Content-Type")
+        request.setValue(HealthThresholds.OpenRouter.httpReferer,  forHTTPHeaderField: "HTTP-Referer")
+        request.setValue(HealthThresholds.OpenRouter.appTitle,     forHTTPHeaderField: "X-Title")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw OpenRouterError.malformedResponse("No HTTPURLResponse")
+        }
+        if !(200...299).contains(http.statusCode) {
+            let bodyText = String(data: data, encoding: .utf8) ?? ""
+            throw OpenRouterError.http(http.statusCode, bodyText)
+        }
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw OpenRouterError.malformedResponse("Top-level JSON")
+        }
+        let usedModel = (json["model"] as? String) ?? model
+        let usage = json["usage"] as? [String: Any] ?? [:]
+        let inputTokens  = (usage["prompt_tokens"]     as? Int) ?? 0
+        let outputTokens = (usage["completion_tokens"] as? Int) ?? 0
+
+        guard
+            let choices = json["choices"] as? [[String: Any]],
+            let first = choices.first,
+            let message = first["message"] as? [String: Any]
+        else {
+            throw OpenRouterError.malformedResponse("choices/message")
+        }
+
+        let contentString: String = {
+            if let s = message["content"] as? String { return s }
+            if let arr = message["content"] as? [[String: Any]] {
+                return arr.compactMap { $0["text"] as? String }.joined()
+            }
+            return ""
+        }()
+
+        guard !contentString.isEmpty else { throw OpenRouterError.noContent }
+
+        let (primary, secondary) = try parseMuscleClassification(contentString)
+        let cost = computeCost(inputTokens: inputTokens, outputTokens: outputTokens)
+        return ExerciseMuscleClassification(
+            primary: primary,
+            secondary: secondary,
+            model: usedModel,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+            costUSD: cost
+        )
+    }
+
+    /// Parse `{ "primary": [...], "secondary": [...] }`, map to the fixed
+    /// vocabulary (dropping anything unrecognized), dedupe, and ensure a muscle
+    /// never appears in both lists (primary wins).
+    private func parseMuscleClassification(_ raw: String) throws -> (primary: [MuscleGroup], secondary: [MuscleGroup]) {
+        let cleaned = raw
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let data = cleaned.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            throw OpenRouterError.malformedResponse("muscle JSON: \(cleaned.prefix(200))")
+        }
+
+        func groups(_ keyValue: Any?) -> [MuscleGroup] {
+            let strings = (keyValue as? [String]) ?? []
+            var seen = Set<MuscleGroup>()
+            var out: [MuscleGroup] = []
+            for s in strings {
+                guard let g = MuscleGroup.from(loose: s), !seen.contains(g) else { continue }
+                seen.insert(g)
+                out.append(g)
+            }
+            return out
+        }
+
+        let primary = groups(obj["primary"])
+        let primarySet = Set(primary)
+        let secondary = groups(obj["secondary"]).filter { !primarySet.contains($0) }
+        return (primary, secondary)
+    }
+
     // MARK: - Cost
 
     func computeCost(inputTokens: Int, outputTokens: Int) -> Double {
@@ -328,5 +445,28 @@ final class OpenRouterClient {
 
     private var userPrompt: String {
         "Classify this meal and return the JSON object as specified."
+    }
+
+    private var muscleClassifierSystemPrompt: String {
+        let vocab = MuscleGroup.allCases.map(\.rawValue).joined(separator: ", ")
+        return """
+        You are a strength-training assistant. Given the name of a resistance/fitness exercise, identify which muscle groups it trains.
+
+        Return ONLY this JSON object, no markdown, no prose:
+        {
+          "primary":   [ <muscle>, ... ],
+          "secondary": [ <muscle>, ... ]
+        }
+
+        Allowed muscle values (use these EXACT strings, nothing else):
+        \(vocab)
+
+        Rules:
+        - "primary" = the muscles the exercise is chiefly designed to work (usually 1–3).
+        - "secondary" = assisting / stabilizing muscles that get meaningful work (0–4). A muscle must never appear in both lists.
+        - Use "fullBody" only for whole-body movements (e.g. burpees, clean & jerk) and "cardio" only for conditioning work (e.g. running, rowing, cycling) — otherwise list specific muscles.
+        - If the exercise name is unclear, pick the most likely standard interpretation.
+        - Output nothing except the JSON object.
+        """
     }
 }

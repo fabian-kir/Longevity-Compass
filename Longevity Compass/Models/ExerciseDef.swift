@@ -15,12 +15,33 @@ final class ExerciseDef {
     var imageCostUSD: Double?
     var imageGeneratedAt: Date?
 
+    // Auto-classified muscle groups (LLM, fixed MuscleGroup vocabulary).
+    // Stored as raw strings for a stable SwiftData schema; access via the
+    // `primaryMuscles` / `secondaryMuscles` computed accessors.
+    var primaryMuscleRaw: [String] = []
+    var secondaryMuscleRaw: [String] = []
+    var musclesClassifiedAt: Date?
+
     init(name: String, sfSymbol: String = "dumbbell.fill", photoData: Data? = nil, sortOrder: Int = 0) {
         self.name = name
         self.sfSymbol = sfSymbol
         self.photoData = photoData
         self.sortOrder = sortOrder
     }
+
+    /// Muscles this exercise trains as its main target.
+    var primaryMuscles: [MuscleGroup] {
+        get { primaryMuscleRaw.compactMap(MuscleGroup.init(rawValue:)) }
+        set { primaryMuscleRaw = newValue.map(\.rawValue) }
+    }
+
+    /// Muscles worked as assistors / stabilizers.
+    var secondaryMuscles: [MuscleGroup] {
+        get { secondaryMuscleRaw.compactMap(MuscleGroup.init(rawValue:)) }
+        set { secondaryMuscleRaw = newValue.map(\.rawValue) }
+    }
+
+    var hasMuscleTags: Bool { !primaryMuscleRaw.isEmpty }
 }
 
 struct ExerciseImageDigest {
