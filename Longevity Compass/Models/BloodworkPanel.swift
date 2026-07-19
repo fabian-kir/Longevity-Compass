@@ -34,6 +34,11 @@ final class BloodworkPanel {
     var date: Date
     var labName: String?
     var notes: String?
+    /// True when the user reports the panel was drawn during illness or injury.
+    /// The evaluator suppresses good/borderline/bad colouring on acute-phase
+    /// reactants (hs-CRP, ferritin, albumin) in that case — the numbers are
+    /// real but the interpretation isn't.
+    var acutePhaseAtDraw: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \BloodworkMarker.panel)
     var markers: [BloodworkMarker]
 
@@ -42,12 +47,14 @@ final class BloodworkPanel {
         date: Date = .now,
         labName: String? = nil,
         notes: String? = nil,
+        acutePhaseAtDraw: Bool = false,
         markers: [BloodworkMarker] = []
     ) {
         self.id = id
         self.date = date
         self.labName = labName
         self.notes = notes
+        self.acutePhaseAtDraw = acutePhaseAtDraw
         self.markers = markers
     }
 
@@ -90,10 +97,18 @@ final class BloodworkMarker {
         get { BloodworkFlag(rawValue: flagRaw) ?? .unknown }
         set { flagRaw = newValue.rawValue }
     }
+
+    /// Parsed numeric form of `value`. Returns nil for qualified inputs like
+    /// `"<5"`, `"negative"`, `"trace"` — those stay as text and don't get flagged.
+    var numericValue: Double? {
+        BloodworkEvaluator.parseNumeric(value)
+    }
 }
 
-/// Common longevity-relevant markers prefilled when starting a new panel.
-/// The user can add or remove rows freely.
+/// Catalog of longevity-relevant markers prefilled when starting a new panel.
+/// The catalog is now driven from `Resources/bloodwork_markers.json` — single
+/// source of truth shared with the evaluator. The `Suggestion` shape is kept
+/// for existing call sites (entry sheet rows, marker-guide rows).
 enum BloodworkMarkerCatalog {
 
     enum Tier: String, CaseIterable, Identifiable {
@@ -121,127 +136,36 @@ enum BloodworkMarkerCatalog {
                 "Only worth ordering if you have a specific reason."
             }
         }
+
+        fileprivate var raw: String { rawValue }
+
+        fileprivate static func from(_ raw: String) -> Tier? {
+            Tier(rawValue: raw)
+        }
     }
 
     struct Suggestion: Identifiable {
-        let id = UUID()
+        let id: String
         let name: String
         let unit: String
         let tier: Tier
-        /// One-line "what this signals" — shown inline next to the marker.
+        /// One-line "what this signals" — shown inline next to the marker row.
         let purpose: String
-        /// Longer explanation — shown in the marker guide.
+        /// Longer explanation — shown in the marker guide / per-marker sheet.
         let detail: String
     }
 
-    static let defaults: [Suggestion] = [
-        // MARK: Core
-
-        Suggestion(
-            name: "ApoB",
-            unit: "mg/dL",
-            tier: .core,
-            purpose: "Atherogenic particles — best single lipid marker for cardiovascular risk.",
-            detail: "ApoB directly counts the LDL, VLDL, and Lp(a) particles that drive plaque. Many clinicians now prefer it over LDL-C because two people with the same LDL can have very different particle counts. If you only get one lipid number, get this."
-        ),
-        Suggestion(
-            name: "LDL-C",
-            unit: "mg/dL",
-            tier: .core,
-            purpose: "Standard cholesterol marker; ordered by default at most labs.",
-            detail: "LDL cholesterol concentration. Cheap, widely available, and what most physicians will discuss. Useful as a cross-check on ApoB. Trend over time matters more than any single value."
-        ),
-        Suggestion(
-            name: "HDL-C",
-            unit: "mg/dL",
-            tier: .core,
-            purpose: "Low HDL flags elevated cardiovascular risk.",
-            detail: "HDL reverse-transports cholesterol back to the liver. Very low HDL is a meaningful risk signal. Very high HDL is not protective on its own — context matters."
-        ),
-        Suggestion(
-            name: "Triglycerides",
-            unit: "mg/dL",
-            tier: .core,
-            purpose: "Rises with insulin resistance and excess refined carbs / alcohol.",
-            detail: "Fasted triglycerides above ~150 mg/dL hint at metabolic stress. The triglycerides-to-HDL ratio is a useful quick read on insulin resistance."
-        ),
-        Suggestion(
-            name: "HbA1c",
-            unit: "%",
-            tier: .core,
-            purpose: "3-month average blood sugar — gold standard for prediabetes screening.",
-            detail: "Reflects average glucose over the prior ~3 months. Stable, less noisy than fasting glucose, and the primary test used to diagnose prediabetes (5.7–6.4%) and diabetes (≥6.5%)."
-        ),
-        Suggestion(
-            name: "Fasting glucose",
-            unit: "mg/dL",
-            tier: .core,
-            purpose: "Snapshot of current glucose regulation; cheap and ubiquitous.",
-            detail: "Easier to misinterpret than HbA1c (a bad night's sleep or recent stress can spike it), but always included in basic panels. Pair with HbA1c."
-        ),
-        Suggestion(
-            name: "hs-CRP",
-            unit: "mg/L",
-            tier: .core,
-            purpose: "Systemic inflammation; predicts heart disease risk beyond lipids.",
-            detail: "High-sensitivity C-reactive protein. Persistently >2 mg/L (in the absence of acute illness) is associated with elevated cardiovascular risk. Skip the test if you have an obvious acute infection — it will be misleading."
-        ),
-
-        // MARK: Extended
-
-        Suggestion(
-            name: "Fasting insulin",
-            unit: "µIU/mL",
-            tier: .extended,
-            purpose: "Earliest signal of insulin resistance — often rises before glucose does.",
-            detail: "Glucose can look normal for years while insulin climbs to keep it that way. Fasting insulin (and HOMA-IR derived from it) catches insulin resistance earlier than HbA1c. Skipped by many standard panels — usually has to be requested."
-        ),
-        Suggestion(
-            name: "eGFR",
-            unit: "mL/min",
-            tier: .extended,
-            purpose: "Kidney filtration rate — included in most basic panels anyway.",
-            detail: "Estimated glomerular filtration rate. Declines naturally with age; a steep drop is the signal. Calculated from creatinine."
-        ),
-        Suggestion(
-            name: "ALT",
-            unit: "U/L",
-            tier: .extended,
-            purpose: "Liver health; elevations often flag fatty liver / metabolic syndrome.",
-            detail: "Alanine aminotransferase. Mildly elevated ALT in someone with metabolic markers off-track usually points to non-alcoholic fatty liver. Cheap and almost always included in a basic metabolic panel."
-        ),
-        Suggestion(
-            name: "Vitamin D (25-OH)",
-            unit: "ng/mL",
-            tier: .extended,
-            purpose: "Very common deficiency, especially in winter / indoor lifestyles.",
-            detail: "25-hydroxyvitamin D is the storage form. Deficiency is widespread and easy to fix. Target ~30–60 ng/mL for most adults."
-        ),
-        Suggestion(
-            name: "TSH",
-            unit: "mIU/L",
-            tier: .extended,
-            purpose: "Thyroid screen — explains fatigue, weight, mood changes.",
-            detail: "Thyroid-stimulating hormone. Out-of-range TSH is the entry point to a thyroid workup. If TSH is off, ask for free T4 and free T3."
-        ),
-
-        // MARK: Specialized
-
-        Suggestion(
-            name: "Ferritin",
-            unit: "ng/mL",
-            tier: .specialized,
-            purpose: "Iron stores — only order if fatigued, low energy, or heavy periods.",
-            detail: "Reflects body iron stores. Low ferritin is a common, easily fixable cause of fatigue. Very high ferritin can flag inflammation or, rarely, hemochromatosis. Don't add to a standard panel without a reason."
-        ),
-        Suggestion(
-            name: "Homocysteine",
-            unit: "µmol/L",
-            tier: .specialized,
-            purpose: "Vascular risk add-on; often redundant if ApoB + hs-CRP are clean.",
-            detail: "Elevated homocysteine has been linked to cardiovascular and cognitive risk, but the evidence is mixed and treatment (B-vitamin supplementation) hasn't reliably reduced events. Order if a clinician specifically wants it."
-        ),
-    ]
+    static let defaults: [Suggestion] = BloodworkResearch.all.compactMap { entry in
+        guard let tier = Tier.from(entry.tier) else { return nil }
+        return Suggestion(
+            id: entry.id,
+            name: entry.name,
+            unit: entry.unit.primary,
+            tier: tier,
+            purpose: entry.whatItSignals,
+            detail: entry.description
+        )
+    }
 
     static func suggestions(for tier: Tier) -> [Suggestion] {
         defaults.filter { $0.tier == tier }

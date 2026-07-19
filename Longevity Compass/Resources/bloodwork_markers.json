@@ -1,0 +1,1311 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-06-19",
+  "notes": "Pick the variant whose applies_to clauses all match the user profile (sex, age). If no specific match, fall back to the variant with sex='any' and null age bounds. Within the chosen variant, find the band where min <= value < max; null means open-ended on that side. Bands tile the number line: the first band has min=null, the last band has max=null, and consecutive bands share boundaries. Status is one of good, borderline, bad. Units in `unit.primary` are what the Swift evaluator expects; `unit.alternates` provide conversion factors so user input in other units can be normalised by multiplying the primary value by `factor` to obtain the alternate. For Lp(a) the conversion factor is approximate and isoform-dependent — see that marker's notes.",
+  "markers": [
+    {
+      "id": "apob",
+      "name": "ApoB",
+      "aliases": ["Apolipoprotein B", "Apo B"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "g/L", "factor": 0.01, "note": "multiply mg/dL by 0.01 to get g/L" }
+        ]
+      },
+      "tier": "core",
+      "category": "lipids",
+      "description": "Apolipoprotein B is the structural protein on every atherogenic lipoprotein particle (LDL, VLDL, IDL, Lp(a)). One ApoB per particle means ApoB directly counts the particles that drive plaque, making it a more precise atherogenic exposure metric than LDL-C, which only estimates cholesterol mass inside those particles. Longevity-oriented clinicians often target ApoB well below standard population reference ranges; guideline thresholds for general populations are wider, with the ESC/EAS setting risk-stratified secondary targets of <65 / <80 / <100 mg/dL for very-high / high / moderate risk.",
+      "what_it_signals": "Higher ApoB means more atherogenic particles in circulation and higher lifetime cardiovascular risk.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 60, "status": "good" },
+            { "label": "Acceptable", "min": 60, "max": 80, "status": "good" },
+            { "label": "Borderline", "min": 80, "max": 100, "status": "borderline" },
+            { "label": "Elevated", "min": 100, "max": 130, "status": "bad" },
+            { "label": "High", "min": 130, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Genetic hypercholesterolaemia or familial combined hyperlipidaemia",
+        "Diet high in saturated fat and refined carbohydrate",
+        "Insulin resistance, visceral adiposity, metabolic syndrome",
+        "Hypothyroidism, nephrotic syndrome, cholestatic liver disease"
+      ],
+      "causes_low": [
+        "Statin, ezetimibe or PCSK9-inhibitor therapy",
+        "Very low-fat diet or significant weight loss",
+        "Hyperthyroidism or severe liver disease",
+        "Rare genetic hypobetalipoproteinaemia"
+      ],
+      "easiest_interventions": [
+        "Replace saturated fat with mono- and polyunsaturated fats (olive oil, nuts, fatty fish)",
+        "Add 5–10 g/day of soluble fibre (oats, psyllium, beans)",
+        "Lose visceral fat through caloric deficit and resistance training",
+        "If lifestyle is dialled in and ApoB stays >100 mg/dL, discuss a statin with a clinician — first-line pharmacotherapy"
+      ],
+      "sources": [
+        { "publisher": "European Society of Cardiology / EAS", "title": "2019 ESC/EAS Guidelines for the management of dyslipidaemias", "url": "https://academic.oup.com/eurheartj/article/41/1/111/5556353" },
+        { "publisher": "ESC Council for Cardiology Practice", "title": "Comments on the 2019 ESC/EAS Guidelines on Dyslipidemias (ApoB secondary targets)", "url": "https://www.escardio.org/Councils/Council-for-Cardiology-Practice-(CCP)/News/comments-on-the-2019-esc-eas-guidelines-on-dyslipidemias" }
+      ]
+    },
+    {
+      "id": "ldl_c",
+      "name": "LDL-C",
+      "aliases": ["LDL cholesterol", "Low-density lipoprotein cholesterol"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "mmol/L", "factor": 0.02586, "note": "multiply mg/dL by 0.02586 to get mmol/L" }
+        ]
+      },
+      "tier": "core",
+      "category": "lipids",
+      "category_alt": null,
+      "description": "LDL cholesterol is the cholesterol mass carried by low-density lipoprotein particles. It is the historical anchor of cardiovascular risk assessment and the most universally available lipid number. ESC/EAS sets risk-stratified targets of <55, <70, <100 and <116 mg/dL for very-high, high, moderate and low cardiovascular risk respectively; longevity-medicine clinicians typically anchor on ApoB instead and aim for LDL-C well under 100 mg/dL.",
+      "what_it_signals": "Higher LDL-C means more cholesterol delivered to the artery wall and higher atherosclerotic risk.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 70, "status": "good" },
+            { "label": "Near optimal", "min": 70, "max": 100, "status": "good" },
+            { "label": "Borderline", "min": 100, "max": 130, "status": "borderline" },
+            { "label": "High", "min": 130, "max": 160, "status": "bad" },
+            { "label": "Very high", "min": 160, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Diet high in saturated fat",
+        "Genetic hypercholesterolaemia",
+        "Hypothyroidism, cholestasis, nephrotic syndrome",
+        "Some medications (thiazides, certain antipsychotics)"
+      ],
+      "causes_low": [
+        "Lipid-lowering therapy (statins, ezetimibe, PCSK9 inhibitors)",
+        "Hyperthyroidism, severe liver disease, malnutrition",
+        "Rare genetic hypobetalipoproteinaemia"
+      ],
+      "easiest_interventions": [
+        "Swap saturated fats for unsaturated (olive oil, nuts, avocado)",
+        "Increase soluble fibre via oats, beans, psyllium",
+        "Regular aerobic exercise plus weight management",
+        "Statin therapy if persistently elevated despite lifestyle, especially with high overall risk"
+      ],
+      "sources": [
+        { "publisher": "European Society of Cardiology / EAS", "title": "2019 ESC/EAS Guidelines for the management of dyslipidaemias", "url": "https://academic.oup.com/eurheartj/article/41/1/111/5556353" }
+      ]
+    },
+    {
+      "id": "hdl_c",
+      "name": "HDL-C",
+      "aliases": ["HDL cholesterol", "High-density lipoprotein cholesterol"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "mmol/L", "factor": 0.02586, "note": "multiply mg/dL by 0.02586 to get mmol/L" }
+        ]
+      },
+      "tier": "core",
+      "category": "lipids",
+      "description": "HDL cholesterol is carried by particles that reverse-transport cholesterol from peripheral tissues back to the liver. Low HDL-C is a reliable marker of elevated cardiovascular risk, especially when paired with high triglycerides. Very high HDL-C is not protective on its own and at the extreme has been associated with increased mortality in some cohorts.",
+      "what_it_signals": "Low HDL-C signals elevated cardiovascular risk; extremely high HDL-C is no longer assumed protective.",
+      "variants": [
+        {
+          "applies_to": { "sex": "male", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low (high risk)", "min": null, "max": 40, "status": "bad" },
+            { "label": "Borderline", "min": 40, "max": 50, "status": "borderline" },
+            { "label": "Good", "min": 50, "max": 80, "status": "good" },
+            { "label": "Very high (uncertain benefit)", "min": 80, "max": null, "status": "borderline" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low (high risk)", "min": null, "max": 50, "status": "bad" },
+            { "label": "Borderline", "min": 50, "max": 60, "status": "borderline" },
+            { "label": "Good", "min": 60, "max": 90, "status": "good" },
+            { "label": "Very high (uncertain benefit)", "min": 90, "max": null, "status": "borderline" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low", "min": null, "max": 40, "status": "bad" },
+            { "label": "Borderline", "min": 40, "max": 60, "status": "borderline" },
+            { "label": "Good", "min": 60, "max": 90, "status": "good" },
+            { "label": "Very high (uncertain benefit)", "min": 90, "max": null, "status": "borderline" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Regular aerobic exercise",
+        "Moderate alcohol intake",
+        "Some genetic variants (CETP)",
+        "Oestrogen exposure"
+      ],
+      "causes_low": [
+        "Insulin resistance, type 2 diabetes, metabolic syndrome",
+        "Smoking",
+        "Sedentary lifestyle and visceral adiposity",
+        "Diet high in refined carbohydrate"
+      ],
+      "easiest_interventions": [
+        "Aerobic exercise (150+ minutes/week of moderate intensity)",
+        "Stop smoking",
+        "Reduce refined carbohydrate; emphasise whole foods and unsaturated fat",
+        "Lose visceral fat — HDL typically rises 1 mg/dL per ~3 kg lost"
+      ],
+      "sources": [
+        { "publisher": "European Society of Cardiology / EAS", "title": "2019 ESC/EAS Guidelines for the management of dyslipidaemias", "url": "https://academic.oup.com/eurheartj/article/41/1/111/5556353" }
+      ]
+    },
+    {
+      "id": "triglycerides",
+      "name": "Triglycerides",
+      "aliases": ["TG", "Trig"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "mmol/L", "factor": 0.01129, "note": "multiply mg/dL by 0.01129 to get mmol/L" }
+        ]
+      },
+      "tier": "core",
+      "category": "lipids",
+      "description": "Fasting triglycerides reflect the amount of fat circulating in VLDL and chylomicron remnants. Elevation is a sensitive readout of insulin resistance, excess refined-carbohydrate intake and alcohol load. The triglyceride-to-HDL ratio is a useful quick read on insulin resistance independent of glucose. ESC/EAS treats fasting TG >150 mg/dL as the threshold for elevated cardiovascular risk and >880 mg/dL as a pancreatitis risk threshold.",
+      "what_it_signals": "Elevated triglycerides signal insulin resistance and remnant-cholesterol-driven atherogenic risk.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 100, "status": "good" },
+            { "label": "Acceptable", "min": 100, "max": 150, "status": "good" },
+            { "label": "Borderline", "min": 150, "max": 200, "status": "borderline" },
+            { "label": "High", "min": 200, "max": 500, "status": "bad" },
+            { "label": "Very high (pancreatitis risk)", "min": 500, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Refined carbohydrate or excess alcohol intake",
+        "Insulin resistance, type 2 diabetes, metabolic syndrome",
+        "Hypothyroidism, nephrotic syndrome, oestrogen therapy",
+        "Genetic hypertriglyceridaemia"
+      ],
+      "causes_low": [
+        "Caloric restriction or low-carbohydrate diet",
+        "Endurance exercise",
+        "Fibrates, high-dose omega-3 (EPA/DHA), niacin",
+        "Hyperthyroidism"
+      ],
+      "easiest_interventions": [
+        "Reduce sugar, refined grains and alcohol",
+        "Add 2–4 g/day EPA+DHA from fish or supplement",
+        "Aerobic exercise — even one bout drops TG acutely",
+        "Lose visceral fat; address insulin resistance"
+      ],
+      "sources": [
+        { "publisher": "European Society of Cardiology / EAS", "title": "2019 ESC/EAS Guidelines for the management of dyslipidaemias", "url": "https://academic.oup.com/eurheartj/article/41/1/111/5556353" }
+      ]
+    },
+    {
+      "id": "hba1c",
+      "name": "HbA1c",
+      "aliases": ["Hemoglobin A1c", "Glycated hemoglobin", "A1C"],
+      "unit": {
+        "primary": "%",
+        "alternates": [
+          { "unit": "mmol/mol", "factor": 1.0, "note": "IFCC mmol/mol = (NGSP% − 2.15) × 10.929 — not a linear factor; show both labels in UI" }
+        ]
+      },
+      "tier": "core",
+      "category": "glycemic",
+      "description": "HbA1c reflects average glucose over the prior ~3 months via non-enzymatic glycation of haemoglobin. It is more stable than fasting glucose and is the ADA-endorsed diagnostic test for prediabetes (5.7–6.4%) and type 2 diabetes (≥6.5%). Optimal longevity targets sit toward the lower end of the normal range (≤5.4%), with risk rising continuously even within 'normal'.",
+      "what_it_signals": "Higher HbA1c means higher average glucose exposure and greater microvascular and cardiovascular risk.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 5.4, "status": "good" },
+            { "label": "Normal", "min": 5.4, "max": 5.7, "status": "good" },
+            { "label": "Prediabetes", "min": 5.7, "max": 6.5, "status": "borderline" },
+            { "label": "Diabetes", "min": 6.5, "max": 8.0, "status": "bad" },
+            { "label": "Uncontrolled diabetes", "min": 8.0, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Chronic excess carbohydrate intake, insulin resistance, type 2 diabetes",
+        "Cushing's, glucocorticoid therapy, growth hormone excess",
+        "Iron-deficiency anaemia (falsely elevates A1c)",
+        "Pregnancy and certain haemoglobinopathies can distort the value"
+      ],
+      "causes_low": [
+        "Recent significant blood loss, haemolysis or transfusion",
+        "Haemoglobinopathies (e.g. sickle trait) — assay-dependent",
+        "Chronic kidney or liver disease",
+        "Very low-carbohydrate diet or aggressive glycaemic control"
+      ],
+      "easiest_interventions": [
+        "Reduce refined carbohydrate and added sugar; emphasise whole foods, fibre and protein",
+        "Walk 10–15 minutes after each meal — blunts post-prandial spikes",
+        "Build muscle: resistance training improves insulin sensitivity",
+        "Sleep 7–8 hours; sleep debt worsens glucose tolerance"
+      ],
+      "sources": [
+        { "publisher": "American Diabetes Association", "title": "Standards of Care in Diabetes — Diagnosis and Classification of Diabetes", "url": "https://diabetesjournals.org/care/article/48/Supplement_1/S27/157566/2-Diagnosis-and-Classification-of-Diabetes" },
+        { "publisher": "American Diabetes Association", "title": "A1C and Diabetes Diagnosis", "url": "https://www.diabetes.org/diabetes/a1c/diagnosis" }
+      ]
+    },
+    {
+      "id": "fasting_glucose",
+      "name": "Fasting glucose",
+      "aliases": ["Fasting plasma glucose", "FPG"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "mmol/L", "factor": 0.0555, "note": "multiply mg/dL by 0.0555 to get mmol/L" }
+        ]
+      },
+      "tier": "core",
+      "category": "glycemic",
+      "description": "Plasma glucose after at least 8 hours of fasting. ADA defines impaired fasting glucose (prediabetes) as 100–125 mg/dL and diabetes as ≥126 mg/dL on two occasions. Fasting glucose is noisier than HbA1c — a poor night of sleep, recent stress or coffee can shift it — but it remains a universal screening test included in every basic panel. Optimal longevity targets are tighter than the population diagnostic cutoffs.",
+      "what_it_signals": "Higher fasting glucose reflects worsening insulin resistance or beta-cell insufficiency.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 90, "status": "good" },
+            { "label": "Normal", "min": 90, "max": 100, "status": "good" },
+            { "label": "Prediabetes (IFG)", "min": 100, "max": 126, "status": "borderline" },
+            { "label": "Diabetes", "min": 126, "max": 200, "status": "bad" },
+            { "label": "Severe hyperglycaemia", "min": 200, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Insulin resistance, type 2 diabetes",
+        "Acute illness, infection, surgery, glucocorticoids",
+        "Poor sleep, high stress (cortisol-driven)",
+        "Dawn phenomenon in already-diabetic patients"
+      ],
+      "causes_low": [
+        "Excess insulin or sulfonylurea dosing",
+        "Prolonged fasting or alcohol on empty stomach",
+        "Adrenal insufficiency, severe liver disease",
+        "Insulinoma (rare)"
+      ],
+      "easiest_interventions": [
+        "Avoid late-evening carbohydrate-heavy meals",
+        "Walk after meals; build daily zone-2 cardio",
+        "Resistance training 2–3×/week",
+        "Sleep regularity and adequate duration"
+      ],
+      "sources": [
+        { "publisher": "American Diabetes Association", "title": "Standards of Care in Diabetes — Diagnosis and Classification of Diabetes", "url": "https://diabetesjournals.org/care/article/48/Supplement_1/S27/157566/2-Diagnosis-and-Classification-of-Diabetes" }
+      ]
+    },
+    {
+      "id": "hs_crp",
+      "name": "hs-CRP",
+      "aliases": ["High-sensitivity C-reactive protein", "hsCRP"],
+      "unit": {
+        "primary": "mg/L",
+        "alternates": [
+          { "unit": "mg/dL", "factor": 0.1, "note": "multiply mg/L by 0.1 to get mg/dL" }
+        ]
+      },
+      "tier": "core",
+      "category": "inflammation",
+      "description": "High-sensitivity C-reactive protein is an acute-phase liver protein that integrates systemic inflammation. The AHA/CDC categorise CVD risk as <1 (low), 1–3 (average) and >3 mg/L (high). Values ≥10 mg/L typically reflect acute illness and should be repeated after 2 weeks. The JUPITER trial demonstrated that elevated hs-CRP in otherwise low-LDL patients still benefits from statin therapy, anchoring hs-CRP as a risk-enhancer in current cholesterol guidelines.",
+      "what_it_signals": "Persistently elevated hs-CRP signals chronic inflammation and elevated cardiovascular risk independent of lipids.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low risk", "min": null, "max": 1.0, "status": "good" },
+            { "label": "Average risk", "min": 1.0, "max": 3.0, "status": "borderline" },
+            { "label": "High risk", "min": 3.0, "max": 10.0, "status": "bad" },
+            { "label": "Acute (recheck after 2 weeks)", "min": 10.0, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Acute infection or recent injury (transient)",
+        "Obesity, metabolic syndrome, insulin resistance",
+        "Smoking, periodontal disease, poor sleep",
+        "Autoimmune disease (RA, SLE, IBD)"
+      ],
+      "causes_low": [
+        "Lean body composition, regular exercise",
+        "Mediterranean-style diet rich in polyphenols",
+        "Statin therapy (modest hs-CRP-lowering effect)",
+        "Smoking cessation"
+      ],
+      "easiest_interventions": [
+        "Lose visceral fat; even 5 kg lowers hs-CRP meaningfully",
+        "Adopt a Mediterranean dietary pattern",
+        "Sleep 7–8 hours; treat sleep apnoea if present",
+        "Cardiovascular and resistance training; reduce alcohol"
+      ],
+      "sources": [
+        { "publisher": "American Heart Association", "title": "Markers of Inflammation and Cardiovascular Disease — AHA/CDC Scientific Statement", "url": "https://www.ahajournals.org/doi/10.1161/01.CIR.0000052939.59093.45" },
+        { "publisher": "American College of Cardiology", "title": "2018 AHA/ACC/Multisociety Cholesterol Guideline (hs-CRP risk-enhancer)", "url": "https://www.acc.org/latest-in-cardiology/articles/2018/11/09/14/27/2018-guideline-on-management-of-blood-cholesterol" }
+      ]
+    },
+    {
+      "id": "alt",
+      "name": "ALT",
+      "aliases": ["Alanine aminotransferase", "SGPT"],
+      "unit": {
+        "primary": "U/L",
+        "alternates": []
+      },
+      "tier": "core",
+      "category": "liver",
+      "description": "Alanine aminotransferase is a liver-specific enzyme released when hepatocytes are injured. Conventional lab upper limits of ~40 U/L were set from populations that included undiagnosed fatty liver disease; AASLD/ACG and Prati et al. propose true 'healthy' upper limits closer to ~30 U/L in men and ~19–25 U/L in women. In a longevity context, isolated mild ALT elevation in someone with insulin resistance almost always points to non-alcoholic fatty liver (now MASLD).",
+      "what_it_signals": "Elevated ALT signals hepatocellular injury — most commonly fatty liver in metabolically unhealthy adults.",
+      "variants": [
+        {
+          "applies_to": { "sex": "male", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 30, "status": "good" },
+            { "label": "Borderline", "min": 30, "max": 40, "status": "borderline" },
+            { "label": "Elevated", "min": 40, "max": 80, "status": "bad" },
+            { "label": "High", "min": 80, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 19, "status": "good" },
+            { "label": "Borderline", "min": 19, "max": 30, "status": "borderline" },
+            { "label": "Elevated", "min": 30, "max": 60, "status": "bad" },
+            { "label": "High", "min": 60, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 25, "status": "good" },
+            { "label": "Borderline", "min": 25, "max": 40, "status": "borderline" },
+            { "label": "Elevated", "min": 40, "max": 80, "status": "bad" },
+            { "label": "High", "min": 80, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Non-alcoholic fatty liver (MASLD), the dominant cause in metabolic syndrome",
+        "Excess alcohol",
+        "Hepatitis B / C, autoimmune hepatitis, drug-induced liver injury",
+        "Intense exercise within the prior 48 hours"
+      ],
+      "causes_low": [
+        "Low body mass / sarcopenia",
+        "Vitamin B6 deficiency (cofactor for ALT)",
+        "Generally not clinically concerning"
+      ],
+      "easiest_interventions": [
+        "Lose 5–10% of body weight — reverses early MASLD",
+        "Cut alcohol and added sugars",
+        "Build aerobic and resistance training",
+        "Avoid hepatotoxic supplement stacks (some bodybuilding products, high-dose niacin)"
+      ],
+      "sources": [
+        { "publisher": "Cleveland Clinic", "title": "Liver Test Interpretation — Approach to the Patient with Liver Disease", "url": "https://my.clevelandclinic.org/departments/digestive/medical-professionals/hepatology/liver-tests" },
+        { "publisher": "American College of Gastroenterology", "title": "ACG Clinical Guideline: Evaluation of Abnormal Liver Chemistries", "url": "https://journals.lww.com/ajg/Fulltext/2017/01000/ACG_Clinical_Guideline__Evaluation_of_Abnormal.13.aspx" }
+      ]
+    },
+    {
+      "id": "fasting_insulin",
+      "name": "Fasting insulin",
+      "aliases": ["Insulin (fasting)"],
+      "unit": {
+        "primary": "µIU/mL",
+        "alternates": [
+          { "unit": "pmol/L", "factor": 6.945, "note": "multiply µIU/mL by 6.945 to get pmol/L" }
+        ]
+      },
+      "tier": "extended",
+      "category": "glycemic",
+      "description": "Fasting insulin is the earliest available signal of insulin resistance — it climbs years before fasting glucose or HbA1c break out of the normal range. Standard lab ranges (often 2–25 µIU/mL) are too permissive; longevity targets are <8 µIU/mL with HOMA-IR <1.5. Note that guideline ranges are wider and many primary-care panels do not include this test by default; it usually has to be requested.",
+      "what_it_signals": "High fasting insulin signals insulin resistance — the engine of metabolic syndrome.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 5, "status": "good" },
+            { "label": "Good", "min": 5, "max": 8, "status": "good" },
+            { "label": "Borderline", "min": 8, "max": 12, "status": "borderline" },
+            { "label": "Insulin resistance", "min": 12, "max": 25, "status": "bad" },
+            { "label": "Severe insulin resistance", "min": 25, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Insulin resistance, visceral adiposity, metabolic syndrome",
+        "PCOS",
+        "Type 2 diabetes (early), Cushing's, acromegaly",
+        "Steroid medications"
+      ],
+      "causes_low": [
+        "Lean body composition, regular exercise",
+        "Low-carbohydrate or time-restricted eating",
+        "Type 1 diabetes or advanced beta-cell failure",
+        "Prolonged fasting"
+      ],
+      "easiest_interventions": [
+        "Resistance training — most efficient single insulin-sensitiser",
+        "Cut refined carbohydrates and ultra-processed foods",
+        "Reduce visceral fat through caloric deficit",
+        "Daily walking; post-meal walks of 10–15 minutes"
+      ],
+      "sources": [
+        { "publisher": "American Diabetes Association", "title": "Standards of Care in Diabetes — Classification and Diagnosis", "url": "https://diabetesjournals.org/care/article/48/Supplement_1/S27/157566/2-Diagnosis-and-Classification-of-Diabetes" },
+        { "publisher": "PubMed / Diabetologia", "title": "HOMA-IR: insulin sensitivity and beta-cell function (Matthews et al.)", "url": "https://pubmed.ncbi.nlm.nih.gov/3899825/" }
+      ]
+    },
+    {
+      "id": "egfr",
+      "name": "eGFR",
+      "aliases": ["Estimated glomerular filtration rate", "eGFRcr"],
+      "unit": {
+        "primary": "mL/min/1.73m²",
+        "alternates": []
+      },
+      "tier": "extended",
+      "category": "kidney",
+      "description": "Creatinine-based estimated glomerular filtration rate (preferred CKD-EPI 2021 equation, race-free) summarises kidney filtration capacity. KDIGO 2024 stages CKD as G1 ≥90, G2 60–89, G3a 45–59, G3b 30–44, G4 15–29, G5 <15 mL/min/1.73m². A G2 reading in a young adult is worth tracking; in an 80-year-old it is age-typical. Sustained eGFR <60 for 3+ months meets the definition of CKD.",
+      "what_it_signals": "Lower eGFR signals reduced kidney function; rate of decline matters more than any single value.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": 59 },
+          "bands": [
+            { "label": "Severely reduced", "min": null, "max": 30, "status": "bad" },
+            { "label": "Moderately reduced", "min": 30, "max": 60, "status": "bad" },
+            { "label": "Mildly reduced", "min": 60, "max": 90, "status": "borderline" },
+            { "label": "Normal", "min": 90, "max": null, "status": "good" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": 60, "age_max": null },
+          "bands": [
+            { "label": "Severely reduced", "min": null, "max": 30, "status": "bad" },
+            { "label": "Moderately reduced", "min": 30, "max": 45, "status": "bad" },
+            { "label": "Age-typical mild reduction", "min": 45, "max": 60, "status": "borderline" },
+            { "label": "Good for age", "min": 60, "max": 90, "status": "good" },
+            { "label": "Excellent", "min": 90, "max": null, "status": "good" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Severely reduced", "min": null, "max": 30, "status": "bad" },
+            { "label": "Moderately reduced", "min": 30, "max": 60, "status": "bad" },
+            { "label": "Mildly reduced", "min": 60, "max": 90, "status": "borderline" },
+            { "label": "Normal", "min": 90, "max": null, "status": "good" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Young age, lean muscle mass within physiological norms",
+        "Hyperfiltration (early diabetic kidney disease, pregnancy)",
+        "Very low creatinine due to low muscle mass (overestimates GFR)"
+      ],
+      "causes_low": [
+        "Age-related nephron loss",
+        "Hypertension, diabetes — the two dominant drivers",
+        "Acute dehydration, NSAIDs, contrast dye",
+        "Glomerulonephritis, polycystic kidney disease"
+      ],
+      "easiest_interventions": [
+        "Tightly control blood pressure (<130/80) and HbA1c",
+        "Stay well hydrated; avoid chronic NSAID use",
+        "Limit alcohol; avoid high-protein supplement excess",
+        "If diabetic with eGFR ≥20, ask about SGLT2 inhibitors (kidney-protective)"
+      ],
+      "sources": [
+        { "publisher": "KDIGO", "title": "KDIGO 2024 Clinical Practice Guideline for the Evaluation and Management of CKD", "url": "https://kdigo.org/wp-content/uploads/2024/03/KDIGO-2024-CKD-Guideline.pdf" },
+        { "publisher": "National Kidney Foundation", "title": "Estimated Glomerular Filtration Rate (eGFR)", "url": "https://www.kidney.org/atoz/content/gfr" }
+      ]
+    },
+    {
+      "id": "vitamin_d_25oh",
+      "name": "Vitamin D (25-OH)",
+      "aliases": ["25-hydroxyvitamin D", "Calcidiol"],
+      "unit": {
+        "primary": "ng/mL",
+        "alternates": [
+          { "unit": "nmol/L", "factor": 2.496, "note": "multiply ng/mL by 2.496 to get nmol/L" }
+        ]
+      },
+      "tier": "extended",
+      "category": "vitamins",
+      "description": "25-hydroxyvitamin D is the circulating storage form and the standard measure of vitamin D status. The 2011 Endocrine Society guideline defined sufficiency as ≥30 ng/mL and deficiency as <20 ng/mL; the 2024 Endocrine Society update steps back from explicit thresholds, and the USPSTF concludes evidence for population screening is insufficient. The 30–50 ng/mL band remains the most widely used clinical target.",
+      "what_it_signals": "Low 25-OH vitamin D signals deficient stores; effects on bone, immunity and mood are best-established at the low end.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Deficient", "min": null, "max": 20, "status": "bad" },
+            { "label": "Insufficient", "min": 20, "max": 30, "status": "borderline" },
+            { "label": "Sufficient", "min": 30, "max": 60, "status": "good" },
+            { "label": "High (consider reducing dose)", "min": 60, "max": 100, "status": "borderline" },
+            { "label": "Toxicity risk", "min": 100, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Supplementation, especially with high-dose D3",
+        "Significant sun exposure",
+        "Granulomatous disease (sarcoidosis) — increases activation"
+      ],
+      "causes_low": [
+        "Limited sun exposure, dark skin, latitude, winter",
+        "Obesity (sequestration in adipose tissue)",
+        "Malabsorption (coeliac, IBD, gastric bypass)",
+        "Chronic kidney or liver disease"
+      ],
+      "easiest_interventions": [
+        "1000–2000 IU/day vitamin D3 if deficient; recheck in 8–12 weeks",
+        "10–20 minutes midday sun exposure when feasible",
+        "Take with a fatty meal for absorption",
+        "Pair with adequate magnesium and vitamin K2"
+      ],
+      "sources": [
+        { "publisher": "Endocrine Society", "title": "Evaluation, Treatment, and Prevention of Vitamin D Deficiency: an Endocrine Society Clinical Practice Guideline (2011)", "url": "https://academic.oup.com/jcem/article/96/7/1911/2833671" },
+        { "publisher": "USPSTF", "title": "Vitamin D Deficiency in Adults: Screening (2021)", "url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/vitamin-d-deficiency-screening" }
+      ]
+    },
+    {
+      "id": "tsh",
+      "name": "TSH",
+      "aliases": ["Thyroid-stimulating hormone", "Thyrotropin"],
+      "unit": {
+        "primary": "mIU/L",
+        "alternates": [
+          { "unit": "µIU/mL", "factor": 1.0, "note": "numerically identical" }
+        ]
+      },
+      "tier": "extended",
+      "category": "thyroid",
+      "description": "TSH is the pituitary signal that drives thyroid hormone production. It is the most sensitive test for thyroid dysfunction because the hypothalamic-pituitary axis amplifies small T4/T3 changes into large TSH movements. The American Thyroid Association uses a reference range of 0.4–4.0 mIU/L; some researchers argue the true healthy upper limit is closer to 2.5. If TSH is abnormal, reflex to free T4 (and free T3 if hyperthyroid).",
+      "what_it_signals": "High TSH suggests hypothyroidism; low TSH suggests hyperthyroidism or exogenous thyroid hormone.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Suppressed (hyperthyroid)", "min": null, "max": 0.4, "status": "bad" },
+            { "label": "Low-normal", "min": 0.4, "max": 1.0, "status": "good" },
+            { "label": "Optimal", "min": 1.0, "max": 2.5, "status": "good" },
+            { "label": "High-normal", "min": 2.5, "max": 4.0, "status": "borderline" },
+            { "label": "Subclinical hypothyroidism", "min": 4.0, "max": 10.0, "status": "bad" },
+            { "label": "Overt hypothyroidism", "min": 10.0, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Primary hypothyroidism (Hashimoto's most common)",
+        "Iodine deficiency or excess",
+        "Recovery from non-thyroidal illness",
+        "Biotin supplementation can interfere with assay (causes false low)"
+      ],
+      "causes_low": [
+        "Graves' disease, toxic nodule, thyroiditis",
+        "Exogenous levothyroxine over-replacement",
+        "Central hypothyroidism (pituitary)",
+        "Pregnancy (first trimester) — physiological"
+      ],
+      "easiest_interventions": [
+        "If TSH high: confirm with free T4 and TPO antibodies before treating",
+        "Ensure adequate dietary iodine and selenium",
+        "Stop biotin supplements at least 48 hours before testing",
+        "If on levothyroxine, take fasted and separate from calcium/iron by 4+ hours"
+      ],
+      "sources": [
+        { "publisher": "American Thyroid Association", "title": "Thyroid Function Tests", "url": "https://www.thyroid.org/thyroid-function-tests/" },
+        { "publisher": "American Thyroid Association", "title": "TSH reference range and outcomes (Clinical Thyroidology for Patients)", "url": "https://www.thyroid.org/patient-thyroid-information/ct-for-patients/january-2020/vol-13-issue-1-p-5-6/" }
+      ]
+    },
+    {
+      "id": "omega_3_index",
+      "name": "Omega-3 Index",
+      "aliases": ["O3I", "EPA+DHA in RBC"],
+      "unit": {
+        "primary": "%",
+        "alternates": []
+      },
+      "tier": "extended",
+      "category": "other",
+      "description": "Omega-3 Index is EPA+DHA expressed as a percentage of total fatty acids in red blood cell membranes. Proposed by Harris and von Schacky in 2004 as a CHD-mortality risk marker, with <4% high-risk and 8–12% cardioprotective. The US population mean sits near 4.3%; populations with traditional high-fish intake (Japan, Korea) average in the 8–11% target zone and have correspondingly lower cardiovascular mortality.",
+      "what_it_signals": "Low Omega-3 Index signals inadequate long-chain n-3 status and higher cardiovascular risk.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "High risk", "min": null, "max": 4.0, "status": "bad" },
+            { "label": "Intermediate", "min": 4.0, "max": 8.0, "status": "borderline" },
+            { "label": "Cardioprotective", "min": 8.0, "max": 12.0, "status": "good" },
+            { "label": "Very high", "min": 12.0, "max": null, "status": "borderline" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Regular intake of fatty fish (salmon, sardines, mackerel)",
+        "Algal or fish-oil supplementation",
+        "Low background omega-6 intake"
+      ],
+      "causes_low": [
+        "Low fish intake; vegetarian / vegan diets without algal supplementation",
+        "High omega-6 industrial seed-oil intake displacing n-3",
+        "Smoking (lowers EPA+DHA incorporation)"
+      ],
+      "easiest_interventions": [
+        "Eat 2–3 servings of fatty fish per week",
+        "1–2 g/day combined EPA+DHA from fish or algal oil if not eating fish",
+        "Reduce industrial seed-oil intake",
+        "Recheck after 3–4 months — RBC turnover takes that long"
+      ],
+      "sources": [
+        { "publisher": "PubMed / Preventive Medicine", "title": "Harris & von Schacky — The Omega-3 Index: a new risk factor for death from coronary heart disease?", "url": "https://pubmed.ncbi.nlm.nih.gov/15208005/" },
+        { "publisher": "OmegaQuant", "title": "Discovering the Omega-3 Index — Harris & von Schacky background", "url": "https://omegaquant.com/discovering-the-omega-3-index/" }
+      ]
+    },
+    {
+      "id": "uric_acid",
+      "name": "Uric acid",
+      "aliases": ["Serum urate", "SUA"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "µmol/L", "factor": 59.48, "note": "multiply mg/dL by 59.48 to get µmol/L" }
+        ]
+      },
+      "tier": "extended",
+      "category": "other",
+      "description": "Serum urate is the end-product of purine metabolism. Above ~6.8 mg/dL urate crystallises into monosodium urate, the proximal cause of gout and kidney stones. Hyperuricaemia is also associated independently with hypertension, insulin resistance, NAFLD and cardiovascular and all-cause mortality. Sex-specific cutoffs reflect oestrogen's uricosuric effect in premenopausal women.",
+      "what_it_signals": "Elevated uric acid signals gout risk and reflects metabolic stress; very low levels are uncommon and usually benign.",
+      "variants": [
+        {
+          "applies_to": { "sex": "male", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low", "min": null, "max": 3.5, "status": "borderline" },
+            { "label": "Optimal", "min": 3.5, "max": 5.5, "status": "good" },
+            { "label": "High-normal", "min": 5.5, "max": 7.0, "status": "borderline" },
+            { "label": "Hyperuricaemia (gout risk)", "min": 7.0, "max": 9.0, "status": "bad" },
+            { "label": "Severe hyperuricaemia", "min": 9.0, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low", "min": null, "max": 2.5, "status": "borderline" },
+            { "label": "Optimal", "min": 2.5, "max": 4.5, "status": "good" },
+            { "label": "High-normal", "min": 4.5, "max": 6.0, "status": "borderline" },
+            { "label": "Hyperuricaemia (gout risk)", "min": 6.0, "max": 8.0, "status": "bad" },
+            { "label": "Severe hyperuricaemia", "min": 8.0, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low", "min": null, "max": 3.0, "status": "borderline" },
+            { "label": "Optimal", "min": 3.0, "max": 5.5, "status": "good" },
+            { "label": "High-normal", "min": 5.5, "max": 6.8, "status": "borderline" },
+            { "label": "Hyperuricaemia", "min": 6.8, "max": 9.0, "status": "bad" },
+            { "label": "Severe hyperuricaemia", "min": 9.0, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Excess fructose, alcohol (especially beer), purine-rich meats",
+        "Insulin resistance, obesity, metabolic syndrome",
+        "Diuretics (thiazides, loop), low-dose aspirin",
+        "Renal underexcretion (the dominant mechanism in most patients)"
+      ],
+      "causes_low": [
+        "Low-protein or vegetarian diet",
+        "SGLT2 inhibitors, fenofibrate, losartan",
+        "Fanconi syndrome, severe liver disease",
+        "Idiopathic — usually clinically irrelevant"
+      ],
+      "easiest_interventions": [
+        "Cut sugar-sweetened beverages and beer",
+        "Reduce purine load (organ meats, anchovies) if levels are high",
+        "Lose weight slowly — rapid weight loss can transiently raise urate",
+        "If recurrent gout, urate-lowering therapy (allopurinol/febuxostat) is standard"
+      ],
+      "sources": [
+        { "publisher": "NCBI / StatPearls", "title": "Hyperuricemia", "url": "https://www.ncbi.nlm.nih.gov/books/NBK459218/" },
+        { "publisher": "American College of Rheumatology", "title": "2020 ACR Guideline for the Management of Gout", "url": "https://rheumatology.org/gout-guideline" }
+      ]
+    },
+    {
+      "id": "ast",
+      "name": "AST",
+      "aliases": ["Aspartate aminotransferase", "SGOT"],
+      "unit": {
+        "primary": "U/L",
+        "alternates": []
+      },
+      "tier": "extended",
+      "category": "liver",
+      "description": "Aspartate aminotransferase is found in liver, heart, skeletal muscle and red cells, so it is less liver-specific than ALT. AST is most useful in combination: AST/ALT ratio >2 with elevated values suggests alcoholic liver injury; >1 with low platelets suggests cirrhosis. Strenuous exercise in the prior 24–48 hours can also elevate AST.",
+      "what_it_signals": "Elevated AST signals injury to liver, muscle or other AST-containing tissues; interpret alongside ALT.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 25, "status": "good" },
+            { "label": "Borderline", "min": 25, "max": 40, "status": "borderline" },
+            { "label": "Elevated", "min": 40, "max": 80, "status": "bad" },
+            { "label": "High", "min": 80, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Alcohol-related liver injury (AST > ALT)",
+        "MASLD / hepatitis / drug-induced liver injury",
+        "Recent intense exercise or muscle injury (also raises CK)",
+        "Haemolysis (red cells release AST)"
+      ],
+      "causes_low": [
+        "Vitamin B6 deficiency (cofactor)",
+        "Generally not clinically meaningful"
+      ],
+      "easiest_interventions": [
+        "Cut alcohol",
+        "Address fatty liver: weight loss, exercise, reduce refined carbs",
+        "Avoid testing within 48 hours of strenuous exercise",
+        "If persistently elevated, request hepatitis serologies and an imaging workup"
+      ],
+      "sources": [
+        { "publisher": "Cleveland Clinic", "title": "Liver Test Interpretation", "url": "https://my.clevelandclinic.org/departments/digestive/medical-professionals/hepatology/liver-tests" }
+      ]
+    },
+    {
+      "id": "vitamin_b12",
+      "name": "Vitamin B12",
+      "aliases": ["Cobalamin", "B12"],
+      "unit": {
+        "primary": "pg/mL",
+        "alternates": [
+          { "unit": "pmol/L", "factor": 0.738, "note": "multiply pg/mL by 0.738 to get pmol/L" }
+        ]
+      },
+      "tier": "extended",
+      "category": "vitamins",
+      "description": "Cobalamin is essential for DNA synthesis, red cell formation and myelin maintenance. Deficiency causes macrocytic anaemia and can produce irreversible neurological injury. Most labs flag deficiency below 200 pg/mL, but symptoms commonly appear in the 200–400 pg/mL 'grey zone'; in that range a methylmalonic acid (MMA) or homocysteine confirms functional deficiency. Risk groups: vegans/vegetarians, older adults, metformin or PPI users, post-gastric-bypass.",
+      "what_it_signals": "Low B12 signals deficiency with anaemia and neurological risk; very high B12 can flag liver, kidney or haematological disease.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Deficient", "min": null, "max": 200, "status": "bad" },
+            { "label": "Borderline (confirm with MMA)", "min": 200, "max": 400, "status": "borderline" },
+            { "label": "Sufficient", "min": 400, "max": 900, "status": "good" },
+            { "label": "Elevated (investigate)", "min": 900, "max": null, "status": "borderline" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Supplementation (most common)",
+        "Liver disease, myeloproliferative disorders",
+        "Renal failure",
+        "Some haematological cancers"
+      ],
+      "causes_low": [
+        "Vegan / vegetarian diet without supplementation",
+        "Pernicious anaemia (autoimmune loss of intrinsic factor)",
+        "Long-term metformin or PPI use",
+        "Gastric or ileal surgery / atrophic gastritis"
+      ],
+      "easiest_interventions": [
+        "Sublingual or oral cyanocobalamin 1000 µg/day for deficiency",
+        "Animal-source foods (meat, fish, eggs, dairy) or fortified foods if vegetarian",
+        "Vegans should supplement routinely",
+        "If neurological symptoms or pernicious anaemia, intramuscular B12"
+      ],
+      "sources": [
+        { "publisher": "NIH Office of Dietary Supplements", "title": "Vitamin B12 — Health Professional Fact Sheet", "url": "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/" }
+      ]
+    },
+    {
+      "id": "albumin",
+      "name": "Albumin",
+      "aliases": ["Serum albumin"],
+      "unit": {
+        "primary": "g/dL",
+        "alternates": [
+          { "unit": "g/L", "factor": 10.0, "note": "multiply g/dL by 10 to get g/L" }
+        ]
+      },
+      "tier": "extended",
+      "category": "other",
+      "description": "Albumin is the dominant plasma protein, synthesised in the liver, with a half-life of ~21 days. It is a negative acute-phase reactant and integrates nutritional status, liver synthetic function and systemic inflammation. In community-dwelling older adults, albumin <4.2 g/dL is associated with increased all-cause and cardiovascular mortality even within the conventional normal range. Older adults benefit from targeting the upper end of normal.",
+      "what_it_signals": "Low albumin signals inflammation, malnutrition or impaired liver synthesis — and independently predicts mortality.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Severely low", "min": null, "max": 3.0, "status": "bad" },
+            { "label": "Low", "min": 3.0, "max": 3.5, "status": "bad" },
+            { "label": "Low-normal", "min": 3.5, "max": 4.2, "status": "borderline" },
+            { "label": "Optimal", "min": 4.2, "max": 5.0, "status": "good" },
+            { "label": "Elevated (often dehydration)", "min": 5.0, "max": null, "status": "borderline" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Dehydration (haemoconcentration)",
+        "High-protein diet (modest effect)",
+        "Anabolic state in healthy active adults"
+      ],
+      "causes_low": [
+        "Chronic inflammation (negative acute-phase response)",
+        "Liver disease (reduced synthesis)",
+        "Nephrotic syndrome or protein-losing enteropathy",
+        "Malnutrition, frailty, sarcopenia"
+      ],
+      "easiest_interventions": [
+        "Adequate dietary protein (1.2–1.6 g/kg/day for older adults)",
+        "Resistance training to preserve lean mass",
+        "Treat underlying inflammation and chronic disease",
+        "Manage hydration before testing"
+      ],
+      "sources": [
+        { "publisher": "American Journal of Medicine", "title": "Low Albumin Levels Are Associated with Mortality Risk in Hospitalized Patients", "url": "https://www.amjmed.com/article/S0002-9343(17)30800-8/fulltext" },
+        { "publisher": "PubMed Central", "title": "Albumin levels and cause-specific mortality in community-dwelling older adults", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11247150/" }
+      ]
+    },
+    {
+      "id": "ferritin",
+      "name": "Ferritin",
+      "aliases": ["Serum ferritin"],
+      "unit": {
+        "primary": "ng/mL",
+        "alternates": [
+          { "unit": "µg/L", "factor": 1.0, "note": "numerically identical" }
+        ]
+      },
+      "tier": "specialized",
+      "category": "iron",
+      "description": "Ferritin reflects total-body iron stores and is also a positive acute-phase reactant. Conventional lower limits (12–15 ng/mL) substantially underdiagnose iron deficiency, especially in menstruating women; the modern threshold for iron deficiency without anaemia is <30 ng/mL. Very high ferritin can reflect inflammation, MASLD, alcohol or — at sustained levels above 300–500 in men — hereditary haemochromatosis.",
+      "what_it_signals": "Low ferritin signals depleted iron stores; high ferritin signals inflammation or iron overload.",
+      "variants": [
+        {
+          "applies_to": { "sex": "male", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Iron deficient", "min": null, "max": 30, "status": "bad" },
+            { "label": "Borderline", "min": 30, "max": 60, "status": "borderline" },
+            { "label": "Optimal", "min": 60, "max": 200, "status": "good" },
+            { "label": "Elevated (inflammation or overload)", "min": 200, "max": 400, "status": "borderline" },
+            { "label": "High (rule out haemochromatosis)", "min": 400, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": null, "age_max": 50 },
+          "bands": [
+            { "label": "Iron deficient", "min": null, "max": 30, "status": "bad" },
+            { "label": "Borderline", "min": 30, "max": 45, "status": "borderline" },
+            { "label": "Optimal", "min": 45, "max": 150, "status": "good" },
+            { "label": "Elevated (inflammation or overload)", "min": 150, "max": 300, "status": "borderline" },
+            { "label": "High", "min": 300, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": 51, "age_max": null },
+          "bands": [
+            { "label": "Iron deficient", "min": null, "max": 30, "status": "bad" },
+            { "label": "Borderline", "min": 30, "max": 60, "status": "borderline" },
+            { "label": "Optimal", "min": 60, "max": 200, "status": "good" },
+            { "label": "Elevated", "min": 200, "max": 350, "status": "borderline" },
+            { "label": "High", "min": 350, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Iron deficient", "min": null, "max": 30, "status": "bad" },
+            { "label": "Borderline", "min": 30, "max": 50, "status": "borderline" },
+            { "label": "Optimal", "min": 50, "max": 200, "status": "good" },
+            { "label": "Elevated", "min": 200, "max": 350, "status": "borderline" },
+            { "label": "High", "min": 350, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Acute or chronic inflammation",
+        "MASLD, alcohol use",
+        "Hereditary haemochromatosis (check HFE genetics, transferrin saturation)",
+        "Repeated blood transfusions"
+      ],
+      "causes_low": [
+        "Menstrual blood loss, pregnancy",
+        "GI blood loss (ulcer, colon cancer, coeliac)",
+        "Inadequate dietary iron, vegetarian diet without iron-rich foods",
+        "Frequent blood donation, endurance athletes"
+      ],
+      "easiest_interventions": [
+        "If deficient, oral iron (e.g. ferrous sulphate) every other day with vitamin C",
+        "Investigate cause: GI workup if not explained by menstrual loss",
+        "Pair iron-rich foods (red meat, lentils, spinach) with vitamin C",
+        "If ferritin very high, check transferrin saturation and HFE genetics"
+      ],
+      "sources": [
+        { "publisher": "American Society of Hematology", "title": "Sex, lies, and iron deficiency: a call to change ferritin reference ranges", "url": "https://ashpublications.org/hematology/article/2023/1/617/506479/Sex-lies-and-iron-deficiency-a-call-to-change" }
+      ]
+    },
+    {
+      "id": "homocysteine",
+      "name": "Homocysteine",
+      "aliases": ["Total homocysteine", "tHcy"],
+      "unit": {
+        "primary": "µmol/L",
+        "alternates": []
+      },
+      "tier": "specialized",
+      "category": "other",
+      "description": "Homocysteine is a sulphur-containing intermediate of methionine metabolism, cleared by B-vitamin-dependent pathways (folate, B12, B6). Elevated homocysteine is independently associated with cardiovascular and cognitive risk; recent evidence supports a target <10 µmol/L rather than the traditional <15. The caveat is that B-vitamin supplementation reliably lowers homocysteine but has not consistently reduced hard cardiovascular events.",
+      "what_it_signals": "Elevated homocysteine signals B-vitamin insufficiency, renal impairment, or methylation pathway dysfunction.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 7.0, "status": "good" },
+            { "label": "Good", "min": 7.0, "max": 10.0, "status": "good" },
+            { "label": "Borderline", "min": 10.0, "max": 15.0, "status": "borderline" },
+            { "label": "Moderate hyperhomocysteinaemia", "min": 15.0, "max": 30.0, "status": "bad" },
+            { "label": "Severe", "min": 30.0, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Folate, B12 or B6 deficiency",
+        "Renal impairment (reduced clearance)",
+        "Hypothyroidism",
+        "MTHFR variants, smoking, heavy coffee intake"
+      ],
+      "causes_low": [
+        "Adequate B-vitamin status",
+        "Pregnancy (physiological dilution)",
+        "B-vitamin supplementation"
+      ],
+      "easiest_interventions": [
+        "Methylfolate or folic acid 400–800 µg/day",
+        "Vitamin B12 (methylcobalamin) and B6 supplementation",
+        "Treat underlying hypothyroidism or renal impairment",
+        "Reduce smoking and alcohol"
+      ],
+      "sources": [
+        { "publisher": "American Academy of Family Physicians", "title": "Homocysteine Levels and Cardiovascular Disease", "url": "https://www.aafp.org/pubs/afp/issues/2000/0215/p1183.html" },
+        { "publisher": "PubMed Central", "title": "Hyperhomocysteinemia and Disease — Is 10 μmol/L a Suitable New Threshold Limit?", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11594664/" }
+      ]
+    },
+    {
+      "id": "lp_a",
+      "name": "Lp(a)",
+      "aliases": ["Lipoprotein(a)", "Lipoprotein little a"],
+      "unit": {
+        "primary": "mg/dL",
+        "alternates": [
+          { "unit": "nmol/L", "factor": 2.4, "note": "Approximate only. The mg/dL ↔ nmol/L conversion is isoform-dependent and not interchangeable; EAS recommends reporting molar units (nmol/L) from isoform-insensitive assays. Conversion factors observed in practice range ~2.0–2.5, with extremes 0.5–11 across assays. Use this as a rough display estimate, not a clinical conversion."}
+        ]
+      },
+      "tier": "specialized",
+      "category": "lipids",
+      "description": "Lipoprotein(a) is an LDL-like particle bound to apolipoprotein(a), with concentration set >90% genetically and stable for life. It is independently atherogenic and pro-thrombotic, and is also linked to calcific aortic stenosis. EAS treats <30 mg/dL (<75 nmol/L) as low risk, 30–50 mg/dL (75–125 nmol/L) as a grey zone, and ≥50 mg/dL (≥125 nmol/L) as elevated. Measure at least once in every adult; lifestyle does not move it materially, but elevated Lp(a) raises the urgency of controlling every other risk factor.",
+      "what_it_signals": "Elevated Lp(a) signals lifetime atherogenic and aortic-stenosis risk independent of LDL-C.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low risk", "min": null, "max": 30, "status": "good" },
+            { "label": "Intermediate (grey zone)", "min": 30, "max": 50, "status": "borderline" },
+            { "label": "Elevated", "min": 50, "max": 100, "status": "bad" },
+            { "label": "Very high", "min": 100, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Genetic — LPA gene variants set adult level by ~age 5",
+        "Hypothyroidism, nephrotic syndrome, chronic kidney disease",
+        "Post-menopause (modest rise)",
+        "Inflammation (small acute-phase contribution)"
+      ],
+      "causes_low": [
+        "Genetic — most large-isoform alleles produce low Lp(a)",
+        "Hyperthyroidism",
+        "Niacin (modest), PCSK9 inhibitors (~20–30% drop), apheresis"
+      ],
+      "easiest_interventions": [
+        "Treat all other cardiovascular risk factors aggressively — ApoB <80, BP, smoking, diabetes",
+        "Lp(a) itself is not lifestyle-modifiable; do not chase the number with diet",
+        "PCSK9 inhibitors lower Lp(a) modestly when statins are already maxed",
+        "Emerging RNA-based therapies (olpasiran, pelacarsen) are in late-stage trials"
+      ],
+      "sources": [
+        { "publisher": "European Atherosclerosis Society / European Heart Journal", "title": "Lipoprotein(a) in atherosclerotic cardiovascular disease and aortic stenosis: EAS consensus statement (2022)", "url": "https://academic.oup.com/eurheartj/article/43/39/3925/6670882" },
+        { "publisher": "American College of Cardiology", "title": "An Update on Lipoprotein(a): Testing, Treatment, and Guideline Recommendations", "url": "https://www.acc.org/latest-in-cardiology/articles/2023/09/19/10/54/an-update-on-lipoprotein-a" }
+      ]
+    },
+    {
+      "id": "rdw",
+      "name": "RDW",
+      "aliases": ["Red cell distribution width", "RDW-CV"],
+      "unit": {
+        "primary": "%",
+        "alternates": []
+      },
+      "tier": "specialized",
+      "category": "other",
+      "description": "Red cell distribution width quantifies variation in red blood cell size (anisocytosis). Traditionally a diagnostic clue in anaemia (high in iron-deficient and B12/folate-deficient anaemias), RDW has emerged as a non-specific marker of systemic physiological stress. Elevated RDW independently predicts all-cause and cardiovascular mortality in general populations and across many disease states, even when haemoglobin is normal.",
+      "what_it_signals": "Elevated RDW signals heterogeneous red cell production from nutritional deficiency, inflammation, or general physiological stress.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 13.0, "status": "good" },
+            { "label": "Normal", "min": 13.0, "max": 14.5, "status": "good" },
+            { "label": "Borderline", "min": 14.5, "max": 16.0, "status": "borderline" },
+            { "label": "Elevated", "min": 16.0, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Iron, B12 or folate deficiency",
+        "Recent haemorrhage or haemolysis",
+        "Chronic inflammation, CKD, heart failure, liver disease",
+        "Recent transfusion"
+      ],
+      "causes_low": [
+        "Healthy uniform erythropoiesis — typically not clinically meaningful",
+        "Lab-related minor variation"
+      ],
+      "easiest_interventions": [
+        "Investigate cause: order ferritin, B12, folate, reticulocyte count",
+        "Correct identified deficiency",
+        "Address the underlying systemic condition rather than chasing the number itself",
+        "Recheck after 2–3 months once cause is treated"
+      ],
+      "sources": [
+        { "publisher": "PubMed Central", "title": "Red cell distribution width and common disease onsets in 240,477 healthy volunteers", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6136726/" },
+        { "publisher": "PubMed Central", "title": "RDW and all-cause and cause-specific mortality in a general population", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6838342/" }
+      ]
+    },
+    {
+      "id": "ggt",
+      "name": "GGT",
+      "aliases": ["Gamma-glutamyl transferase", "γ-GT"],
+      "unit": {
+        "primary": "U/L",
+        "alternates": []
+      },
+      "tier": "specialized",
+      "category": "liver",
+      "description": "Gamma-glutamyl transferase is a membrane-bound enzyme involved in glutathione metabolism and amino-acid transport, with high concentrations in liver and bile-duct epithelium. Clinically it is the most sensitive liver-panel marker for alcohol use and cholestatic injury. In population studies, GGT is increasingly viewed as a longevity biomarker reflecting oxidative stress and metabolic load; mortality risk rises across the conventional 'normal' range, especially above ~20 U/L in women and ~30 U/L in men.",
+      "what_it_signals": "Elevated GGT signals alcohol exposure, biliary stasis, fatty liver and oxidative stress.",
+      "variants": [
+        {
+          "applies_to": { "sex": "male", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 20, "status": "good" },
+            { "label": "Normal", "min": 20, "max": 35, "status": "good" },
+            { "label": "Borderline", "min": 35, "max": 55, "status": "borderline" },
+            { "label": "Elevated", "min": 55, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 15, "status": "good" },
+            { "label": "Normal", "min": 15, "max": 25, "status": "good" },
+            { "label": "Borderline", "min": 25, "max": 38, "status": "borderline" },
+            { "label": "Elevated", "min": 38, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 20, "status": "good" },
+            { "label": "Normal", "min": 20, "max": 35, "status": "good" },
+            { "label": "Borderline", "min": 35, "max": 50, "status": "borderline" },
+            { "label": "Elevated", "min": 50, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Alcohol use (very sensitive)",
+        "MASLD / cholestasis",
+        "Anticonvulsants and some other enzyme-inducing drugs",
+        "Obesity and metabolic syndrome"
+      ],
+      "causes_low": [
+        "Healthy lifestyle, minimal alcohol",
+        "Generally not clinically meaningful when low"
+      ],
+      "easiest_interventions": [
+        "Reduce or eliminate alcohol — GGT drops within 2–4 weeks",
+        "Lose visceral fat; treat fatty liver",
+        "Review medications that induce hepatic enzymes",
+        "Improve antioxidant intake (cruciferous vegetables support glutathione)"
+      ],
+      "sources": [
+        { "publisher": "PubMed", "title": "Gamma glutamyltransferase and long-term survival: is it just the liver?", "url": "https://pubmed.ncbi.nlm.nih.gov/17384006/" },
+        { "publisher": "Cleveland Clinic", "title": "Liver Test Interpretation", "url": "https://my.clevelandclinic.org/departments/digestive/medical-professionals/hepatology/liver-tests" }
+      ]
+    },
+    {
+      "id": "testosterone",
+      "name": "Testosterone",
+      "aliases": ["Total testosterone"],
+      "unit": {
+        "primary": "ng/dL",
+        "alternates": [
+          { "unit": "nmol/L", "factor": 0.0347, "note": "multiply ng/dL by 0.0347 to get nmol/L" }
+        ]
+      },
+      "tier": "specialized",
+      "category": "hormones",
+      "description": "Total testosterone (preferably measured fasted, morning, by LC-MS/MS) integrates sex-hormone status. In men, the Endocrine Society's harmonised reference range for ages 19–39 is 264–916 ng/dL; the diagnostic cutoff for hypogonadism is total T <300 ng/dL on two morning samples with symptoms. Mean total T declines roughly 1% per year from the 30s onward, and median free T falls ~14% per decade. In women, total T is much lower (~8–60 ng/dL) and the lab range serves as a screen for both deficiency and androgen excess.",
+      "what_it_signals": "Low testosterone signals hypogonadism with implications for libido, mood, muscle and bone; very high values in women suggest PCOS or other androgen excess.",
+      "variants": [
+        {
+          "applies_to": { "sex": "male", "age_min": null, "age_max": 39 },
+          "bands": [
+            { "label": "Hypogonadal", "min": null, "max": 300, "status": "bad" },
+            { "label": "Low-normal", "min": 300, "max": 500, "status": "borderline" },
+            { "label": "Optimal", "min": 500, "max": 900, "status": "good" },
+            { "label": "High (rule out exogenous source)", "min": 900, "max": null, "status": "borderline" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "male", "age_min": 40, "age_max": 59 },
+          "bands": [
+            { "label": "Hypogonadal", "min": null, "max": 300, "status": "bad" },
+            { "label": "Low-normal", "min": 300, "max": 450, "status": "borderline" },
+            { "label": "Optimal", "min": 450, "max": 850, "status": "good" },
+            { "label": "High", "min": 850, "max": null, "status": "borderline" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "male", "age_min": 60, "age_max": null },
+          "bands": [
+            { "label": "Hypogonadal", "min": null, "max": 280, "status": "bad" },
+            { "label": "Low-normal", "min": 280, "max": 400, "status": "borderline" },
+            { "label": "Optimal for age", "min": 400, "max": 800, "status": "good" },
+            { "label": "High", "min": 800, "max": null, "status": "borderline" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "female", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Low", "min": null, "max": 15, "status": "borderline" },
+            { "label": "Normal", "min": 15, "max": 60, "status": "good" },
+            { "label": "Elevated (consider PCOS, adrenal cause)", "min": 60, "max": 150, "status": "bad" },
+            { "label": "Markedly elevated (workup required)", "min": 150, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Very low", "min": null, "max": 50, "status": "bad" },
+            { "label": "Low-normal", "min": 50, "max": 300, "status": "borderline" },
+            { "label": "Normal-to-high range", "min": 300, "max": 900, "status": "good" },
+            { "label": "High", "min": 900, "max": null, "status": "borderline" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Exogenous testosterone or anabolic steroid use",
+        "Adrenal hyperplasia or androgen-secreting tumour",
+        "PCOS in women",
+        "High SHBG (raises total without raising free)"
+      ],
+      "causes_low": [
+        "Aging (gradual decline)",
+        "Obesity, type 2 diabetes, metabolic syndrome",
+        "Poor sleep, opioid use, chronic illness",
+        "Primary testicular failure (Klinefelter, prior chemotherapy)"
+      ],
+      "easiest_interventions": [
+        "Lose visceral fat (most efficient single move in men)",
+        "Sleep 7–9 hours; treat sleep apnoea",
+        "Resistance training and adequate protein",
+        "Confirm low values with morning fasted retest and LH/FSH before considering TRT"
+      ],
+      "sources": [
+        { "publisher": "Endocrine Society", "title": "Testosterone Therapy in Men With Hypogonadism — Clinical Practice Guideline", "url": "https://www.endocrine.org/clinical-practice-guidelines/testosterone-therapy" },
+        { "publisher": "Endocrine Society", "title": "Landmark Study Defines Normal Ranges for Testosterone Levels", "url": "https://www.endocrine.org/news-and-advocacy/news-room/2017/landmark-study-defines-normal-ranges-for-testosterone-levels" }
+      ]
+    },
+    {
+      "id": "cystatin_c",
+      "name": "Cystatin C",
+      "aliases": ["Cys-C"],
+      "unit": {
+        "primary": "mg/L",
+        "alternates": []
+      },
+      "tier": "specialized",
+      "category": "kidney",
+      "description": "Cystatin C is a low-molecular-weight protein produced at a steady rate by all nucleated cells and freely filtered by glomeruli, making it largely independent of muscle mass. It is more reliable than creatinine for estimating GFR in older adults, those with low or extreme muscle mass, vegetarians, and those near the CKD threshold. KDIGO recommends combining creatinine and cystatin C (eGFRcr-cys) when accurate staging matters. Typical adult reference range is 0.6–1.0 mg/L; the 99th percentile threshold for elevated risk is ~1.09 mg/L.",
+      "what_it_signals": "Elevated cystatin C signals reduced GFR independent of muscle mass and is a sensitive early flag for kidney impairment.",
+      "variants": [
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": 59 },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 0.8, "status": "good" },
+            { "label": "Normal", "min": 0.8, "max": 1.0, "status": "good" },
+            { "label": "Borderline", "min": 1.0, "max": 1.2, "status": "borderline" },
+            { "label": "Elevated", "min": 1.2, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": 60, "age_max": null },
+          "bands": [
+            { "label": "Optimal for age", "min": null, "max": 1.0, "status": "good" },
+            { "label": "Mildly elevated", "min": 1.0, "max": 1.3, "status": "borderline" },
+            { "label": "Moderately elevated", "min": 1.3, "max": 1.7, "status": "bad" },
+            { "label": "Markedly elevated", "min": 1.7, "max": null, "status": "bad" }
+          ]
+        },
+        {
+          "applies_to": { "sex": "any", "age_min": null, "age_max": null },
+          "bands": [
+            { "label": "Optimal", "min": null, "max": 0.9, "status": "good" },
+            { "label": "Normal", "min": 0.9, "max": 1.1, "status": "good" },
+            { "label": "Borderline", "min": 1.1, "max": 1.4, "status": "borderline" },
+            { "label": "Elevated", "min": 1.4, "max": null, "status": "bad" }
+          ]
+        }
+      ],
+      "causes_high": [
+        "Reduced GFR / CKD",
+        "Hyperthyroidism (can raise cystatin C independently of GFR)",
+        "Glucocorticoids, smoking",
+        "Inflammation"
+      ],
+      "causes_low": [
+        "Hypothyroidism",
+        "Cyclosporin or some immunosuppressants",
+        "Generally not clinically concerning"
+      ],
+      "easiest_interventions": [
+        "Control blood pressure and HbA1c — the two big preserveables",
+        "Stay well hydrated; avoid chronic NSAIDs",
+        "Compute eGFRcr-cys for accurate staging in older adults",
+        "Address modifiable cardiovascular risk factors — same risk factors damage kidneys"
+      ],
+      "sources": [
+        { "publisher": "KDIGO", "title": "KDIGO 2024 Clinical Practice Guideline for the Evaluation and Management of CKD (includes cystatin C guidance)", "url": "https://kdigo.org/wp-content/uploads/2024/03/KDIGO-2024-CKD-Guideline.pdf" },
+        { "publisher": "Cleveland Clinic Journal of Medicine", "title": "What is the role of cystatin C in estimating glomerular filtration rate and guiding medication dosing?", "url": "https://www.ccjm.org/content/92/9/546" }
+      ]
+    }
+  ]
+}

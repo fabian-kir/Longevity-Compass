@@ -56,8 +56,12 @@ final class AppServices {
     func bootstrap() async {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
+        var skipNotificationAuth = false
+        #if DEBUG
+        skipNotificationAuth = MockMode.isActive
+        #endif
         await healthKit.requestAuthorization()
-        await notifications.requestAuthorization()
+        if !skipNotificationAuth { await notifications.requestAuthorization() }
         await refresh()
     }
 
@@ -118,9 +122,24 @@ final class AppServices {
     }
 
     func recordBloodworkPanel(_ panel: BloodworkPanel) async {
+        evaluateMarkers(in: panel)
         store.insertBloodworkPanel(panel)
         await syncSupportedMarkersToHealthKit(panel)
         await refresh()
+    }
+
+    /// Re-runs the evaluator against every marker in the panel using the
+    /// current user profile and the panel's acute-phase flag. Called from
+    /// save and after in-place edits so the stored `flagRaw` always reflects
+    /// the JSON-backed bands rather than a user-picked colour.
+    func evaluateMarkers(in panel: BloodworkPanel) {
+        for marker in panel.markers {
+            marker.reevaluate(
+                sex: healthSnapshot.biologicalSex,
+                dateOfBirth: healthSnapshot.dateOfBirth,
+                acutePhaseAtDraw: panel.acutePhaseAtDraw
+            )
+        }
     }
 
     /// HealthKit only supports a handful of blood-lab quantity types natively; lipids,
@@ -151,6 +170,13 @@ final class AppServices {
     func refreshAfterEdit() async {
         store.saveContext()
         await refresh()
+    }
+
+    /// Re-evaluates all markers in a panel after the user changed a value, unit
+    /// or the acute-phase flag, then persists + refreshes.
+    func reevaluateAndSaveBloodworkPanel(_ panel: BloodworkPanel) async {
+        evaluateMarkers(in: panel)
+        await refreshAfterEdit()
     }
 
     func deleteAllLocalData() async {
