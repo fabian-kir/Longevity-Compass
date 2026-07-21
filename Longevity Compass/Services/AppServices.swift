@@ -4,18 +4,18 @@ import SwiftUI
 
 enum AppTab: Hashable {
     case focus
-    case track
     case train
     case nutrition
     case bloodwork
+    case n4x4
 
     var tint: Color {
         switch self {
         case .focus:     return .purple
-        case .track:     return Color(red: 0.55, green: 0.07, blue: 0.07)
         case .train:     return .orange
         case .nutrition: return .green
         case .bloodwork: return .red
+        case .n4x4:      return .cyan
         }
     }
 }

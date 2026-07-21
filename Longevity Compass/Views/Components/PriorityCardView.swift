@@ -3,7 +3,6 @@ import SwiftUI
 struct PriorityCardView: View {
     let item: PriorityItem
 
-    @Environment(AppServices.self) private var services
     @Environment(\.openURL) private var openURL
     @State private var showWhy: Bool = false
 
@@ -125,8 +124,7 @@ struct PriorityCardView: View {
 
     @ViewBuilder
     private var trackNowButton: some View {
-        switch AppleHealthLink.destination(for: item.domain) {
-        case .appleHealth:
+        if AppleHealthLink.destination(for: item.domain) == .appleHealth {
             VStack(alignment: .leading, spacing: 4) {
                 Button {
                     openURL(AppleHealthLink.url)
@@ -149,26 +147,6 @@ struct PriorityCardView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        case .trackTab:
-            Button {
-                services.selectedTab = .track
-            } label: {
-                HStack {
-                    Image(systemName: "square.and.pencil")
-                    Text("Log in app")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                }
-                .padding(.horizontal, 12).padding(.vertical, 10)
-                .foregroundStyle(statusTint)
-                .glassEffect(.regular.tint(statusTint.opacity(0.22)), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(statusTint.opacity(0.30), lineWidth: 0.8)
-                )
-            }
-            .buttonStyle(.plain)
         }
     }
 

@@ -71,6 +71,7 @@ final class HealthKitManager {
             .stepCount,
             .activeEnergyBurned,
             .appleExerciseTime,
+            .heartRate,
             .restingHeartRate,
             .heartRateVariabilitySDNN,
             .bodyMass,
@@ -94,6 +95,9 @@ final class HealthKitManager {
         if let sys = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic) { set.insert(sys) }
         if let dia = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) { set.insert(dia) }
         if let glu = HKObjectType.quantityType(forIdentifier: .bloodGlucose) { set.insert(glu) }
+        // Sharing the workout type is required to open an iOS `HKWorkoutSession`,
+        // the phone's standalone HR path (AirPods / Bluetooth sensor, spec §5.2).
+        set.insert(HKObjectType.workoutType())
         return set
     }
 
@@ -278,6 +282,69 @@ final class HealthKitManager {
         guard let result = try await descriptor.result(for: healthStore),
               let avg = result.averageQuantity()?.doubleValue(for: unit) else { return nil }
         return avg
+    }
+
+    private func maxDiscrete(
+        _ identifier: HKQuantityTypeIdentifier,
+        days: Int,
+        unit: HKUnit
+    ) async throws -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return nil }
+        let (start, end) = dateRange(days: days)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let descriptor = HKStatisticsQueryDescriptor(
+            predicate: HKSamplePredicate.quantitySample(type: type, predicate: predicate),
+            options: .discreteMax
+        )
+        guard let result = try await descriptor.result(for: healthStore) else { return nil }
+        return result.maximumQuantity()?.doubleValue(for: unit)
+    }
+
+    // MARK: - Live heart rate (N4x4)
+
+    private static var bpmUnit: HKUnit { HKUnit.count().unitDivided(by: .minute()) }
+
+    /// Highest heart-rate sample recorded in the last `days` days, used as the
+    /// personal observed ceiling for the HRmax estimate (spec §3). `nil` if there
+    /// is no HR history to draw on.
+    func observedMaxHeartRate(days: Int = 90) async throws -> Double? {
+        #if DEBUG
+        if MockMode.isActive { return 188 }
+        #endif
+        return try await maxDiscrete(.heartRate, days: days, unit: Self.bpmUnit)
+    }
+
+    /// Streams heart-rate samples as HealthKit records them (anchored query on
+    /// `.heartRate`). Real beat-to-beat HR during exercise is produced by a paired
+    /// Watch's workout session; this surfaces those samples to the phone with a
+    /// few seconds' latency. Returns the running query so the caller can stop it,
+    /// or `nil` if HealthKit/the type is unavailable.
+    ///
+    /// `onSample` is invoked off the main thread — hop actors before touching UI state.
+    func startHeartRateStream(onSample: @escaping @Sendable (Double, Date) -> Void) -> HKQuery? {
+        guard isAvailable, let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return nil }
+        let unit = Self.bpmUnit
+        let predicate = HKQuery.predicateForSamples(withStart: Date(), end: nil, options: .strictStartDate)
+        let handler: (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = { _, samples, _, _, _ in
+            guard let quantitySamples = samples as? [HKQuantitySample] else { return }
+            for sample in quantitySamples {
+                onSample(sample.quantity.doubleValue(for: unit), sample.endDate)
+            }
+        }
+        let query = HKAnchoredObjectQuery(
+            type: type,
+            predicate: predicate,
+            anchor: nil,
+            limit: HKObjectQueryNoLimit,
+            resultsHandler: handler
+        )
+        query.updateHandler = handler
+        healthStore.execute(query)
+        return query
+    }
+
+    func stopHeartRateStream(_ query: HKQuery) {
+        healthStore.stop(query)
     }
 
     /// Count of underlying `HKQuantitySample`s for `identifier` over the last

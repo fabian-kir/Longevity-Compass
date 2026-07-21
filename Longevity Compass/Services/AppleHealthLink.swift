@@ -5,16 +5,16 @@ enum AppleHealthLink {
 
     enum Destination {
         case appleHealth
-        case trackTab
     }
 
-    /// Where a "Track now" tap should route, given a domain.
-    static func destination(for domain: HealthDomain) -> Destination {
+    /// Where a "Track now" tap should route, given a domain. `nil` if this
+    /// domain has no in-app or Health deep-link destination.
+    static func destination(for domain: HealthDomain) -> Destination? {
         switch domain {
         case .bodyComposition, .sleep, .cardio:
             return .appleHealth
         case .bloodPressure, .strength, .protein, .fiber, .omega3, .alcohol, .nicotine, .dental, .bloodwork:
-            return .trackTab
+            return nil
         }
     }
 

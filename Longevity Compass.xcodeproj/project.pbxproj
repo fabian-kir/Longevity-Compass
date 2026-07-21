@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4EA21E5A300E629A00083411 /* Longevity Watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4EAAAA032FE100000055F503 /* IntervalEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 4EAAAA022FE100000055F503 /* IntervalEngine */; };
+		4EAAAA052FE100000055F503 /* IntervalEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 4EAAAA042FE100000055F503 /* IntervalEngine */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		4E54000A2FE000000055F503 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -14,11 +20,49 @@
 			remoteGlobalIDString = 4E53F9CF2FD9CBA80055F503;
 			remoteInfo = "Longevity Compass";
 		};
+		4EA21E47300E629A00083411 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4E53F9C82FD9CBA80055F503 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4EA21E39300E629900083411;
+			remoteInfo = "Longevity Watch Watch App";
+		};
+		4EA21E51300E629A00083411 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4E53F9C82FD9CBA80055F503 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4EA21E39300E629900083411;
+			remoteInfo = "Longevity Watch Watch App";
+		};
+		4EA21E58300E629A00083411 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4E53F9C82FD9CBA80055F503 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4EA21E39300E629900083411;
+			remoteInfo = "Longevity Watch Watch App";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		4EA21E5B300E629A00083411 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				4EA21E5A300E629A00083411 /* Longevity Watch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		4E53F9D02FD9CBA80055F503 /* Longevity Compass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Longevity Compass.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4E5400022FE000000055F503 /* Longevity CompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Longevity CompassTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Longevity Watch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4EA21E46300E629A00083411 /* Longevity Watch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Longevity Watch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4EA21E50300E629A00083411 /* Longevity Watch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Longevity Watch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -28,6 +72,13 @@
 				Info.plist,
 			);
 			target = 4E53F9CF2FD9CBA80055F503 /* Longevity Compass */;
+		};
+		4EA220E0300EB2B400083411 /* Exceptions for "Longevity Watch Watch App" folder in "Longevity Watch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Longevity-Watch-Watch-App-Info.plist",
+			);
+			target = 4EA21E39300E629900083411 /* Longevity Watch Watch App */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -45,6 +96,24 @@
 			path = "Longevity CompassTests";
 			sourceTree = "<group>";
 		};
+		4EA21E3B300E629900083411 /* Longevity Watch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4EA220E0300EB2B400083411 /* Exceptions for "Longevity Watch Watch App" folder in "Longevity Watch Watch App" target */,
+			);
+			path = "Longevity Watch Watch App";
+			sourceTree = "<group>";
+		};
+		4EA21E49300E629A00083411 /* Longevity Watch Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Longevity Watch Watch AppTests";
+			sourceTree = "<group>";
+		};
+		4EA21E53300E629A00083411 /* Longevity Watch Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Longevity Watch Watch AppUITests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,10 +121,33 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4EAAAA032FE100000055F503 /* IntervalEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4E5400052FE000000055F503 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E37300E629900083411 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4EAAAA052FE100000055F503 /* IntervalEngine in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E43300E629A00083411 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E4D300E629A00083411 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -70,6 +162,9 @@
 			children = (
 				4E53F9D22FD9CBA80055F503 /* Longevity Compass */,
 				4E5400032FE000000055F503 /* Longevity CompassTests */,
+				4EA21E3B300E629900083411 /* Longevity Watch Watch App */,
+				4EA21E49300E629A00083411 /* Longevity Watch Watch AppTests */,
+				4EA21E53300E629A00083411 /* Longevity Watch Watch AppUITests */,
 				4E53F9D12FD9CBA80055F503 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -79,6 +174,9 @@
 			children = (
 				4E53F9D02FD9CBA80055F503 /* Longevity Compass.app */,
 				4E5400022FE000000055F503 /* Longevity CompassTests.xctest */,
+				4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */,
+				4EA21E46300E629A00083411 /* Longevity Watch Watch AppTests.xctest */,
+				4EA21E50300E629A00083411 /* Longevity Watch Watch AppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -93,16 +191,19 @@
 				4E53F9CC2FD9CBA80055F503 /* Sources */,
 				4E53F9CD2FD9CBA80055F503 /* Frameworks */,
 				4E53F9CE2FD9CBA80055F503 /* Resources */,
+				4EA21E5B300E629A00083411 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4EA21E59300E629A00083411 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4E53F9D22FD9CBA80055F503 /* Longevity Compass */,
 			);
 			name = "Longevity Compass";
 			packageProductDependencies = (
+				4EAAAA022FE100000055F503 /* IntervalEngine */,
 			);
 			productName = "Longevity Compass";
 			productReference = 4E53F9D02FD9CBA80055F503 /* Longevity Compass.app */;
@@ -131,6 +232,75 @@
 			productReference = 4E5400022FE000000055F503 /* Longevity CompassTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		4EA21E39300E629900083411 /* Longevity Watch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4EA21E62300E629A00083411 /* Build configuration list for PBXNativeTarget "Longevity Watch Watch App" */;
+			buildPhases = (
+				4EA21E36300E629900083411 /* Sources */,
+				4EA21E37300E629900083411 /* Frameworks */,
+				4EA21E38300E629900083411 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4EA21E3B300E629900083411 /* Longevity Watch Watch App */,
+			);
+			name = "Longevity Watch Watch App";
+			packageProductDependencies = (
+				4EAAAA042FE100000055F503 /* IntervalEngine */,
+			);
+			productName = "Longevity Watch Watch App";
+			productReference = 4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		4EA21E45300E629A00083411 /* Longevity Watch Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4EA21E63300E629A00083411 /* Build configuration list for PBXNativeTarget "Longevity Watch Watch AppTests" */;
+			buildPhases = (
+				4EA21E42300E629A00083411 /* Sources */,
+				4EA21E43300E629A00083411 /* Frameworks */,
+				4EA21E44300E629A00083411 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4EA21E48300E629A00083411 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4EA21E49300E629A00083411 /* Longevity Watch Watch AppTests */,
+			);
+			name = "Longevity Watch Watch AppTests";
+			packageProductDependencies = (
+			);
+			productName = "Longevity Watch Watch AppTests";
+			productReference = 4EA21E46300E629A00083411 /* Longevity Watch Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		4EA21E4F300E629A00083411 /* Longevity Watch Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4EA21E64300E629A00083411 /* Build configuration list for PBXNativeTarget "Longevity Watch Watch AppUITests" */;
+			buildPhases = (
+				4EA21E4C300E629A00083411 /* Sources */,
+				4EA21E4D300E629A00083411 /* Frameworks */,
+				4EA21E4E300E629A00083411 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4EA21E52300E629A00083411 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				4EA21E53300E629A00083411 /* Longevity Watch Watch AppUITests */,
+			);
+			name = "Longevity Watch Watch AppUITests";
+			packageProductDependencies = (
+			);
+			productName = "Longevity Watch Watch AppUITests";
+			productReference = 4EA21E50300E629A00083411 /* Longevity Watch Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -138,7 +308,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					4E53F9CF2FD9CBA80055F503 = {
@@ -147,6 +317,17 @@
 					4E5400012FE000000055F503 = {
 						CreatedOnToolsVersion = 26.4.1;
 						TestTargetID = 4E53F9CF2FD9CBA80055F503;
+					};
+					4EA21E39300E629900083411 = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					4EA21E45300E629A00083411 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 4EA21E39300E629900083411;
+					};
+					4EA21E4F300E629A00083411 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 4EA21E39300E629900083411;
 					};
 				};
 			};
@@ -159,6 +340,9 @@
 			);
 			mainGroup = 4E53F9C72FD9CBA80055F503;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4E53F9D12FD9CBA80055F503 /* Products */;
 			projectDirPath = "";
@@ -166,6 +350,9 @@
 			targets = (
 				4E53F9CF2FD9CBA80055F503 /* Longevity Compass */,
 				4E5400012FE000000055F503 /* Longevity CompassTests */,
+				4EA21E39300E629900083411 /* Longevity Watch Watch App */,
+				4EA21E45300E629A00083411 /* Longevity Watch Watch AppTests */,
+				4EA21E4F300E629A00083411 /* Longevity Watch Watch AppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -179,6 +366,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4E5400062FE000000055F503 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E38300E629900083411 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E44300E629A00083411 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E4E300E629A00083411 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -202,6 +410,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4EA21E36300E629900083411 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E42300E629A00083411 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA21E4C300E629A00083411 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -209,6 +438,21 @@
 			isa = PBXTargetDependency;
 			target = 4E53F9CF2FD9CBA80055F503 /* Longevity Compass */;
 			targetProxy = 4E54000A2FE000000055F503 /* PBXContainerItemProxy */;
+		};
+		4EA21E48300E629A00083411 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4EA21E39300E629900083411 /* Longevity Watch Watch App */;
+			targetProxy = 4EA21E47300E629A00083411 /* PBXContainerItemProxy */;
+		};
+		4EA21E52300E629A00083411 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4EA21E39300E629900083411 /* Longevity Watch Watch App */;
+			targetProxy = 4EA21E51300E629A00083411 /* PBXContainerItemProxy */;
+		};
+		4EA21E59300E629A00083411 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4EA21E39300E629900083411 /* Longevity Watch Watch App */;
+			targetProxy = 4EA21E58300E629A00083411 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -225,6 +469,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Longevity Compass/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Longevity Compass uses the camera to scan barcodes on packaged foods and to photograph meals for nutrition estimation.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Longevity Compass reads your Apple Health data on this device so it can show what most needs your attention. Nothing leaves your iPhone.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Longevity Compass writes blood-pressure readings back to Apple Health so Health remains the single source of truth.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Longevity Compass uses photos of meals to estimate nutrition. Photos are sent to the AI provider you configured in the Data tab.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -259,6 +507,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Longevity Compass/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Longevity Compass uses the camera to scan barcodes on packaged foods and to photograph meals for nutrition estimation.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Longevity Compass reads your Apple Health data on this device so it can show what most needs your attention. Nothing leaves your iPhone.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Longevity Compass writes blood-pressure readings back to Apple Health so Health remains the single source of truth.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Longevity Compass uses photos of meals to estimate nutrition. Photos are sent to the AI provider you configured in the Data tab.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -440,6 +692,170 @@
 			};
 			name = Release;
 		};
+		4EA21E5C300E629A00083411 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Longevity Watch Watch App/Longevity Watch Watch App.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Longevity-Watch-Watch-App-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Longevity Watch";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Longevity Compass reads your heart rate during a Norwegian 4×4 session to give real-time HR-based coaching. Nothing leaves your device.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Longevity Compass opens a workout session on your Apple Watch to read live heart rate during a Norwegian 4×4 session.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "FabianKirschenmann.Longevity-Compass";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Compass.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		4EA21E5D300E629A00083411 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Longevity Watch Watch App/Longevity Watch Watch App.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Longevity-Watch-Watch-App-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Longevity Watch";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Longevity Compass reads your heart rate during a Norwegian 4×4 session to give real-time HR-based coaching. Nothing leaves your device.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Longevity Compass opens a workout session on your Apple Watch to read live heart rate during a Norwegian 4×4 session.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "FabianKirschenmann.Longevity-Compass";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Compass.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
+		4EA21E5E300E629A00083411 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Watch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Longevity Watch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Longevity Watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		4EA21E5F300E629A00083411 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Watch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Longevity Watch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Longevity Watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
+		4EA21E60300E629A00083411 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Watch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "Longevity Watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		4EA21E61300E629A00083411 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Watch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "Longevity Watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -470,7 +886,54 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		4EA21E62300E629A00083411 /* Build configuration list for PBXNativeTarget "Longevity Watch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4EA21E5C300E629A00083411 /* Debug */,
+				4EA21E5D300E629A00083411 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4EA21E63300E629A00083411 /* Build configuration list for PBXNativeTarget "Longevity Watch Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4EA21E5E300E629A00083411 /* Debug */,
+				4EA21E5F300E629A00083411 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4EA21E64300E629A00083411 /* Build configuration list for PBXNativeTarget "Longevity Watch Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4EA21E60300E629A00083411 /* Debug */,
+				4EA21E61300E629A00083411 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/IntervalEngine;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4EAAAA022FE100000055F503 /* IntervalEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */;
+			productName = IntervalEngine;
+		};
+		4EAAAA042FE100000055F503 /* IntervalEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */;
+			productName = IntervalEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4E53F9C82FD9CBA80055F503 /* Project object */;
 }

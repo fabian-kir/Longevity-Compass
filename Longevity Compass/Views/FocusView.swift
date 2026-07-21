@@ -453,7 +453,6 @@ private struct ContributorRow: View {
 private struct FocusHeroCard: View {
     let item: PriorityItem
 
-    @Environment(AppServices.self) private var services
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -537,19 +536,11 @@ private struct FocusHeroCard: View {
 
     @ViewBuilder
     private var primaryActionButton: some View {
-        switch AppleHealthLink.destination(for: item.domain) {
-        case .appleHealth:
+        if AppleHealthLink.destination(for: item.domain) == .appleHealth {
             Button {
                 openURL(AppleHealthLink.url)
             } label: {
                 actionLabel(icon: "heart.text.square", text: "Open Apple Health", trailing: "arrow.up.right.square")
-            }
-            .buttonStyle(.plain)
-        case .trackTab:
-            Button {
-                services.selectedTab = .track
-            } label: {
-                actionLabel(icon: "square.and.pencil", text: "Log in app", trailing: "chevron.right")
             }
             .buttonStyle(.plain)
         }

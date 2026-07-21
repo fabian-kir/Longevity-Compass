@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Longevity Compass reads your Apple Health data on this device so it can show what most needs your attention. Nothing leaves your iPhone.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Longevity Compass writes blood-pressure readings back to Apple Health so Health remains the single source of truth.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Longevity Compass uses the camera to scan barcodes on packaged foods and to photograph meals for nutrition estimation.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Longevity Compass uses photos of meals to estimate nutrition. Photos are sent to the AI provider you configured in the Data tab.</string>
-</dict>
+<dict/>
 </plist>

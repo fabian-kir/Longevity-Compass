@@ -215,8 +215,8 @@ struct BioAgeDetailSheet: View {
             dismiss()
         case .bodyComposition, .sleep, .strength, .nicotine, .alcohol,
              .protein, .fiber, .omega3, .dental, .bloodPressure:
-            services.selectedTab = .track
-            dismiss()
+            // No in-app destination for these domains anymore (Track tab removed).
+            break
         case .cardio:
             // Cardio signals (VO2 max, RHR, HRV) come from Apple Health rather
             // than in-app logging — deep-link out so the user can connect or
