@@ -37,8 +37,8 @@ struct N4x4View: View {
     private var idle: some View {
         VStack(spacing: 28) {
             Spacer()
-            Image(systemName: "hammer.fill")
-                .font(.system(size: 56))
+            MjolnirIcon()
+                .frame(width: 48, height: 56)
                 .foregroundStyle(AppTab.n4x4.tint)
             VStack(spacing: 8) {
                 Text("Norwegian 4×4")

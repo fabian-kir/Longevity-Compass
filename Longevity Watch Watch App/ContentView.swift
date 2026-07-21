@@ -28,8 +28,8 @@ struct ContentView: View {
 
     private var idle: some View {
         VStack(spacing: 12) {
-            Image(systemName: "hammer.fill")
-                .font(.system(size: 30))
+            MjolnirIcon()
+                .frame(width: 26, height: 30)
                 .foregroundStyle(.cyan)
             Text("Norwegian 4×4")
                 .font(.headline)

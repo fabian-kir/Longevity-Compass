@@ -28,7 +28,13 @@ struct ContentView: View {
 
             NavigationStack { N4x4View() }
                 .tint(AppTab.n4x4.tint)
-                .tabItem { Label("N4x4", systemImage: "hammer.fill") }
+                .tabItem {
+                    Label {
+                        Text("N4x4")
+                    } icon: {
+                        MjolnirIcon().frame(width: 22, height: 24)
+                    }
+                }
                 .tag(AppTab.n4x4)
         }
         .tint(bindable.selectedTab.tint)
