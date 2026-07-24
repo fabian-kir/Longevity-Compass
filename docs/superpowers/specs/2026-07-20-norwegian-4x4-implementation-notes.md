@@ -1,13 +1,11 @@
 # Norwegian 4x4 — Implementation Notes
 
 Companion to `2026-07-20-norwegian-4x4-design.md`. Records what shipped in this
-pass, decisions made against the spec, and the remaining pieces that require
-Xcode-GUI target creation (which cannot be done safely by hand-editing the
-`project.pbxproj`).
+pass, decisions made against the spec, and the remaining deferred pieces.
 
 ## What shipped (built + verified)
 
-### `Packages/IntervalEngine` — platform-agnostic core (spec §5.1)
+### `Packages/IntervalEngine` — shared core and UI (spec §5.1)
 
 Pure Swift package, no UIKit/WatchKit/HealthKit. Deterministic: all time is
 injected via `at:` parameters, so it is fully unit-testable on the host and
@@ -21,18 +19,22 @@ keeps mirrored devices in lockstep by construction.
 - `HRMaxEstimator.swift` — Tanaka + observed-max blend (spec §3).
 - `FailoverController.swift` — primary/mirror promotion timer (spec §5.2),
   wired into the watch session model's mirror watchdog.
-- **46 unit tests, all passing** (`swift test`): timeline, target line,
+- `SessionMessage.swift` — one Codable phone/watch wire contract for outputs
+  and explicit stops.
+- `RuntimeMode.swift` — one `-mockData` launch contract for both apps.
+- `IntervalUI` product — shared `PhaseFlowView`, `MjolnirIcon`, and phase-color
+  mapping used by both native targets.
+- **47 unit tests, all passing** (`swift test`): timeline, target line,
   guidance/dead-band, HRmax, failover, controls, and an `EngineOutput` Codable
   round-trip (the payload streamed primary→mirror).
 
 The local package is wired into the app via a `XCLocalSwiftPackageReference` in
-`project.pbxproj`; the app target links the `IntervalEngine` product.
+`project.pbxproj`; both native targets link `IntervalEngine` and `IntervalUI`.
 
 ### iOS "N4x4" tab (spec §6.1, §7)
 
 - New top-level tab, icon `hammer.fill`, tint cyan (`AppTab.n4x4`).
-- `Views/N4x4/RingView.swift` — current-phase progress ring, color-coded.
-- `Views/N4x4/N4x4View.swift` — idle/start, live session (ring + center timer +
+- `Views/N4x4/N4x4View.swift` — idle/start, live session (phase-flow backdrop + timer +
   phase label + HR + guidance cue + total-remaining), completion. Controls:
   Skip (only when warm-up/cooldown), Pause/Resume, End. Timer-only warning alert.
 - `Views/N4x4/N4x4SessionModel.swift` — `@Observable @MainActor` controller
@@ -62,9 +64,7 @@ Target `Longevity Watch Watch App`, embedded in and auto-installed by the iOS
 app; the local `IntervalEngine` package is linked into it (wired via
 `project.pbxproj`).
 
-- `RingView.swift` — watch copy of the phase-progress ring + `RingColor →
-  SwiftUI.Color` mapping.
-- `ContentView.swift` — compact layout: HR-centered ring, phase/round label,
+- `ContentView.swift` — compact layout: phase-flow backdrop, HR, phase/round label,
   time remaining, out-of-range cue arrow; swipe-left page carries Skip/Pause/
   End (spec §7); idle + completion screens; timer-only warning alert.
 - `WatchN4x4SessionModel.swift` — `@Observable @MainActor` orchestrator with an
@@ -75,8 +75,8 @@ app; the local `IntervalEngine` package is linked into it (wired via
   HealthKit DOB + observed 90-day max via the shared `HRMaxEstimator`.
 - `WatchHapticEngine.swift` — maps engine `HapticCommand`s to
   `WKInterfaceDevice` haptics.
-- `MockMode.swift` — `-mockData` gate; synthesizes HR so the whole flow is
-  demoable in the watch Simulator (sensors don't simulate, spec §9).
+- The shared `MockMode` gate synthesizes HR so the whole flow is demoable in
+  the watch Simulator (sensors don't simulate, spec §9).
 
 Verified: the watch target compiles for both a watchOS Simulator and the
 embedded generic-iOS-Simulator build, and the idle screen renders on an
@@ -87,8 +87,8 @@ on-device sensors need a physical watch (spec §9).
 
 - `Longevity Watch Watch App/WatchConnectivityManager.swift` and
   `Longevity Compass/Views/N4x4/N4x4ConnectivityManager.swift` — thin transport;
-  each `EngineOutput` tick crosses as JSON (`sendMessageData`). `EngineOutput`
-  and every nested type are now `Codable` (round-trip covered by a unit test).
+  each shared `SessionMessage` crosses as JSON (`sendMessageData`). Output and
+  stop messages are both covered by a Codable round-trip test.
 - The watch runs the full loop: streams its output while primary, renders a
   remote primary while mirroring, and drives promotion through the existing
   `FailoverController` (`receivedPrimaryTick(at:)` per inbound tick,
@@ -115,9 +115,8 @@ per-device state machine and the promotion decision are unit-/Simulator-tested.
   beat-to-beat HR from a locally paired sensor (AirPods Pro 2 / Bluetooth strap)
   — the "phone alone + external HR source" mode (spec §5.2/§5.3). This replaced
   an earlier anchored-query sketch, which lagged several seconds and couldn't
-  serve real-time coaching. (The unused `startHeartRateStream` anchored helpers
-  remain in `HealthKitManager` but are no longer on the N4x4 path.)
-- **`EngineOutput` is the wire contract.** It plus every nested type
+  serve real-time coaching. The superseded anchored-query helpers were removed.
+- **`SessionMessage` is the wire contract.** Its `EngineOutput` payload and every nested type
   (`PhaseKind` with associated values, `RingColor`, `DeadBandState`,
   `AdjustmentHint`, `HapticCommand`, the `ClosedRange<Double>` target) is
   `Codable`, so the same struct that drives the UI is streamed verbatim
@@ -126,32 +125,24 @@ per-device state machine and the promotion decision are unit-/Simulator-tested.
   timer-only grace-check `Task` and cancel it in teardown (previously fire-and-
   forget, safe only via a state guard).
 
-## On-device setup still required (Xcode Signing & Capabilities)
+## On-device setup
 
-The apps build and run in the Simulator today. For real HR on physical
-hardware, enable in Xcode (entitlements aren't safe to hand-edit):
+Both targets carry only the HealthKit entitlement they use. The Watch Info
+property list includes `WKBackgroundModes = workout-processing`, keeping its
+active workout session alive with the screen off. Real sensor and paired-device
+behavior still requires physical hardware.
 
-- **Watch target:** HealthKit capability + **Background Modes ▸ Workout
-  processing** (keeps the wrist `HKWorkoutSession` alive with the screen off).
-- **Phone target:** HealthKit is already enabled; add **Background Modes ▸
-  Workout processing** so the phone's own `HKWorkoutSession` (AirPods/Bluetooth
-  HR path) keeps streaming with the screen off. This is the same toggle as on
-  the watch, just on the `Longevity Compass` iOS target.
-
-## Deferred — requires a new Xcode target (GUI only)
+## Deferred
 
 ### Live Activity / Widget extension (spec §6.3)
 
-Not addable by hand-editing `project.pbxproj` without risking corruption
-(`objectVersion 77`, synchronized file groups) — add in Xcode. The `Codable`
-`EngineOutput` is ready to drive the `ContentState`.
+The Codable `EngineOutput` is ready to drive a future Live Activity content state.
 
 1. File ▸ New ▸ Target ▸ **Widget Extension**, "Include Live Activity".
 2. Define `ActivityAttributes` whose `ContentState` carries the lean payload:
    current HR, `AdjustmentHint` (arrow only when out of range), phase time
    remaining, `RingColor`. No phase-name text — color communicates phase.
-3. Start the activity when a session begins; update it each engine tick from
-   `EngineOutput`. Add `NSSupportsLiveActivities = YES` to the app `Info.plist`.
+3. Start the activity when a session begins and update it from `EngineOutput`.
 
 ### Follow-ups (code, no new target)
 

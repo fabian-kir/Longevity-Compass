@@ -18,15 +18,6 @@ The single-screen "what should I do today" view.
 - **Refresh control** — pull-to-refresh and toolbar refresh button.
 - **Settings link** — toolbar leading button → `DataExportView`.
 
-## Track tab
-
-Daily logging for everything HealthKit can't auto-capture.
-
-- **Track Now / Coming Up / On Track sections** — adaptive sectioning of priorities by urgency.
-- **Inline logging** — blood pressure (systolic/diastolic with validation), nicotine yes/no, alcohol yes/no, dental flossing.
-- **Apple Health write-back** — BP entries persist to HealthKit; failures surface inline.
-- **Empty state** — "Nothing to track right now" with checkmark when everything is current.
-
 ## Train tab
 
 Strength-training log.
@@ -61,12 +52,20 @@ Manual bloodwork panel entry and tracking.
 - **Cadence summary** — status-dependent text ("Book a baseline panel" / "Next draw recommended in N months").
 - **Empty state** — "No panels yet" with CTA + marker-guide link.
 
+## N4x4 tab + Watch companion
+
+Guided Norwegian 4×4 interval training on iPhone and Apple Watch.
+
+- **31-minute protocol** — warm-up, four high-intensity rounds, three active recoveries and cooldown.
+- **Live coaching** — HRmax-based target bands, trailing-HR guidance and distinct haptic cues.
+- **Phone/Watch mirroring** — one device owns the session while the other mirrors; a watchdog promotes the mirror if the primary disappears.
+- **Timer-only degradation** — explicit warnings when HR or target zones are unavailable, with automatic recovery when readings resume.
+- **Mock launch mode** — shared `-mockData` contract for simulator demos without HealthKit sensors.
+
 ---
 
 ## Secondary screens (reachable from tabs)
 
-- **Trends view** — 7/28/90-day mini-charts for steps, sleep, RHR, BP, VO₂ max, body weight, habit completion.
-- **History view** — full audit log of manual entries (BP, nicotine, alcohol, dental); group by date, swipe to delete.
 - **Data export view** (Settings) — Apple Health sync status, OpenRouter API key (Keychain-stored), nutrition & exercise-icon cost tracking, notification scheduler, JSON export, delete-all-data option.
 
 ---
@@ -75,15 +74,15 @@ Manual bloodwork panel entry and tracking.
 
 - **`BiologicalAgeEngine`** — 24 HealthKit + bloodwork + behavior signals → 10 factors → years-of-age delta. Z-scored against age/sex norms, freshness-weighted, with three layers of cross-signal reasoning (downstream suppression, upstream drivers, top lever).
 - **`PriorityEngine`** — impact × friction × status × trend scoring across 12 health domains.
-- **`TrackingRecommendationEngine`** — what to surface on the Track tab and when.
 - **`NotificationManager`** — quiet-hours-aware reminders driven by per-domain status (urgent → daily, good-with-baseline → quarterly, etc.).
+- **`IntervalEngine`** — deterministic N4x4 timeline, HR target line, dead-band coaching and cross-device failover decision.
 
 ---
 
 ## Anti-scope (explicitly out)
 
 - No backend, no cloud user accounts, no auth.
-- No Apple Watch app.
 - No Android / multi-platform port.
+- No saved HealthKit workout, workout history or post-session summary.
 - No on-device LLM (Foundation Models) — deferred until capable hardware is available.
 - No AI gram-estimation from text descriptions.

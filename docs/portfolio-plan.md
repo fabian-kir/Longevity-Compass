@@ -131,7 +131,7 @@ After all three: README + screenshots + 30-second demo GIF/video. That work is e
 ## Anti-goals (do not do)
 
 - No backend / no cloud user accounts.
-- No Apple Watch app.
+- No Apple Watch app in this original plan (later superseded by the N4x4 feature).
 - No Android / multi-platform port.
 - No new feature domains. The surface is already broad enough.
 - No README work in this plan — it depends on items 1–3 landing first.

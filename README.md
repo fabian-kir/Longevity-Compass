@@ -1,6 +1,6 @@
 # Longevity Compass
 
-**A multi-sensor biological-age estimator for iOS — 24 HealthKit, bloodwork and behaviour signals fused into a transparent, hand-reproducible 10-factor model, plus a hybrid local/cloud AI pipeline for nutrition capture.**
+**A multi-sensor biological-age estimator for iPhone and Apple Watch — 24 HealthKit, bloodwork and behaviour signals fused into a transparent 10-factor model, plus nutrition capture and a guided Norwegian 4×4 workout.**
 
 [![CI](https://github.com/fabian-kir/longevity-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/fabian-kir/longevity-compass/actions/workflows/ci.yml)
 ![Platform](https://img.shields.io/badge/platform-iOS%2026-blue)
@@ -31,10 +31,10 @@ This is a solo-built portfolio project. It runs entirely on-device: no backend, 
 | ![Focus tab](docs/media/focus.png) | ![Bio-age detail](docs/media/bioage.png) | ![Nutrition camera](docs/media/nutrition.png) |
 | Today's top lever, with rationale and one-tap actions | Per-factor z-score contributions + linearised sensitivity readout | Camera-first logging via on-device Vision + cloud vision model |
 
-| Trends | Bloodwork |
+| Bloodwork | Norwegian 4×4 |
 |:---:|:---:|
-| ![Trends](docs/media/trends.png) | ![Bloodwork](docs/media/bloodwork.png) |
-| 7/28/90-day mini-charts across all tracked signals | Manual panel entry (ApoB, HbA1c, hs-CRP…) with reference ranges |
+| ![Bloodwork](docs/media/bloodwork.png) | Live phone + Watch workout |
+| Manual panel entry (ApoB, HbA1c, hs-CRP…) with reference ranges | HR-zone coaching, haptics, mirroring and failover |
 
 ---
 
@@ -78,6 +78,7 @@ Views/        SwiftUI screens, one folder per tab + shared Components/
 Models/       SwiftData @Model types + value types (snapshots, fingerprints)
 Services/     Engines + integrations (HealthKit, OpenRouter, OpenFoodFacts, Keychain, …)
 Config/       Tunable thresholds and norms
+Packages/     IntervalEngine (pure state/timing) + IntervalUI (shared phone/watch visuals)
 ```
 
 Key engines (all pure, testable Swift):
@@ -86,7 +87,7 @@ Key engines (all pure, testable Swift):
 |---|---|
 | `BiologicalAgeEngine` | 24 signals → 10 factors → years-of-age delta |
 | `PriorityEngine` | impact × friction × status × trend across 12 domains |
-| `TrackingRecommendationEngine` | what to surface on the Track tab, and when |
+| `IntervalEngine` | deterministic N4x4 timeline, target bands, coaching and failover |
 | `NotificationManager` | quiet-hours-aware, status-driven reminders |
 
 Persistence is **SwiftData** with lightweight migration; export is JSON via dedicated DTOs.
@@ -95,14 +96,15 @@ Persistence is **SwiftData** with lightweight migration; export is JSON via dedi
 
 ## Tech stack
 
-`SwiftUI` · `SwiftData` · `HealthKit` · `Vision` · `Swift Charts` · `Network` (NWPathMonitor) · `Keychain` · OpenRouter (Claude Sonnet 4.6 vision) · OpenFoodFacts · Gemini 2.5 Flash Image (custom exercise icons)
+`SwiftUI` · `SwiftData` · `HealthKit` · `WatchConnectivity` · `CoreHaptics` · `Vision` · `Network` (NWPathMonitor) · `Keychain` · OpenRouter · OpenFoodFacts
 
 ---
 
 ## Tests & CI
 
 - An **XCTest** target (`Longevity CompassTests`) validates the engine against four synthetic profiles — elite endurance, metabolic syndrome (±bloodwork), and a vegan low-exercise case — asserting each lands in its expected bio-age band.
-- **GitHub Actions** runs `xcodebuild test` on every push and PR to `main` (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+- The local `IntervalEngine` package has focused timeline, target, control, failover and wire-format tests.
+- **GitHub Actions** runs both suites on every push and PR to `main` (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ---
 
@@ -114,13 +116,13 @@ cd "Longevity Compass"
 open "Longevity Compass.xcodeproj"
 ```
 
-Requires Xcode targeting **iOS 26**. Build and run the `Longevity Compass` scheme on a simulator or device. Health data populates from HealthKit; the AI nutrition features need an OpenRouter API key (added in-app under Settings → it's stored in the Keychain).
+Requires Xcode targeting **iOS 26 / watchOS 26**. Use `Longevity Compass` for the app and its tests, `Longevity Compass (Mock)` for synthetic simulator data, or `Longevity Watch Watch App` to run the companion. Health data populates from HealthKit; AI nutrition features need an OpenRouter API key stored in the Keychain.
 
 ---
 
 ## Scope
 
-A deliberately bounded v1 — full feature inventory in [`docs/scope.md`](docs/scope.md). Explicit non-goals: no backend, no accounts, no Watch app, no multi-platform port. The depth is in the estimator, not the surface area.
+A deliberately bounded v1 — full feature inventory in [`docs/scope.md`](docs/scope.md). Explicit non-goals include a backend, accounts, Android, workout history and post-session analytics.
 
 ---
 
