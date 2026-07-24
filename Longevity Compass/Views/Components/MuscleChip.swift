@@ -24,26 +24,38 @@ struct MuscleBalanceBar: View {
     let label: String
     /// 0…1, relative to the most-trained region this week.
     let fraction: Double
+    var valueText: String? = nil
     var tint: Color = .accentColor
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Text(label)
-                .font(.caption)
-                .frame(width: 74, alignment: .leading)
+                .font(.subheadline)
+                .frame(width: 86, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.secondary.opacity(0.18))
-                    Capsule().fill(tint)
+                    Capsule().fill(Color.secondary.opacity(0.13))
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [tint.opacity(0.72), tint],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         .frame(width: max(4, geo.size.width * fraction.clamped01))
                 }
             }
-            .frame(height: 8)
-            Text("\(Int((fraction * 100).rounded()))%")
-                .font(.caption.monospacedDigit())
+            .frame(height: 7)
+            Text(valueText ?? "\(Int((fraction * 100).rounded()))%")
+                .font(.caption.weight(.medium).monospacedDigit())
                 .foregroundStyle(.secondary)
-                .frame(width: 38, alignment: .trailing)
+                .frame(minWidth: 48, alignment: .trailing)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), \(valueText ?? "\(Int((fraction * 100).rounded())) percent")")
     }
 }
 

@@ -19,20 +19,26 @@ struct TrainingView: View {
                 )
             } else {
                 if !weeklyBalance.isEmpty {
-                    Section("This week — sets per muscle") {
+                    Section {
                         let maxV = weeklyBalance.map(\.sets).max() ?? 1
                         ForEach(weeklyBalance) { load in
                             MuscleBalanceBar(
                                 label: load.region.displayName,
                                 fraction: maxV > 0 ? load.sets / maxV : 0,
+                                valueText: formattedSets(load.sets),
                                 tint: AppTab.train.tint
                             )
+                            .padding(.vertical, 3)
                         }
+                    } header: {
+                        Label("This week", systemImage: "chart.bar.fill")
+                    } footer: {
+                        Text("Weighted working sets by muscle group. Secondary muscles count half.")
                     }
                 }
 
                 ForEach(groupedEntries, id: \.key) { group in
-                    Section(sectionTitle(for: group.key)) {
+                    Section {
                         ForEach(group.value) { entry in
                             ExerciseEntryRow(
                                 entry: entry,
@@ -41,8 +47,10 @@ struct TrainingView: View {
                                 .onTapGesture { editingEntry = entry }
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
-                                        context.delete(entry)
-                                        try? context.save()
+                                        withAnimation {
+                                            context.delete(entry)
+                                            try? context.save()
+                                        }
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
@@ -56,11 +64,16 @@ struct TrainingView: View {
                                     .tint(.blue)
                                 }
                         }
+                    } header: {
+                        sessionHeader(for: group.key, entries: group.value)
                     }
                 }
             }
         }
-        .navigationTitle("Train")
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle("Training")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
@@ -72,35 +85,18 @@ struct TrainingView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button { showLogSheet = true } label: {
-                Label("Log Exercise", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundStyle(.white)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(AppTab.train.tint)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [.white.opacity(0.30), .clear],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                    )
-                            )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(.white.opacity(0.30), lineWidth: 0.8)
-                    )
-                    .shadow(color: AppTab.train.tint.opacity(0.35), radius: 10, x: 0, y: 4)
+            GlassEffectContainer(spacing: 12) {
+                Button { showLogSheet = true } label: {
+                    Label("Log Exercise", systemImage: "plus")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(AppTab.train.tint)
             }
             .padding(.horizontal)
-            .padding(.bottom, 8)
-            .background(.bar)
+            .padding(.vertical, 9)
         }
         .sheet(isPresented: $showLogSheet) {
             LogExerciseSheet()
@@ -131,7 +127,7 @@ struct TrainingView: View {
     // MARK: - Weekly muscle balance
 
     private struct RegionLoad: Identifiable {
-        let id = UUID()
+        var id: MuscleRegion { region }
         let region: MuscleRegion
         let sets: Double
     }
@@ -168,6 +164,25 @@ struct TrainingView: View {
         if Calendar.current.isDateInToday(date) { return "Today" }
         if Calendar.current.isDateInYesterday(date) { return "Yesterday" }
         return date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private func sessionHeader(for date: Date, entries: [ExerciseEntry]) -> some View {
+        let setCount = entries.reduce(0) { $0 + $1.sets.count }
+        return HStack(alignment: .firstTextBaseline) {
+            Text(sectionTitle(for: date))
+            Spacer()
+            Text("\(entries.count) exercises · \(setCount) sets")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .textCase(nil)
+        }
+    }
+
+    private func formattedSets(_ value: Double) -> String {
+        let formatted = value.formatted(
+            .number.precision(.fractionLength(value.rounded() == value ? 0 : 1))
+        )
+        return "\(formatted) sets"
     }
 
     // MARK: - Seed
@@ -208,19 +223,27 @@ struct ExerciseEntryRow: View {
                 }
                 if !entry.sets.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
+                        LazyHStack(spacing: 6) {
                             ForEach(Array(entry.sets.enumerated()), id: \.element.id) { i, set in
                                 Text(setLabel(i: i, set: set))
-                                    .font(.caption.monospacedDigit())
-                                    .padding(.horizontal, 8).padding(.vertical, 3)
-                                    .glassEffect(.regular, in: Capsule())
+                                    .font(.caption.weight(.medium).monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.quaternary, in: Capsule())
                             }
                         }
                     }
                 }
             }
+
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder
@@ -236,6 +259,11 @@ struct ExerciseEntryRow: View {
                 .font(.title2)
                 .foregroundStyle(.tint)
                 .frame(width: 52, height: 52)
+                .background(AppTab.train.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(AppTab.train.tint.opacity(0.16), lineWidth: 0.75)
+                }
         }
     }
 
