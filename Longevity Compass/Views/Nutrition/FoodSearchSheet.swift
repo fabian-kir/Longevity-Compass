@@ -130,18 +130,43 @@ private struct ProductSearchRow: View {
 
 // MARK: - Product confirm
 
-private struct ProductConfirmView: View {
+struct DetectedBarcodeProductSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let product: OpenFoodFactsProduct
+    let detectedAt: Date
+    let onSaved: (String) -> Void
+
+    var body: some View {
+        NavigationStack {
+            ProductConfirmView(product: product, loggedAt: detectedAt, onSaved: onSaved)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+struct ProductConfirmView: View {
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
 
     let product: OpenFoodFactsProduct
+    let loggedAt: Date
     let onSaved: (String) -> Void
 
     @State private var portionGrams: Double
     @State private var isSaving = false
 
-    init(product: OpenFoodFactsProduct, onSaved: @escaping (String) -> Void) {
+    init(
+        product: OpenFoodFactsProduct,
+        loggedAt: Date = .now,
+        onSaved: @escaping (String) -> Void
+    ) {
         self.product = product
+        self.loggedAt = loggedAt
         self.onSaved = onSaved
         self._portionGrams = State(initialValue: product.servingSizeGrams ?? 100)
     }
@@ -218,7 +243,7 @@ private struct ProductConfirmView: View {
         Task {
             let scaled = product.scaled(toGrams: portionGrams)
             let entry = NutritionEntry(
-                date: .now,
+                date: loggedAt,
                 source: .barcode,
                 rawInput: product.barcode,
                 productName: product.name,

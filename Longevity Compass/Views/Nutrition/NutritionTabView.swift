@@ -14,6 +14,8 @@ struct NutritionTabView: View {
     @State private var showLibraryPicker = false
     @State private var showFoodSearch = false
     @State private var libraryImage: UIImage?
+    @State private var detectedProduct: DetectedProduct?
+    @State private var isResolvingBarcode = false
 
     private struct CapturedImage: Identifiable {
         let id = UUID()
@@ -21,11 +23,17 @@ struct NutritionTabView: View {
         let date: Date
     }
 
+    private struct DetectedProduct: Identifiable {
+        let id = UUID()
+        let product: OpenFoodFactsProduct
+        let detectedAt: Date
+    }
+
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
                 cameraPanel
-                    .frame(height: max(360, geo.size.height * 0.60))
+                    .frame(height: min(max(280, geo.size.height * 0.38), 380))
                 weeklyPanel
             }
         }
@@ -40,22 +48,34 @@ struct NutritionTabView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showFoodSearch = true } label: {
+                Button {
+                    services.mealCapture.suspendBarcodeDetection()
+                    showFoodSearch = true
+                } label: {
                     Image(systemName: "magnifyingglass")
                 }
             }
         }
-        .sheet(item: $captured) { item in
+        .sheet(item: $captured, onDismiss: resumeBarcodeDetection) { item in
             PostCaptureSheet(image: item.image, capturedAt: item.date) { outcome in
                 handleSheetOutcome(outcome)
             }
         }
-        .sheet(isPresented: $showFoodSearch) {
+        .sheet(item: $detectedProduct, onDismiss: resumeBarcodeDetection) { item in
+            DetectedBarcodeProductSheet(
+                product: item.product,
+                detectedAt: item.detectedAt
+            ) { title in
+                detectedProduct = nil
+                flash("Logged \(title)")
+            }
+        }
+        .sheet(isPresented: $showFoodSearch, onDismiss: resumeBarcodeDetection) {
             FoodSearchSheet { title in
                 flash("Logged \(title)")
             }
         }
-        .sheet(isPresented: $showLibraryPicker) {
+        .sheet(isPresented: $showLibraryPicker, onDismiss: resumeBarcodeDetection) {
             CameraPickerView(mode: .library) { image in
                 showLibraryPicker = false
                 if let image {
@@ -66,6 +86,10 @@ struct NutritionTabView: View {
         }
         .overlay(alignment: .top) { toast }
         .task { await services.mealCapture.start() }
+        .task(id: services.mealCapture.detectedBarcode?.id) {
+            guard let detection = services.mealCapture.detectedBarcode else { return }
+            await resolveBarcode(detection)
+        }
         .onDisappear { services.mealCapture.stop() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -122,6 +146,7 @@ struct NutritionTabView: View {
                 .padding(.horizontal, 24)
             HStack(spacing: 10) {
                 Button {
+                    services.mealCapture.suspendBarcodeDetection()
                     showLibraryPicker = true
                 } label: {
                     Label("Library", systemImage: "photo.on.rectangle")
@@ -144,6 +169,7 @@ struct NutritionTabView: View {
     private var shutterRow: some View {
         HStack {
             Button {
+                services.mealCapture.suspendBarcodeDetection()
                 showLibraryPicker = true
             } label: {
                 Image(systemName: "photo.on.rectangle")
@@ -169,7 +195,11 @@ struct NutritionTabView: View {
                         .opacity(isCapturing ? 0.4 : 1.0)
                 }
             }
-            .disabled(isCapturing || services.mealCapture.authorization != .granted)
+            .disabled(
+                isCapturing
+                || isResolvingBarcode
+                || services.mealCapture.authorization != .granted
+            )
 
             Spacer()
 
@@ -195,16 +225,15 @@ struct NutritionTabView: View {
     private var weeklyPanel: some View {
         if let digest = services.nutritionDigest {
             ScrollView {
-                NutritionRollupPanel(digest: digest)
+                NutritionDashboardView(digest: digest)
                     .padding(.horizontal)
-                    .padding(.top, 10)
-                    .padding(.bottom, 12)
+                    .padding(.vertical, 12)
             }
             .background(Color(.systemGroupedBackground))
         } else {
             Color(.systemGroupedBackground)
                 .overlay(
-                    Text("Snap your first meal to get started.")
+                    ProgressView("Building your food pattern…")
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
                 )
@@ -228,15 +257,44 @@ struct NutritionTabView: View {
     // MARK: - Actions
 
     private func snap() async {
-        guard !isCapturing else { return }
+        guard !isCapturing, !isResolvingBarcode, detectedProduct == nil else { return }
+        services.mealCapture.suspendBarcodeDetection()
         isCapturing = true
         defer { isCapturing = false }
         do {
             let image = try await services.mealCapture.capturePhoto()
             captured = CapturedImage(image: image, date: .now)
         } catch {
+            services.mealCapture.resumeBarcodeDetection()
             flash("Could not capture photo")
         }
+    }
+
+    private func resolveBarcode(_ detection: MealCaptureCoordinator.BarcodeDetection) async {
+        guard captured == nil,
+              detectedProduct == nil,
+              !showLibraryPicker,
+              !showFoodSearch,
+              !isCapturing,
+              !isResolvingBarcode
+        else { return }
+
+        isResolvingBarcode = true
+        services.mealCapture.consumeBarcodeDetection(id: detection.id)
+        defer { isResolvingBarcode = false }
+
+        do {
+            let product = try await OpenFoodFactsClient.lookup(barcode: detection.payload)
+            detectedProduct = DetectedProduct(product: product, detectedAt: detection.detectedAt)
+        } catch {
+            // Live scanning is intentionally quiet. Unknown products and transient
+            // lookup failures simply return the camera to recognition mode.
+            services.mealCapture.resumeBarcodeDetection()
+        }
+    }
+
+    private func resumeBarcodeDetection() {
+        services.mealCapture.resumeBarcodeDetection()
     }
 
     private func handleSheetOutcome(_ outcome: PostCaptureSheet.Outcome) {
@@ -361,86 +419,6 @@ struct MealThumbnailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .task(id: fileName) {
             image = MealImageStore.image(for: fileName)
-        }
-    }
-}
-
-// MARK: - Rollup panel (unchanged from previous file)
-
-struct NutritionRollupPanel: View {
-    let digest: NutritionDigest
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("This week — \(digest.coverageDays)/\(digest.lookbackDays) days logged")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(String(format: "$%.3f this month", digest.costThisMonthUSD))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            if digest.coverageDays < HealthThresholds.Nutrition.minDaysWithDataForRollup {
-                Text("Log a few more meals before this becomes meaningful.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(spacing: 6) {
-                ForEach(digest.rollups) { rollup in
-                    BucketRow(rollup: rollup)
-                }
-            }
-        }
-        .padding()
-        .glassCard(tint: AppTab.nutrition.tint, cornerRadius: 16, tintOpacity: 0.16)
-    }
-}
-
-private struct BucketRow: View {
-    let rollup: NutritionBucketRollup
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: rollup.bucket.systemImage)
-                .frame(width: 24)
-                .foregroundStyle(rollup.bucket.lowerIsBetter ? .orange : .secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(rollup.bucket.displayLabel)
-                    .font(.subheadline.weight(.semibold))
-                Text(rollup.summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Spacer()
-            BucketStatusBadge(status: rollup.status)
-        }
-    }
-}
-
-private struct BucketStatusBadge: View {
-    let status: BucketStatus
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: status.systemImage)
-            Text(status.displayLabel)
-        }
-        .font(.caption.weight(.semibold))
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .foregroundStyle(tint)
-        .glassChip(tint: tint, tintOpacity: 0.22)
-    }
-
-    private var tint: Color {
-        switch status {
-        case .ok:                .green
-        case .veryLow, .low:     .orange
-        case .high:              .orange
-        case .veryHigh:          .red
-        case .unknown:           .gray
         }
     }
 }

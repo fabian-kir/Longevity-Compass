@@ -81,9 +81,13 @@ final class PendingMealQueue {
             saveManifest()
 
             do {
-                let outcome = try await MealAnalysisPipeline.analyze(image: image, openRouter: openRouter)
+                let analysis = try await MealAnalysisPipeline.analyze(image: image, openRouter: openRouter)
                 let storedImage = MealImageStore.ingest(jpegAt: imageURL(for: meal.imageFileName))
-                let entry = makeEntry(from: outcome, capturedAt: meal.capturedAt, imageFileName: storedImage)
+                let entry = NutritionEntry.fromFingerprint(
+                    analysis,
+                    capturedAt: meal.capturedAt,
+                    imageFileName: storedImage
+                )
                 await onEntryReady(entry)
                 remove(meal)
             } catch {
@@ -165,45 +169,6 @@ final class PendingMealQueue {
         monitor.start(queue: monitorQueue)
     }
 
-    // MARK: - Outcome → entry
-
-    private func makeEntry(
-        from outcome: MealAnalysisOutcome,
-        capturedAt: Date,
-        imageFileName: String?
-    ) -> NutritionEntry {
-        switch outcome {
-        case .barcode(let product):
-            let portion = product.servingSizeGrams ?? 100
-            let scaled = product.scaled(toGrams: portion)
-            return NutritionEntry(
-                date: capturedAt,
-                source: .barcode,
-                rawInput: product.barcode,
-                productName: product.name,
-                caloriesKcal: scaled.kcalTotal,
-                portionGrams: scaled.portionGrams,
-                proteinGrams: scaled.protein,
-                fiberGrams: scaled.fiber,
-                carbsGrams: scaled.carbs,
-                fatGrams: scaled.fat,
-                saturatedFatGrams: scaled.saturatedFat,
-                addedSugarGrams: scaled.addedSugar,
-                sodiumMilligrams: scaled.sodiumMg,
-                isFattyFish: nil,
-                leafyGreenServings: nil,
-                ultraProcessedScore: product.ultraProcessedScore,
-                aiNotes: nil,
-                modelUsed: "openfoodfacts",
-                inputTokens: nil,
-                outputTokens: nil,
-                costUSD: 0,
-                imageFileName: imageFileName
-            )
-        case .aiFingerprint(let analysis):
-            return NutritionEntry.fromFingerprint(analysis, capturedAt: capturedAt, imageFileName: imageFileName)
-        }
-    }
 }
 
 extension NutritionEntry {
