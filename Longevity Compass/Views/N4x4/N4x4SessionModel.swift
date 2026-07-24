@@ -85,6 +85,8 @@ final class N4x4SessionModel {
         let engine = IntervalEngine(hrMax: hrMax, startedAt: Date())
         self.engine = engine
         receivedAnyHR = false
+        latestHR = nil
+        showTimerOnlyWarning = false
         mockHR = 80
         // Prime the first frame so a restart never flashes the prior session's
         // finished output before the tick loop produces its first snapshot.
@@ -146,6 +148,8 @@ final class N4x4SessionModel {
         graceCheck?.cancel(); graceCheck = nil
         workout.stop()
         haptics.stop()
+        engine = nil
+        failover = nil
     }
 
     // MARK: - Mirror (a Watch is primary) — spec §5.2
@@ -218,6 +222,7 @@ final class N4x4SessionModel {
     /// drive the completion screen.
     private func endMirror() {
         watchdog?.cancel(); watchdog = nil
+        failover = nil
         isMirroring = false
     }
 

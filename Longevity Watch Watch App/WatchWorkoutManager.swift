@@ -92,12 +92,11 @@ final class WatchWorkoutManager: NSObject {
     func stop() {
         onHR = nil
         session?.end()
-        let builder = self.builder
-        builder?.endCollection(withEnd: Date()) { _, _ in
-            builder?.finishWorkout { _, _ in }
-        }
+        // The session is used for live sensing only. Persisting an HKWorkout is
+        // intentionally deferred, so discard the builder's collected results.
+        builder?.discardWorkout()
         session = nil
-        self.builder = nil
+        builder = nil
     }
 }
 

@@ -58,12 +58,12 @@ final class PhoneWorkoutManager: NSObject {
     func stop() {
         onHR = nil
         session?.end()
-        let builder = self.builder
-        builder?.endCollection(withEnd: Date()) { _, _ in
-            builder?.finishWorkout { _, _ in }
-        }
+        // N4x4 currently uses the workout session only for live sensing. Saving
+        // an HKWorkout is a separate product decision, so discard collected data
+        // instead of silently writing every session into HealthKit.
+        builder?.discardWorkout()
         session = nil
-        self.builder = nil
+        builder = nil
     }
 }
 

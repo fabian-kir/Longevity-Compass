@@ -30,7 +30,10 @@ jobs:
       - name: Show available iOS simulator runtimes
         run: xcrun simctl list runtimes
 
-      - name: Build and test
+      - name: Test interval package
+        run: swift test --package-path Packages/IntervalEngine
+
+      - name: Test iOS app
         run: |
           set -o pipefail
           xcodebuild test \

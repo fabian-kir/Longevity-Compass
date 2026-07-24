@@ -50,6 +50,20 @@ extension PhaseKind {
         case .warmUp, .cooldown:  return nil
         }
     }
+
+    /// Color of the phase that follows this one, for the anticipatory fill in
+    /// the phase-flow indicator (spec §6): the color creeping in as this phase's
+    /// disc shrinks previews what's coming next. `nil` after cooldown, where
+    /// there's nothing left to anticipate.
+    public var nextRingColor: RingColor? {
+        switch self {
+        case .warmUp:                      return .red
+        case .highIntensity(let r) where r < 4: return .green
+        case .highIntensity:               return .blue   // round 4 → straight to cooldown
+        case .activeRecovery:               return .red
+        case .cooldown:                     return nil
+        }
+    }
 }
 
 public enum RingColor: Equatable, Sendable, Codable {

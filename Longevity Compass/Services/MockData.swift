@@ -1,20 +1,8 @@
 #if DEBUG
 import Foundation
 import HealthKit
+import IntervalEngine
 import SwiftData
-
-/// Gates the screenshot / UI-development mock-data mode.
-///
-/// Active **only** when the process is launched with `-mockData` (set as a launch
-/// argument in the "Longevity Compass (Mock)" scheme, or passed via
-/// `xcrun simctl launch <udid> <bundle-id> -mockData`). A normal boot — from the
-/// Home screen, the default scheme, TestFlight, or any Release build — never sets
-/// it, so real user data and HealthKit are never touched.
-enum MockMode {
-    static let isActive: Bool =
-        ProcessInfo.processInfo.arguments.contains("-mockData")
-        || ProcessInfo.processInfo.environment["MOCK_DATA"] == "1"
-}
 
 /// One believable "strong but improvable" 34-year-old male profile, used to populate
 /// every screen for screenshots and UI work without needing real HealthKit history.

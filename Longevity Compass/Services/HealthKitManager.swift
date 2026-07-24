@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import IntervalEngine
 
 struct BloodPressureReading: Hashable, Identifiable {
     let id = UUID()
@@ -314,39 +315,6 @@ final class HealthKitManager {
         return try await maxDiscrete(.heartRate, days: days, unit: Self.bpmUnit)
     }
 
-    /// Streams heart-rate samples as HealthKit records them (anchored query on
-    /// `.heartRate`). Real beat-to-beat HR during exercise is produced by a paired
-    /// Watch's workout session; this surfaces those samples to the phone with a
-    /// few seconds' latency. Returns the running query so the caller can stop it,
-    /// or `nil` if HealthKit/the type is unavailable.
-    ///
-    /// `onSample` is invoked off the main thread — hop actors before touching UI state.
-    func startHeartRateStream(onSample: @escaping @Sendable (Double, Date) -> Void) -> HKQuery? {
-        guard isAvailable, let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return nil }
-        let unit = Self.bpmUnit
-        let predicate = HKQuery.predicateForSamples(withStart: Date(), end: nil, options: .strictStartDate)
-        let handler: (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = { _, samples, _, _, _ in
-            guard let quantitySamples = samples as? [HKQuantitySample] else { return }
-            for sample in quantitySamples {
-                onSample(sample.quantity.doubleValue(for: unit), sample.endDate)
-            }
-        }
-        let query = HKAnchoredObjectQuery(
-            type: type,
-            predicate: predicate,
-            anchor: nil,
-            limit: HKObjectQueryNoLimit,
-            resultsHandler: handler
-        )
-        query.updateHandler = handler
-        healthStore.execute(query)
-        return query
-    }
-
-    func stopHeartRateStream(_ query: HKQuery) {
-        healthStore.stop(query)
-    }
-
     /// Count of underlying `HKQuantitySample`s for `identifier` over the last
     /// `days` days. Used (e.g. for HRV) to gate freshness on whether enough
     /// distinct samples exist, rather than just whether an average is non-nil.
@@ -488,7 +456,7 @@ final class HealthKitManager {
         return 2
     }
 
-    // MARK: - Historical series (for Trends view)
+    // MARK: - Historical series (for trend analysis)
 
     func dailyStepsSeries(days: Int = 30) async throws -> [(date: Date, value: Double)] {
         #if DEBUG

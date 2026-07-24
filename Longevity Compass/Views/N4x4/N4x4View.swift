@@ -1,4 +1,5 @@
 import IntervalEngine
+import IntervalUI
 import SwiftUI
 
 /// Phone screen for a live Norwegian 4x4 session (spec §6.1): a center timer
@@ -22,6 +23,7 @@ struct N4x4View: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("N4x4")
         .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(model.isRunning || model.isMirroring ? .dark : nil)
         .onAppear {
             model.onAppear(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth)
         }
@@ -35,33 +37,85 @@ struct N4x4View: View {
     // MARK: - Idle / start
 
     private var idle: some View {
-        VStack(spacing: 28) {
-            Spacer()
-            MjolnirIcon()
-                .frame(width: 48, height: 56)
-                .foregroundStyle(AppTab.n4x4.tint)
-            VStack(spacing: 8) {
-                Text("Norwegian 4×4")
-                    .font(.title2.bold())
-                Text("Warm-up · 4 × (4 min hard / 3 min easy) · cooldown\n≈ 31 min")
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
+        ZStack {
+            N4x4AmbientBackdrop(tint: AppTab.n4x4.tint)
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 32)
+
+                MjolnirIcon()
+                    .frame(width: 54, height: 64)
+                    .foregroundStyle(AppTab.n4x4.tint)
+                    .padding(24)
+                    .glassEffect(.regular.tint(AppTab.n4x4.tint.opacity(0.12)), in: Circle())
+
+                VStack(spacing: 8) {
+                    Text("Norwegian 4×4")
+                        .font(.largeTitle.bold())
+                        .tracking(-0.7)
+                    Text("A focused 31-minute interval session with live heart-rate guidance.")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: 310)
+                }
+                .padding(.top, 24)
+
+                protocolOverview
+                    .padding(.top, 30)
+
+                estimatedMaxLabel
+                    .padding(.top, 16)
+
+                Spacer(minLength: 28)
+
+                Button {
+                    Task { await model.start(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth) }
+                } label: {
+                    Label("Start workout", systemImage: "play.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(AppTab.n4x4.tint)
             }
-            estimatedMaxLabel
-            Spacer()
-            Button {
-                Task { await model.start(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth) }
-            } label: {
-                Text("Start")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTab.n4x4.tint)
+            .padding(24)
         }
-        .padding(24)
+    }
+
+    private var protocolOverview: some View {
+        HStack(spacing: 0) {
+            protocolStep("3 MIN", "WARM UP", color: N4x4Palette.warmUp)
+            protocolDivider
+            protocolStep("4×4", "HARD", color: N4x4Palette.effort)
+            protocolDivider
+            protocolStep("3 MIN", "RECOVER", color: N4x4Palette.recovery)
+        }
+        .padding(.vertical, 15)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(0.34), lineWidth: 0.75)
+        }
+    }
+
+    private func protocolStep(_ value: String, _ label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.title3.bold().monospacedDigit())
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .tracking(0.7)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var protocolDivider: some View {
+        Divider()
+            .frame(height: 32)
     }
 
     @ViewBuilder
@@ -77,166 +131,248 @@ struct N4x4View: View {
 
     private func activeSession(_ model: N4x4SessionModel) -> some View {
         let output = model.output
-        return VStack(spacing: 24) {
-            Spacer()
-            RingView(
-                progress: output?.phaseProgress ?? 0,
-                color: (output?.ringColor.swiftUIColor ?? .blue)
-            ) {
-                VStack(spacing: 6) {
+        return PhaseFlowView(
+            progress: output?.phaseProgress ?? 0,
+            color: output?.ringColor.swiftUIColor ?? N4x4Palette.warmUp,
+            nextColor: output?.phase.nextRingColor?.swiftUIColor,
+            backgroundColor: Color(uiColor: .systemBackground),
+            minimumCoreRadius: 64,
+            shadowRadius: 30
+        ) {
+            VStack(spacing: 22) {
+                Spacer(minLength: 52)
+
+                VStack(spacing: 8) {
+                    Label(output?.phaseLabel ?? "Getting ready", systemImage: phaseSymbol(output))
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 7)
+                        .glassEffect(.clear, in: Capsule())
+
                     Text(Self.clock(output?.timeRemainingInPhase ?? 0))
-                        .font(.system(size: 52, weight: .semibold, design: .rounded))
+                        .font(.system(size: 74, weight: .semibold, design: .rounded))
+                        .tracking(-2)
                         .monospacedDigit()
-                    Text(output?.phaseLabel ?? "—")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                        .contentTransition(.numericText())
+
+                    Text(output?.isPaused == true ? "PAUSED" : "PHASE REMAINING")
+                        .font(.caption2.weight(.bold))
+                        .tracking(1.25)
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
+
+                metricsPanel(output)
+
+                Spacer(minLength: 18)
+
+                if !model.isMirroring {
+                    controls(model, output: output)
                 }
             }
-            .frame(width: 280, height: 280)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .padding(.bottom, model.isMirroring ? 0 : 88)
+        }
+    }
 
+    private func metricsPanel(_ output: EngineOutput?) -> some View {
+        VStack(spacing: 14) {
             guidanceRow(output)
-            targetHint(output)
-            totalRemainingLabel(output)
-            if model.isMirroring {
-                Label("Mirroring Apple Watch", systemImage: "applewatch")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+
+            Divider()
+                .overlay(.white.opacity(0.18))
+
+            HStack(spacing: 12) {
+                targetHint(output)
+                Spacer(minLength: 8)
+                totalRemainingLabel(output)
             }
 
-            Spacer()
-            // Controls belong to the primary only; while mirroring, the Watch owns them.
-            if !model.isMirroring {
-                controls(model, output: output)
+            if model.isMirroring {
+                Label("Controlled from Apple Watch", systemImage: "applewatch")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.82))
             }
         }
-        .padding(24)
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .foregroundStyle(.white)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(.white.opacity(0.20), lineWidth: 0.75)
+        }
+    }
+
+    private func phaseSymbol(_ output: EngineOutput?) -> String {
+        guard let output else { return "timer" }
+        switch output.phase {
+        case .warmUp: return "flame"
+        case .highIntensity: return "bolt.fill"
+        case .activeRecovery: return "wind"
+        case .cooldown: return "snowflake"
+        }
     }
 
     @ViewBuilder
     private func guidanceRow(_ output: EngineOutput?) -> some View {
-        HStack(spacing: 24) {
-            VStack(spacing: 2) {
+        HStack(spacing: 18) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Image(systemName: "heart.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.pink)
                 Text(hrText(output))
-                    .font(.title.bold().monospacedDigit())
-                Text("bpm")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .monospacedDigit()
+                Text("BPM")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.65))
             }
-            Divider().frame(height: 40)
+
+            Spacer(minLength: 4)
+
             cue(output)
         }
-        .frame(minHeight: 52)
+        .frame(minHeight: 42)
     }
 
     @ViewBuilder
     private func cue(_ output: EngineOutput?) -> some View {
         switch output?.deadBandState ?? .noTarget {
         case .below:
-            Label("Go harder", systemImage: "arrow.up.circle.fill")
-                .foregroundStyle(.red)
-                .font(.headline)
+            guidanceLabel("Go harder", symbol: "arrow.up", tint: N4x4Palette.effort)
         case .above:
-            Label("Ease off", systemImage: "arrow.down.circle.fill")
-                .foregroundStyle(.blue)
-                .font(.headline)
+            guidanceLabel("Ease off", symbol: "arrow.down", tint: N4x4Palette.warmUp)
         case .inRange:
-            Label("In range", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.headline)
+            guidanceLabel("In range", symbol: "checkmark", tint: N4x4Palette.recovery)
         case .noTarget:
             targetlessCue(output)
         }
     }
 
+    private func guidanceLabel(_ title: String, symbol: String, tint: Color) -> some View {
+        Label(title, systemImage: symbol)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .symbolVariant(.circle.fill)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, tint)
+    }
+
     @ViewBuilder
     private func targetlessCue(_ output: EngineOutput?) -> some View {
-        // No target this tick (warm-up/cooldown or no HR). If there's a live HR
-        // we're simply between target bands; if not, we're running timer-only.
         if (model.latestHR ?? output?.trailingHR) == nil {
             Label("Timer only", systemImage: "timer")
-                .foregroundStyle(.secondary)
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.82))
         } else {
-            Text("—").foregroundStyle(.secondary).font(.headline)
+            Label("Warming up", systemImage: "waveform.path.ecg")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.82))
         }
     }
 
-    /// Subtle current target-band hint (bpm) under the guidance row, so the user
-    /// can see where the session is steering HR without a full chart. Hidden for
-    /// warm-up/cooldown/timer-only; during the 60s ramp the band is a single value.
     @ViewBuilder
     private func targetHint(_ output: EngineOutput?) -> some View {
         if let t = output?.target {
             let lo = Int(t.lowerBound.rounded()), hi = Int(t.upperBound.rounded())
-            Label(lo == hi ? "Target \(lo) bpm" : "Target \(lo)–\(hi) bpm", systemImage: "scope")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            Label(lo == hi ? "Target \(lo)" : "Target \(lo)–\(hi)", systemImage: "scope")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.78))
                 .monospacedDigit()
+        } else {
+            Label("No HR target", systemImage: "scope")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.58))
         }
     }
 
     @ViewBuilder
     private func totalRemainingLabel(_ output: EngineOutput?) -> some View {
         if let output {
-            Text("\(Self.clock(output.totalRemaining)) left overall")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Label(Self.clock(output.totalRemaining), systemImage: "hourglass")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.78))
+                .monospacedDigit()
         }
     }
 
     private func controls(_ model: N4x4SessionModel, output: EngineOutput?) -> some View {
-        HStack(spacing: 16) {
-            if model.canSkip {
-                Button { model.skip() } label: {
-                    controlLabel("Skip", "forward.end.fill")
+        GlassEffectContainer(spacing: 10) {
+            HStack(spacing: 12) {
+                if model.canSkip {
+                    Button { model.skip() } label: {
+                        controlLabel("Skip", "forward.end.fill")
+                    }
+                    .buttonStyle(.glass)
+                    .tint(.white)
                 }
-                .buttonStyle(.bordered)
+
+                Button { model.pauseResume() } label: {
+                    let paused = output?.isPaused ?? false
+                    controlLabel(paused ? "Resume" : "Pause", paused ? "play.fill" : "pause.fill")
+                }
+                .buttonStyle(.glassProminent)
+            .tint(output?.isPaused == true ? N4x4Palette.recovery : AppTab.n4x4.tint)
+
+                Button(role: .destructive) { model.end() } label: {
+                    controlLabel("End", "stop.fill")
+                }
+                .buttonStyle(.glass)
+                .tint(.red)
             }
-            Button { model.pauseResume() } label: {
-                let paused = output?.isPaused ?? false
-                controlLabel(paused ? "Resume" : "Pause", paused ? "play.fill" : "pause.fill")
-            }
-            .buttonStyle(.bordered)
-            Button(role: .destructive) { model.end() } label: {
-                controlLabel("End", "stop.fill")
-            }
-            .buttonStyle(.bordered)
         }
     }
 
     private func controlLabel(_ title: String, _ symbol: String) -> some View {
-        Label(title, systemImage: symbol)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
+        VStack(spacing: 5) {
+            Image(systemName: symbol)
+                .font(.headline)
+            Text(title)
+                .font(.caption.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity, minHeight: 48)
     }
 
     // MARK: - Completion
 
     private func completion(_ output: EngineOutput) -> some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text("Session complete")
-                .font(.title2.bold())
-            Text("\(Self.clock(output.elapsed)) total")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button {
-                Task { await model.start(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth) }
-            } label: {
-                Text("Start again")
+        ZStack {
+            N4x4AmbientBackdrop(tint: N4x4Palette.recovery)
+
+            VStack(spacing: 18) {
+                Spacer()
+
+                Image(systemName: "checkmark")
+                    .font(.system(size: 42, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 88, height: 88)
+                    .glassEffect(.regular.tint(N4x4Palette.recovery.opacity(0.38)), in: Circle())
+
+                Text("Session complete")
+                    .font(.largeTitle.bold())
+                    .tracking(-0.7)
+                Text("\(Self.clock(output.elapsed)) total")
                     .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    Task { await model.start(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth) }
+                } label: {
+                    Label("Start again", systemImage: "arrow.clockwise")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(N4x4Palette.recovery)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTab.n4x4.tint)
+            .padding(24)
         }
-        .padding(24)
     }
 
     // MARK: - Helpers
@@ -251,5 +387,28 @@ struct N4x4View: View {
     private static func clock(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private struct N4x4AmbientBackdrop: View {
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemGroupedBackground)
+            RadialGradient(
+                colors: [tint.opacity(0.22), tint.opacity(0.05), .clear],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 420
+            )
+            RadialGradient(
+                colors: [tint.opacity(0.12), .clear],
+                center: .bottomLeading,
+                startRadius: 10,
+                endRadius: 330
+            )
+        }
+        .ignoresSafeArea()
     }
 }

@@ -10,9 +10,14 @@ let package = Package(
     ],
     products: [
         .library(name: "IntervalEngine", targets: ["IntervalEngine"]),
+        .library(name: "IntervalUI", targets: ["IntervalUI"]),
     ],
     targets: [
         .target(name: "IntervalEngine"),
+        .target(
+            name: "IntervalUI",
+            dependencies: ["IntervalEngine"]
+        ),
         .testTarget(
             name: "IntervalEngineTests",
             dependencies: ["IntervalEngine"]

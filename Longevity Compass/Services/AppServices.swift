@@ -1,4 +1,6 @@
 import Foundation
+import IntervalEngine
+import IntervalUI
 import SwiftData
 import SwiftUI
 
@@ -15,7 +17,7 @@ enum AppTab: Hashable {
         case .train:     return .orange
         case .nutrition: return .green
         case .bloodwork: return .red
-        case .n4x4:      return .cyan
+        case .n4x4:      return N4x4Palette.accent
         }
     }
 }

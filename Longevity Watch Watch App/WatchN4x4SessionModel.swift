@@ -17,7 +17,6 @@ final class WatchN4x4SessionModel {
 
     private(set) var stage: Stage = .idle
     private(set) var output: EngineOutput?
-    private(set) var role: SyncRole = .primary
     private(set) var hrMax: Double?
     private(set) var latestHR: Double?
 
@@ -45,6 +44,7 @@ final class WatchN4x4SessionModel {
     private var watchdog: Task<Void, Never>?
     private var graceCheck: Task<Void, Never>?
     private var receivedAnyHR = false
+    private var didSetUp = false
 
     private var mockHR: Double = 80
     private var useMockHR = false
@@ -54,6 +54,8 @@ final class WatchN4x4SessionModel {
     /// Called once when the root view appears: activate the link and listen for a
     /// phone that is already primary so we can mirror it (spec §5.2/§5.3).
     func onAppear() {
+        guard !didSetUp else { return }
+        didSetUp = true
         #if DEBUG
         useMockHR = MockMode.isActive
         #endif
@@ -69,9 +71,10 @@ final class WatchN4x4SessionModel {
 
     func startPrimary() async {
         guard stage == .idle || stage == .done else { return }
-        role = .primary
-        failover = FailoverController(role: .primary, referenceStart: Date())
+        failover = nil
         receivedAnyHR = false
+        latestHR = nil
+        showTimerOnlyWarning = false
         mockHR = 80
 
         if useMockHR {
@@ -84,25 +87,26 @@ final class WatchN4x4SessionModel {
         self.engine = engine
         output = engine.tick(at: Date()).output  // prime first frame
 
-        // Always open the sensor (unless mocking) so live HR shows even without
-        // zones. Timer-only is now a transient, derived state — no latched mode:
-        // coaching resumes automatically once HR arrives (engine self-gates its
-        // coaching haptics on live HR + a target). We only surface a warning.
-        if !useMockHR {
-            let started = workout.start { [weak self] bpm, date in self?.ingest(bpm: bpm, at: date) }
-            if !started {
-                timerOnlyReason = .sensorFailed
-                showTimerOnlyWarning = true
-            } else if hrMax == nil {
-                timerOnlyReason = .noHRMax
-                showTimerOnlyWarning = true
-            } else {
-                scheduleHRArrivalCheck()
-            }
-        }
-
         stage = .active
+        beginSensing()
         ticker = Task { [weak self] in await self?.runLoop() }
+    }
+
+    /// Always open the wrist sensor (unless mocking) so live HR remains visible
+    /// even when target zones are unavailable. Coaching resumes automatically if
+    /// readings arrive later; the warning only explains the current degradation.
+    private func beginSensing() {
+        guard !useMockHR else { return }
+        let started = workout.start { [weak self] bpm, date in self?.ingest(bpm: bpm, at: date) }
+        if !started {
+            timerOnlyReason = .sensorFailed
+            showTimerOnlyWarning = true
+        } else if hrMax == nil {
+            timerOnlyReason = .noHRMax
+            showTimerOnlyWarning = true
+        } else {
+            scheduleHRArrivalCheck()
+        }
     }
 
     /// If no real HR sample lands within the grace window, surface the timer-only
@@ -151,7 +155,6 @@ final class WatchN4x4SessionModel {
         case .active, .done:
             return  // we own the session; no auto-yield (spec §5.2)
         case .idle:
-            role = .mirror
             failover = FailoverController(role: .mirror, referenceStart: Date())
             stage = .mirroring
             startWatchdog()
@@ -184,7 +187,6 @@ final class WatchN4x4SessionModel {
     private func promoteToPrimary() async {
         guard stage == .mirroring else { return }
         watchdog?.cancel(); watchdog = nil
-        role = .primary
         receivedAnyHR = false
         mockHR = latestHR ?? 80
 
@@ -195,14 +197,16 @@ final class WatchN4x4SessionModel {
             hrMax = await workout.estimatedHRMax()
         }
 
+        // The await yields the main actor. An explicit remote stop or finished
+        // output may have ended mirroring while HealthKit was being queried.
+        guard stage == .mirroring else { return }
+
         let engine = IntervalEngine(hrMax: hrMax, startedAt: Date().addingTimeInterval(-elapsed))
         self.engine = engine
-
-        if !useMockHR {
-            _ = workout.start(onHR: { [weak self] bpm, date in self?.ingest(bpm: bpm, at: date) })
-        }
+        output = engine.tick(at: Date()).output
 
         stage = .active
+        beginSensing()
         ticker = Task { [weak self] in await self?.runLoop() }
     }
 
@@ -258,6 +262,8 @@ final class WatchN4x4SessionModel {
         watchdog?.cancel(); watchdog = nil
         graceCheck?.cancel(); graceCheck = nil
         workout.stop()
+        engine = nil
+        failover = nil
     }
 
     // MARK: - Input

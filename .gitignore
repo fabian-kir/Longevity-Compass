@@ -7,6 +7,7 @@ xcuserdata/
 *.xcuserdatad
 *.xcscmblueprint
 *.xccheckout
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 
 # Xcode — build artefacts
 build/

@@ -37,4 +37,14 @@ final class CodableTests: XCTestCase {
         XCTAssertNil(output.target)
         XCTAssertEqual(try roundTrip(output), output)
     }
+
+    func testSessionMessagesRoundTrip() throws {
+        let output = IntervalEngine(hrMax: 190, startedAt: t0).tick(at: at(1)).output
+        let messages: [SessionMessage] = [.output(output), .stop]
+
+        for message in messages {
+            let data = try JSONEncoder().encode(message)
+            XCTAssertEqual(try JSONDecoder().decode(SessionMessage.self, from: data), message)
+        }
+    }
 }
