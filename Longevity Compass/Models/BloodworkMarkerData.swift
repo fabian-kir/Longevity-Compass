@@ -3,7 +3,7 @@ import Foundation
 /// Decoded shape of `Resources/bloodwork_markers.json`. The file is the single
 /// source of truth for marker metadata, reference bands, causes, interventions
 /// and citations — everything the bloodwork section evaluates and explains.
-struct BloodworkMarkerEntry: Codable, Hashable, Identifiable {
+nonisolated struct BloodworkMarkerEntry: Codable, Hashable, Identifiable {
     let id: String
     let name: String
     let aliases: [String]
@@ -73,7 +73,7 @@ struct BloodworkMarkerEntry: Codable, Hashable, Identifiable {
     }
 }
 
-struct BloodworkResearchFile: Codable {
+nonisolated struct BloodworkResearchFile: Codable {
     let schemaVersion: Int
     let lastUpdated: String
     let notes: String?
@@ -86,7 +86,7 @@ struct BloodworkResearchFile: Codable {
     }
 }
 
-enum BloodworkResearch {
+nonisolated enum BloodworkResearch {
 
     /// Loaded once at first access, kept in memory for the life of the process.
     static let all: [BloodworkMarkerEntry] = load().markers

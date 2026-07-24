@@ -8,12 +8,16 @@ struct AddBloodworkPanelSheet: View {
     @State private var labName: String = ""
     @State private var notes: String = ""
     @State private var acutePhase: Bool = false
-    @State private var drafts: [MarkerDraft] = BloodworkMarkerCatalog.defaults.map(MarkerDraft.init)
+    @State private var drafts: [MarkerDraft]
 
     @State private var showAddCustom = false
     @State private var customName = ""
     @State private var customUnit = ""
     @State private var detailMarker: MarkerDraft?
+
+    init() {
+        _drafts = State(initialValue: BloodworkMarkerCatalog.defaults.map(MarkerDraft.init))
+    }
 
     var body: some View {
         NavigationStack {
@@ -202,7 +206,7 @@ struct AddBloodworkPanelSheet: View {
 
 // MARK: - Marker draft
 
-struct MarkerDraft: Identifiable {
+nonisolated struct MarkerDraft: Identifiable {
     let id: String
     var name: String
     /// Units the user can choose from. Primary first, then any alternates the

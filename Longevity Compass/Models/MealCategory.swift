@@ -88,7 +88,7 @@ enum MealCategory: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Codable payload stored on `NutritionEntry.fingerprintJSON`. One fingerprint per meal.
-struct MealFingerprint: Codable, Equatable {
+nonisolated struct MealFingerprint: Codable, Equatable {
     struct Item: Codable, Equatable {
         let category: MealCategory
         /// Visual fraction of the plate this category occupies, 0...1.

@@ -109,7 +109,7 @@ final class BloodworkMarker {
 /// The catalog is now driven from `Resources/bloodwork_markers.json` — single
 /// source of truth shared with the evaluator. The `Suggestion` shape is kept
 /// for existing call sites (entry sheet rows, marker-guide rows).
-enum BloodworkMarkerCatalog {
+nonisolated enum BloodworkMarkerCatalog {
 
     enum Tier: String, CaseIterable, Identifiable {
         case core

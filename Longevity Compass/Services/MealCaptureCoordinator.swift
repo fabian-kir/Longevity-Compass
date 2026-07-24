@@ -28,6 +28,7 @@ final class MealCaptureCoordinator: NSObject {
     nonisolated(unsafe) private let photoOutput = AVCapturePhotoOutput()
     nonisolated(unsafe) private let metadataOutput = AVCaptureMetadataOutput()
     nonisolated private let sessionQueue = DispatchQueue(label: "meal.capture.session")
+    @ObservationIgnored
     nonisolated(unsafe) private var didConfigure = false
     @ObservationIgnored
     nonisolated(unsafe) private var isBarcodeDetectionEnabled = true
