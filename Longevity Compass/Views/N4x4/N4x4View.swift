@@ -1,5 +1,6 @@
 import IntervalEngine
 import IntervalUI
+import SwiftData
 import SwiftUI
 
 /// Phone screen for a live Norwegian 4x4 session (spec §6.1): a center timer
@@ -7,10 +8,25 @@ import SwiftUI
 /// the Skip / Pause / End controls.
 struct N4x4View: View {
     @Environment(AppServices.self) private var services
-    @State private var model = N4x4SessionModel()
+    @Query(sort: \N4x4WorkoutLog.startedAt, order: .reverse) private var workoutLogs: [N4x4WorkoutLog]
+    @State private var presentedSheet: PresentedSheet?
+
+    private enum PresentedSheet: Identifiable {
+        case setup
+        case machineResults(N4x4WorkoutLog)
+
+        var id: String {
+            switch self {
+            case .setup: return "setup"
+            case .machineResults(let log): return "machine-\(log.sessionID.uuidString)"
+            }
+        }
+    }
+
+    private var model: N4x4SessionModel { services.n4x4 }
 
     var body: some View {
-        @Bindable var model = model
+        @Bindable var model = services.n4x4
         Group {
             if model.isRunning || model.isMirroring {
                 activeSession(model)
@@ -23,14 +39,34 @@ struct N4x4View: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("N4x4")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    N4x4WorkoutHistoryView()
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .accessibilityLabel("N4x4 workout history")
+            }
+        }
         .preferredColorScheme(model.isRunning || model.isMirroring ? .dark : nil)
         .onAppear {
-            model.onAppear(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth)
+            model.onAppear(dateOfBirth: services.healthSnapshot.dateOfBirth)
         }
-        .alert("Timer-only mode", isPresented: $model.showTimerOnlyWarning) {
+        .alert(model.timerOnlyWarningTitle, isPresented: $model.showTimerOnlyWarning) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("No heart-rate source is available, so this session runs the timer and phases only — you won't get HR-based haptic coaching. Pair an Apple Watch to enable guidance.")
+            Text(model.timerOnlyWarningMessage)
+        }
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .setup:
+                N4x4SetupSheet(details: $model.workoutDetails) {
+                    Task { await model.start(dateOfBirth: services.healthSnapshot.dateOfBirth) }
+                }
+            case .machineResults(let log):
+                N4x4MachineResultsSheet(log: log)
+            }
         }
     }
 
@@ -40,47 +76,70 @@ struct N4x4View: View {
         ZStack {
             N4x4AmbientBackdrop(tint: AppTab.n4x4.tint)
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 32)
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 32)
 
-                MjolnirIcon()
-                    .frame(width: 54, height: 64)
-                    .foregroundStyle(AppTab.n4x4.tint)
-                    .padding(24)
-                    .glassEffect(.regular.tint(AppTab.n4x4.tint.opacity(0.12)), in: Circle())
+                    MjolnirIcon()
+                        .frame(width: 54, height: 64)
+                        .foregroundStyle(AppTab.n4x4.tint)
+                        .padding(24)
+                        .glassEffect(.regular.tint(AppTab.n4x4.tint.opacity(0.12)), in: Circle())
 
-                VStack(spacing: 8) {
-                    Text("Norwegian 4×4")
-                        .font(.largeTitle.bold())
-                        .tracking(-0.7)
-                    Text("A focused 31-minute interval session with live heart-rate guidance.")
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: 310)
+                    VStack(spacing: 8) {
+                        Text("Norwegian 4×4")
+                            .font(.largeTitle.bold())
+                            .tracking(-0.7)
+                        Text("A focused 31-minute interval session with live heart-rate guidance.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: 310)
+                    }
+                    .padding(.top, 24)
+
+                    protocolOverview
+                        .padding(.top, 30)
+
+                    estimatedMaxLabel
+                        .padding(.top, 16)
+
+                    if let latest = workoutLogs.first {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Label("Latest workout", systemImage: "chart.xyaxis.line")
+                                    .font(.headline)
+                                Spacer()
+                                NavigationLink("All") { N4x4WorkoutHistoryView() }
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            NavigationLink {
+                                N4x4WorkoutDetailView(log: latest)
+                            } label: {
+                                N4x4WorkoutRow(log: latest)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.top, 26)
+                    }
+
+                    Button {
+                        presentedSheet = .setup
+                    } label: {
+                        Label("Start workout", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(AppTab.n4x4.tint)
+                    .padding(.top, 28)
                 }
-                .padding(.top, 24)
-
-                protocolOverview
-                    .padding(.top, 30)
-
-                estimatedMaxLabel
-                    .padding(.top, 16)
-
-                Spacer(minLength: 28)
-
-                Button {
-                    Task { await model.start(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth) }
-                } label: {
-                    Label("Start workout", systemImage: "play.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(AppTab.n4x4.tint)
+                .padding(24)
             }
-            .padding(24)
         }
     }
 
@@ -167,13 +226,11 @@ struct N4x4View: View {
 
                 Spacer(minLength: 18)
 
-                if !model.isMirroring {
-                    controls(model, output: output)
-                }
+                controls(model, output: output)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .padding(.bottom, model.isMirroring ? 0 : 88)
+            .padding(.bottom, 88)
         }
     }
 
@@ -190,8 +247,31 @@ struct N4x4View: View {
                 totalRemainingLabel(output)
             }
 
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 12) {
+                    Label("BPM", systemImage: "waveform.path.ecg")
+                        .foregroundStyle(.pink)
+                    Label("Target slope", systemImage: "line.diagonal")
+                        .foregroundStyle(.yellow)
+                    Spacer()
+                    Text("LAST 7 MIN")
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                .font(.caption2.weight(.bold))
+
+                N4x4HeartRateChart(frames: model.liveFrames, liveWindow: 7 * 60)
+                    .frame(height: 116)
+                    .overlay {
+                        if !model.liveFrames.contains(where: { $0.bpm != nil }) {
+                            Text("Waiting for heart-rate data")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.62))
+                        }
+                    }
+            }
+
             if model.isMirroring {
-                Label("Controlled from Apple Watch", systemImage: "applewatch")
+                Label("Heart rate from Apple Watch", systemImage: "applewatch.radiowaves.left.and.right")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.white.opacity(0.82))
             }
@@ -263,7 +343,7 @@ struct N4x4View: View {
 
     @ViewBuilder
     private func targetlessCue(_ output: EngineOutput?) -> some View {
-        if (model.latestHR ?? output?.trailingHR) == nil {
+        if output?.trailingHR == nil {
             Label("Timer only", systemImage: "timer")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.82))
@@ -358,10 +438,33 @@ struct N4x4View: View {
                     .font(.headline)
                     .foregroundStyle(.secondary)
 
+                if let log = completedLog {
+                    HStack(spacing: 18) {
+                        completionMetric("AVG", log.averageHeartRate.map { "\(Int($0.rounded()))" } ?? "—", "BPM")
+                        completionMetric("IN TARGET", log.targetAdherence.map { $0.formatted(.percent.precision(.fractionLength(0))) } ?? "—", "")
+                        completionMetric("RECOVERY", log.averageOneMinuteRecovery.map { "\(Int($0.rounded()))" } ?? "—", "BPM / 1M")
+                    }
+                    .padding(.top, 8)
+
+                    Button {
+                        presentedSheet = .machineResults(log)
+                    } label: {
+                        Label("Add machine results", systemImage: "square.and.pencil")
+                    }
+                    .buttonStyle(.glass)
+
+                    NavigationLink {
+                        N4x4WorkoutDetailView(log: log)
+                    } label: {
+                        Label("View workout analysis", systemImage: "chart.xyaxis.line")
+                    }
+                    .font(.headline)
+                }
+
                 Spacer()
 
                 Button {
-                    Task { await model.start(healthKit: services.healthKit, dateOfBirth: services.healthSnapshot.dateOfBirth) }
+                    Task { await model.start(dateOfBirth: services.healthSnapshot.dateOfBirth) }
                 } label: {
                     Label("Start again", systemImage: "arrow.clockwise")
                         .font(.headline)
@@ -377,8 +480,32 @@ struct N4x4View: View {
 
     // MARK: - Helpers
 
+    private var completedLog: N4x4WorkoutLog? {
+        guard let id = model.lastCompletedLogID else { return nil }
+        return workoutLogs.first { $0.sessionID == id }
+    }
+
+    private func completionMetric(_ title: String, _ value: String, _ unit: String) -> some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.bold().monospacedDigit())
+            if !unit.isEmpty {
+                Text(unit)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private func hrText(_ output: EngineOutput?) -> String {
-        if let hr = model.latestHR ?? output?.trailingHR {
+        // Render the authoritative trailing value from EngineOutput on both
+        // devices. Using a primary-only raw sample here made the two screens
+        // disagree even when synchronization itself was healthy.
+        if let hr = output?.trailingHR {
             return String(Int(hr.rounded()))
         }
         return "—"

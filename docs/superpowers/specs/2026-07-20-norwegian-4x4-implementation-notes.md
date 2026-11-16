@@ -45,7 +45,7 @@ The local package is wired into the app via a `XCLocalSwiftPackageReference` in
   `-mockData` so the flow is demoable without hardware.
 - `Views/N4x4/PhoneWorkoutManager.swift` — the phone's standalone HR source
   (spec §5.2/§5.3): an iOS `HKWorkoutSession` + `HKLiveWorkoutBuilder` reading
-  beat-to-beat HR from a locally paired sensor (AirPods Pro 2 / Bluetooth strap)
+  beat-to-beat HR from a compatible locally paired sensor (AirPods / Bluetooth strap)
   when no Watch is primary. Live samples pushed to the session model.
 - `Views/N4x4/N4x4HapticEngine.swift` — maps engine `HapticCommand`s to
   CoreHaptics patterns, with `UIFeedbackGenerator` fallback.
@@ -67,9 +67,9 @@ app; the local `IntervalEngine` package is linked into it (wired via
 - `ContentView.swift` — compact layout: phase-flow backdrop, HR, phase/round label,
   time remaining, out-of-range cue arrow; swipe-left page carries Skip/Pause/
   End (spec §7); idle + completion screens; timer-only warning alert.
-- `WatchN4x4SessionModel.swift` — `@Observable @MainActor` orchestrator with an
-  `idle / active / mirroring / done` state machine. Runs the engine at 1 Hz when
-  primary; renders a remote primary's ticks (haptics muted) when mirroring.
+- `WatchN4x4SessionModel.swift` — app-lifetime `@Observable @MainActor`
+  orchestrator. A running Watch owns the shared timeline and optical HR source;
+  it can adopt a phone checkpoint without restarting the HealthKit workout.
 - `WatchWorkoutManager.swift` — `HKWorkoutSession` + `HKLiveWorkoutBuilder` for
   real wrist HR (the watch is the preferred primary, spec §5.2); HRmax from
   HealthKit DOB + observed 90-day max via the shared `HRMaxEstimator`.
@@ -83,22 +83,21 @@ embedded generic-iOS-Simulator build, and the idle screen renders on an
 Apple Watch Series 11 (46 mm) sim. Real HR, haptics, and the live session with
 on-device sensors need a physical watch (spec §9).
 
-### WCSession primary/mirror link (spec §5.2)
+### Durable phone/Watch session link (spec §5.2)
 
-- `Longevity Watch Watch App/WatchConnectivityManager.swift` and
-  `Longevity Compass/Views/N4x4/N4x4ConnectivityManager.swift` — thin transport;
-  each shared `SessionMessage` crosses as JSON (`sendMessageData`). Output and
-  stop messages are both covered by a Codable round-trip test.
-- The watch runs the full loop: streams its output while primary, renders a
-  remote primary while mirroring, and drives promotion through the existing
-  `FailoverController` (`receivedPrimaryTick(at:)` per inbound tick,
-  `evaluate(at:)` on a 1 Hz watchdog). No auto-reclaim, no auto-yield.
-- The phone runs the same full loop: streams its output while primary
-  (`connectivity.send(_:)` each tick), renders a watch primary while mirroring
-  (`onRemoteOutput` → `handleRemoteOutput`, haptics muted), and promotes itself
-  through its own `FailoverController` watchdog if the watch's stream goes quiet
-  — seeding the local engine to the mirrored elapsed so the timeline stays
-  continuous. No auto-reclaim, no auto-yield, matching the watch.
+- `SessionSnapshot` carries a complete `EngineCheckpoint`, source readiness,
+  sequence, authority, and acknowledged command IDs. `SessionCommand` carries
+  a stable ID plus its original event time, making pause/resume/skip replay safe.
+- WCSession provides responsive foreground delivery plus a retained checkpoint
+  and ordered command log in application context. HealthKit workout mirroring is
+  the independent background-capable transport; duplicate delivery is expected.
+- The Watch only takes sensor authority after its `HKWorkoutSession` opened. If
+  it cannot, the phone keeps or assumes authority and uses its external source.
+- If Watch ticks disappear, the phone restores the exact checkpoint after the
+  grace window. It never stops the protocol. On reconnect, ordered controls are
+  replayed and acknowledged, then Watch HR becomes authoritative again.
+- Explicit and natural terminal session IDs are tombstoned so delayed packets
+  cannot resurrect a finished protocol.
 
 Cross-device failover is only observable on real paired hardware (spec §9); the
 per-device state machine and the promotion decision are unit-/Simulator-tested.
@@ -112,7 +111,7 @@ per-device state machine and the promotion decision are unit-/Simulator-tested.
 - **iOS live HR = on-device `HKWorkoutSession`, not an anchored query.**
   `HKWorkoutSession` + `HKLiveWorkoutBuilder` are available on iOS 17+ (deploy
   target 26.4), so the phone opens its own workout session and streams
-  beat-to-beat HR from a locally paired sensor (AirPods Pro 2 / Bluetooth strap)
+  beat-to-beat HR from a compatible locally paired sensor (AirPods / Bluetooth strap)
   — the "phone alone + external HR source" mode (spec §5.2/§5.3). This replaced
   an earlier anchored-query sketch, which lagged several seconds and couldn't
   serve real-time coaching. The superseded anchored-query helpers were removed.
@@ -132,19 +131,21 @@ property list includes `WKBackgroundModes = workout-processing`, keeping its
 active workout session alive with the screen off. Real sensor and paired-device
 behavior still requires physical hardware.
 
-## Deferred
+### Live Activity / system workout surfaces (spec §6.3)
 
-### Live Activity / Widget extension (spec §6.3)
+Target `N4x4 Live Activity` is embedded in the iPhone app. It renders the Lock
+Screen, Dynamic Island, and the mirrored Apple Watch Smart Stack family from the
+same shared snapshot. Its system countdowns use absolute end dates, so the clock
+continues without one ActivityKit update per second. The active Watch
+`HKWorkoutSession` supplies the Watch workout indicator and background runtime.
 
-The Codable `EngineOutput` is ready to drive a future Live Activity content state.
-
-1. File ▸ New ▸ Target ▸ **Widget Extension**, "Include Live Activity".
-2. Define `ActivityAttributes` whose `ContentState` carries the lean payload:
-   current HR, `AdjustmentHint` (arrow only when out of range), phase time
-   remaining, `RingColor`. No phase-name text — color communicates phase.
-3. Start the activity when a session begins and update it from `EngineOutput`.
+## Persistence and remaining follow-ups
 
 ### Follow-ups (code, no new target)
 
-- Out of scope for v1 (spec §8): no HealthKit workout write, no post-session
-  summary, no manual HRmax override.
+- Completed protocols are finalized as HealthKit HIIT workouts by the active
+  phone or Watch workout builder. Explicitly stopped/failed sessions are still
+  discarded from HealthKit.
+- SwiftData stores one local session log with the BPM/target series, summary
+  metrics, equipment, and optional user-entered machine estimates.
+- Still deferred: manual HRmax override.

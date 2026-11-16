@@ -16,6 +16,24 @@ final class WatchWorkoutManager: NSObject {
     private var builder: HKLiveWorkoutBuilder?
     private var onHR: ((Double, Date) -> Void)?
 
+    /// App state/control messages arriving from the mirrored phone session.
+    var onRemoteMessage: ((SessionMessage) -> Void)?
+
+    /// Mirroring failure is transport-only: the wrist workout and builder keep
+    /// running, and the owner can retry or continue standalone.
+    var onRemoteDisconnect: ((Error?) -> Void)?
+
+    /// A local HealthKit session failure removes the sensor source, but must not
+    /// stop the protocol engine. The owner can report degradation and retry.
+    var onSessionFailure: ((Error) -> Void)?
+
+    /// Fired when HealthKit transitions the source to ended without this manager
+    /// initiating teardown. The protocol owner treats it as sensor loss unless a
+    /// separately identified `.stop` command arrives.
+    var onSessionEnded: (() -> Void)?
+
+    private(set) var isRemoteConnected = false
+
     // `nonisolated`: pure computed HealthKit lookups with no stored state, so the
     // nonisolated builder delegate (below) can read them off the main actor.
     private nonisolated static var bpmUnit: HKUnit { HKUnit.count().unitDivided(by: .minute()) }
@@ -66,6 +84,10 @@ final class WatchWorkoutManager: NSObject {
         guard HKHealthStore.isHealthDataAvailable() else { return false }
         self.onHR = onHR
 
+        if session != nil {
+            return true
+        }
+
         let config = HKWorkoutConfiguration()
         config.activityType = .highIntensityIntervalTraining
         config.locationType = .unknown
@@ -79,6 +101,10 @@ final class WatchWorkoutManager: NSObject {
             self.session = session
             self.builder = builder
 
+            // Initiate mirroring before activity starts. Its completion runs on
+            // an arbitrary queue and never gates the local wrist session.
+            beginMirroringBestEffort(for: session)
+
             let startDate = Date()
             session.startActivity(with: startDate)
             builder.beginCollection(withStart: startDate) { _, _ in }
@@ -89,14 +115,176 @@ final class WatchWorkoutManager: NSObject {
         }
     }
 
-    func stop() {
+    /// Retry mirroring an already-running wrist session without affecting it if
+    /// the phone is still unavailable.
+    @discardableResult
+    func startMirroring() async -> Bool {
+        guard let session else { return false }
+        do {
+            try await session.startMirroringToCompanionDevice()
+            isRemoteConnected = true
+            return true
+        } catch {
+            isRemoteConnected = false
+            onRemoteDisconnect?(error)
+            return false
+        }
+    }
+
+    /// Send current protocol state or a control command to the mirrored phone.
+    /// Starting the callback-based transfer synchronously matters for terminal
+    /// packets: callers may end the workout immediately after this method returns.
+    @discardableResult
+    func beginSendingToRemote(_ message: SessionMessage) -> Bool {
+        guard let session,
+              let data = try? JSONEncoder().encode(message) else { return false }
+        session.sendToRemoteWorkoutSession(data: data) { _, _ in }
+        return true
+    }
+
+    /// Send current protocol state or a control command to the mirrored phone.
+    @discardableResult
+    func sendToRemote(_ message: SessionMessage) async -> Bool {
+        guard let session,
+              let data = try? JSONEncoder().encode(message) else { return false }
+        do {
+            try await session.sendToRemoteWorkoutSession(data: data)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func pause() {
+        guard session?.state == .running else { return }
+        session?.pause()
+    }
+
+    func resume() {
+        guard session?.state == .paused else { return }
+        session?.resume()
+    }
+
+    func teardown() {
         onHR = nil
+        isRemoteConnected = false
+        session?.delegate = nil
+        builder?.delegate = nil
         session?.end()
-        // The session is used for live sensing only. Persisting an HKWorkout is
-        // intentionally deferred, so discard the builder's collected results.
+        // Explicit stops and failed/replaced sensor sessions are not completed
+        // workouts. The natural completion path finalizes its builder instead.
         builder?.discardWorkout()
         session = nil
         builder = nil
+    }
+
+    /// Finalizes a naturally completed N4x4 session as one HealthKit workout.
+    /// Explicitly stopped sessions continue to use `teardown()` and are
+    /// discarded, preserving the distinction between complete and aborted runs.
+    @discardableResult
+    func completeWorkout(
+        at endDate: Date,
+        sessionID: UUID,
+        completion: @escaping (Error?) -> Void = { _ in }
+    ) -> Bool {
+        guard let session, let builder else { return false }
+
+        onHR = nil
+        isRemoteConnected = false
+        self.session = nil
+        self.builder = nil
+        session.delegate = nil
+        builder.delegate = nil
+        session.end()
+
+        Task { @MainActor in
+            do {
+                try await builder.endCollection(at: endDate)
+                try await builder.addMetadata([
+                    HKMetadataKeyWorkoutBrandName: "Longevity Compass N4x4",
+                    HKMetadataKeySyncIdentifier: sessionID.uuidString,
+                    HKMetadataKeySyncVersion: 1,
+                ])
+                let error = await withCheckedContinuation { continuation in
+                    builder.finishWorkout { _, error in
+                        continuation.resume(returning: error)
+                    }
+                }
+                completion(error)
+            } catch {
+                builder.discardWorkout()
+                completion(error)
+            }
+        }
+        return true
+    }
+
+    // Compatibility alias for existing callers.
+    func stop() {
+        teardown()
+    }
+
+    private func beginMirroringBestEffort(for session: HKWorkoutSession) {
+        session.startMirroringToCompanionDevice { [weak self] success, error in
+            Task { @MainActor [weak self] in
+                guard let self, self.session === session else { return }
+                self.isRemoteConnected = success
+                if !success {
+                    self.onRemoteDisconnect?(error)
+                }
+            }
+        }
+    }
+
+    private func handleRemoteData(
+        _ payloads: [Data],
+        from sourceSession: HKWorkoutSession
+    ) {
+        guard session === sourceSession else { return }
+        for payload in payloads {
+            guard let message = try? JSONDecoder().decode(SessionMessage.self, from: payload) else { continue }
+            onRemoteMessage?(message)
+        }
+    }
+
+    private func handleRemoteDisconnect(
+        session sourceSession: HKWorkoutSession,
+        error: Error?
+    ) {
+        guard session === sourceSession else { return }
+        isRemoteConnected = false
+        onRemoteDisconnect?(error)
+        // Do not end/discard: wrist sensing and the local protocol continue.
+    }
+
+    private func handleSessionFailure(
+        session sourceSession: HKWorkoutSession,
+        error: Error
+    ) {
+        guard session === sourceSession else { return }
+        onHR = nil
+        isRemoteConnected = false
+        sourceSession.delegate = nil
+        builder?.delegate = nil
+        builder?.discardWorkout()
+        session = nil
+        builder = nil
+        onSessionFailure?(error)
+    }
+
+    private func handleStateChange(
+        session sourceSession: HKWorkoutSession,
+        to state: HKWorkoutSessionState
+    ) {
+        guard session === sourceSession, state == .ended else { return }
+        onHR = nil
+        isRemoteConnected = false
+        sourceSession.delegate = nil
+        builder?.delegate = nil
+        builder?.discardWorkout()
+        session = nil
+        builder = nil
+        onSessionEnded?()
     }
 }
 
@@ -106,9 +294,35 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
         didChangeTo toState: HKWorkoutSessionState,
         from fromState: HKWorkoutSessionState,
         date: Date
-    ) {}
+    ) {
+        Task { @MainActor [weak self] in
+            self?.handleStateChange(session: workoutSession, to: toState)
+        }
+    }
 
-    nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {}
+    nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        Task { @MainActor [weak self] in
+            self?.handleSessionFailure(session: workoutSession, error: error)
+        }
+    }
+
+    nonisolated func workoutSession(
+        _ workoutSession: HKWorkoutSession,
+        didReceiveDataFromRemoteWorkoutSession data: [Data]
+    ) {
+        Task { @MainActor [weak self] in
+            self?.handleRemoteData(data, from: workoutSession)
+        }
+    }
+
+    nonisolated func workoutSession(
+        _ workoutSession: HKWorkoutSession,
+        didDisconnectFromRemoteDeviceWithError error: Error?
+    ) {
+        Task { @MainActor [weak self] in
+            self?.handleRemoteDisconnect(session: workoutSession, error: error)
+        }
+    }
 }
 
 extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {

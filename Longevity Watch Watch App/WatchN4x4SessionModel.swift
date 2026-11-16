@@ -2,117 +2,253 @@ import Foundation
 import IntervalEngine
 import Observation
 
-/// Drives a Norwegian 4x4 session on the watch. The watch is the preferred
-/// *primary* (wrist HR via `HKWorkoutSession`), but it can also *mirror* a phone
-/// that started first, and auto-promote itself if the phone's link drops
-/// (spec §5.2). The promotion *decision* lives in the tested `FailoverController`;
-/// this model owns the sensing, engine, haptics and role transitions.
+/// App-lifetime Watch coordinator. Whenever a Watch is present it owns the
+/// protocol engine and wrist heart-rate stream, regardless of which device the
+/// user used to start the session. A phone checkpoint is adopted without
+/// resetting elapsed time; connection loss never stops the local workout.
 @Observable
 @MainActor
 final class WatchN4x4SessionModel {
+    static let shared = WatchN4x4SessionModel()
 
-    /// Screen state. `active` = we are primary (local engine + haptics);
-    /// `mirroring` = rendering a remote primary's output with haptics muted.
     enum Stage: Equatable { case idle, active, mirroring, done }
+
+    enum TimerOnlyReason: Equatable {
+        case noHRMax
+        case sensorFailed
+        case noReadings
+    }
 
     private(set) var stage: Stage = .idle
     private(set) var output: EngineOutput?
     private(set) var hrMax: Double?
+    private(set) var heartRateSource: HeartRateSource = .none
     private(set) var latestHR: Double?
-
-    /// Why the session fell back to timer-only — drives the reason-specific
-    /// warning copy the watch surfaces (spec §5.3). "No HR source" was misleading:
-    /// the wrist sensor is fine; these are the real reasons zones get disabled.
-    enum TimerOnlyReason: Equatable {
-        case noHRMax       // no DOB and no 90-day history → can't build target zones
-        case sensorFailed  // HKWorkoutSession wouldn't open
-        case noReadings    // session opened but no HR samples arrived in the grace window
-    }
-
     private(set) var timerOnlyReason: TimerOnlyReason = .noHRMax
-
-    /// Surfaced once when a standalone session falls back to timer-only, so the
-    /// watch UI can show the reason-specific warning (spec §5.3).
     var showTimerOnlyWarning = false
 
     private let workout = WatchWorkoutManager()
     private let haptics = WatchHapticEngine()
     private let connectivity = WatchConnectivityManager()
+
     private var engine: IntervalEngine?
-    private var failover: FailoverController?
+    private var currentSnapshot: SessionSnapshot?
+    private var sessionID: UUID?
+    private var sessionCreatedAt: Date?
+    private var sequence: UInt64 = 0
     private var ticker: Task<Void, Never>?
-    private var watchdog: Task<Void, Never>?
     private var graceCheck: Task<Void, Never>?
+    private var sensorRetryTask: Task<Void, Never>?
+    private var systemStartTask: Task<Void, Never>?
+    private var pendingStartID: UUID?
     private var receivedAnyHR = false
-    private var didSetUp = false
+    private var heartRateSessionActive = false
+    private var authorizationTask: Task<Bool, Never>?
+    private var processedCommandIDs: Set<UUID> = []
+    private var acknowledgedCommandIDs: [UUID] = []
+    private var stoppedSessionIDs: Set<UUID> = []
 
     private var mockHR: Double = 80
     private var useMockHR = false
 
-    // MARK: - Setup
-
-    /// Called once when the root view appears: activate the link and listen for a
-    /// phone that is already primary so we can mirror it (spec §5.2/§5.3).
-    func onAppear() {
-        guard !didSetUp else { return }
-        didSetUp = true
+    init() {
         #if DEBUG
         useMockHR = MockMode.isActive
         #endif
-        connectivity.onRemoteOutput = { [weak self] output in self?.handleRemoteOutput(output) }
-        connectivity.onRemoteStop = { [weak self] in self?.handleRemoteStop() }
+
+        connectivity.onRemoteMessage = { [weak self] message in
+            self?.handleRemoteMessage(message)
+        }
+        connectivity.onReachabilityChanged = { [weak self] reachable in
+            self?.handleReachabilityChange(reachable)
+        }
         connectivity.activate()
-        if !useMockHR {
-            Task { _ = await workout.requestAuthorization() }
+
+        workout.onRemoteMessage = { [weak self] message in
+            self?.handleRemoteMessage(message)
+        }
+        workout.onRemoteDisconnect = { _ in
+            // Transport loss is deliberately not a workout/session event. The
+            // wrist engine, sensor, timer, haptics, and status icon keep running.
+        }
+        workout.onSessionFailure = { [weak self] _ in
+            self?.handleSensorSessionFailure()
+        }
+        workout.onSessionEnded = { [weak self] in
+            // HealthKit's ended state does not identify *why* it ended. Preserve
+            // the protocol unless the separately authenticated session command
+            // says stop; meanwhile retry wrist sensing like any other failure.
+            self?.handleSensorSessionFailure()
         }
     }
 
-    // MARK: - Primary (this watch runs the session)
+    func onAppear() {
+        Task { _ = await ensureAuthorization() }
+    }
+
+    private func ensureAuthorization() async -> Bool {
+        if useMockHR { return true }
+        if let authorizationTask { return await authorizationTask.value }
+
+        let task = Task { [workout] in
+            await workout.requestAuthorization()
+        }
+        authorizationTask = task
+        return await task.value
+    }
+
+    /// Called by `WKApplicationDelegate` after iPhone uses HealthKit's
+    /// `startWatchApp`. Give the pending WCSession checkpoint a short chance to
+    /// arrive; if it does not, begin locally and reconcile when it does.
+    func handleSystemWorkoutStart() async {
+        _ = await ensureAuthorization()
+        if stage == .active {
+            publishCurrentFrame()
+            _ = await workout.startMirroring()
+            return
+        }
+
+        systemStartTask?.cancel()
+        let task = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard let self, !Task.isCancelled,
+                  self.stage == .idle || self.stage == .done else { return }
+            await self.startPrimary()
+        }
+        systemStartTask = task
+        await task.value
+    }
+
+    // MARK: - Watch authority
 
     func startPrimary() async {
         guard stage == .idle || stage == .done else { return }
-        failover = nil
-        receivedAnyHR = false
-        latestHR = nil
-        showTimerOnlyWarning = false
-        mockHR = 80
+        _ = await ensureAuthorization()
+        guard stage == .idle || stage == .done else { return }
 
+        let startID = UUID()
+        pendingStartID = startID
+        let maxHR: Double?
         if useMockHR {
-            hrMax = 188
+            maxHR = 188
         } else {
-            hrMax = await workout.estimatedHRMax()
+            maxHR = await workout.estimatedHRMax()
         }
 
-        let engine = IntervalEngine(hrMax: hrMax, startedAt: Date())
-        self.engine = engine
-        output = engine.tick(at: Date()).output  // prime first frame
+        // A phone checkpoint or stop may have arrived while HealthKit queried.
+        guard pendingStartID == startID,
+              stage == .idle || stage == .done else { return }
+        pendingStartID = nil
 
-        stage = .active
-        beginSensing()
-        ticker = Task { [weak self] in await self?.runLoop() }
+        let now = Date()
+        beginWatchAuthority(
+            engine: IntervalEngine(hrMax: maxHR, startedAt: now),
+            sessionID: UUID(),
+            createdAt: now,
+            startingSequence: 0
+        )
     }
 
-    /// Always open the wrist sensor (unless mocking) so live HR remains visible
-    /// even when target zones are unavailable. Coaching resumes automatically if
-    /// readings arrive later; the warning only explains the current degradation.
-    private func beginSensing() {
-        guard !useMockHR else { return }
-        let started = workout.start { [weak self] bpm, date in self?.ingest(bpm: bpm, at: date) }
-        if !started {
+    private func beginWatchAuthority(
+        engine: IntervalEngine,
+        sessionID: UUID,
+        createdAt: Date,
+        startingSequence: UInt64,
+        initialAcknowledgedCommandIDs: [UUID] = []
+    ) {
+        let continuesExistingSession = self.sessionID == sessionID
+        cancelRuntimeTasks()
+
+        // Swapping protocol checkpoints must not restart a healthy optical
+        // workout. `start` reuses the existing session and only updates its HR
+        // callback, avoiding a sensor/indicator gap during phone handoff.
+        if !continuesExistingSession {
+            acknowledgedCommandIDs = initialAcknowledgedCommandIDs
+        } else {
+            for commandID in initialAcknowledgedCommandIDs { acknowledge(commandID) }
+        }
+        processedCommandIDs.formUnion(initialAcknowledgedCommandIDs)
+
+        self.engine = engine
+        self.sessionID = sessionID
+        sessionCreatedAt = createdAt
+        sequence = startingSequence
+        hrMax = engine.hrMax
+        receivedAnyHR = false
+        latestHR = nil
+        heartRateSource = .none
+        heartRateSessionActive = false
+        showTimerOnlyWarning = false
+        mockHR = 80
+        stage = .active
+
+        let result = engine.tick(at: Date())
+        output = result.output
+        _ = beginSensing()
+        publish(result.output)
+        ticker = Task { [weak self, weak engine] in
+            guard let engine else { return }
+            await self?.runLoop(engine: engine, sessionID: sessionID)
+        }
+    }
+
+    @discardableResult
+    private func beginSensing() -> Bool {
+        guard stage == .active else { return false }
+        if useMockHR {
+            heartRateSessionActive = true
+            return true
+        }
+        let opened = workout.start { [weak self] bpm, date in
+            self?.ingest(bpm: bpm, at: date)
+        }
+        heartRateSessionActive = opened
+        if !opened {
             timerOnlyReason = .sensorFailed
             showTimerOnlyWarning = true
+            scheduleSensorRetry()
         } else if hrMax == nil {
             timerOnlyReason = .noHRMax
             showTimerOnlyWarning = true
+            scheduleHRArrivalCheck()
         } else {
             scheduleHRArrivalCheck()
         }
+        if opened {
+            if engine?.isPaused == true { workout.pause() } else { workout.resume() }
+        }
+        return opened
     }
 
-    /// If no real HR sample lands within the grace window, surface the timer-only
-    /// warning — distinct from silent degradation (spec §5.3). This no longer
-    /// latches a mode; if HR shows up later, coaching resumes on its own.
+    private func scheduleSensorRetry() {
+        guard sensorRetryTask == nil else { return }
+        sensorRetryTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self, self.stage == .active else { return }
+                if self.beginSensing() {
+                    self.sensorRetryTask = nil
+                    self.showTimerOnlyWarning = self.hrMax == nil
+                    self.publishCurrentFrame()
+                    return
+                }
+            }
+        }
+    }
+
+    private func handleSensorSessionFailure() {
+        guard stage == .active else { return }
+        heartRateSessionActive = false
+        receivedAnyHR = false
+        heartRateSource = .none
+        timerOnlyReason = .sensorFailed
+        showTimerOnlyWarning = true
+        publishCurrentFrame()
+        scheduleSensorRetry()
+    }
+
     private func scheduleHRArrivalCheck() {
+        graceCheck?.cancel()
         graceCheck = Task { [weak self] in
             try? await Task.sleep(for: .seconds(20))
             guard let self, self.stage == .active, !self.useMockHR else { return }
@@ -123,156 +259,293 @@ final class WatchN4x4SessionModel {
         }
     }
 
-    private func runLoop() async {
-        guard let engine else { return }
-        while !Task.isCancelled, stage == .active {
+    // MARK: - Reconciliation
+
+    private func handleRemoteMessage(_ message: SessionMessage) {
+        switch message {
+        case .snapshot(let snapshot):
+            handleRemoteSnapshot(snapshot)
+        case .command(let command):
+            handleRemoteCommand(command)
+        }
+    }
+
+    private func handleRemoteSnapshot(_ remote: SessionSnapshot) {
+        guard !stoppedSessionIDs.contains(remote.sessionID) else { return }
+
+        let localForConflict = stage == .active ? currentSnapshot : nil
+        guard SessionReconciliation.shouldAdopt(
+            remote: remote,
+            over: localForConflict,
+            localDevice: .watch
+        ) else {
+            if stage == .active { publishCurrentFrame() }
+            return
+        }
+
+        guard remote.authority == .phone else { return }
+        if remote.output.isFinished {
+            stoppedSessionIDs.insert(remote.sessionID)
+            trimTerminalHistory()
+            stopRuntime(clearOutput: false, finalStage: .done)
+            output = remote.output
+            currentSnapshot = remote
+            return
+        }
+
+        // Preserve all clock/pause/skip/ramp state, but start a clean HR buffer:
+        // from this moment the Watch optical sensor is the sole HR authority.
+        let restored = IntervalEngine(
+            checkpoint: remote.checkpoint,
+            includeHeartRateHistory: false
+        )
+        beginWatchAuthority(
+            engine: restored,
+            sessionID: remote.sessionID,
+            createdAt: remote.createdAt,
+            startingSequence: remote.sequence,
+            initialAcknowledgedCommandIDs: remote.acknowledgedCommandIDs
+        )
+    }
+
+    private func handleReachabilityChange(_ reachable: Bool) {
+        guard stage == .active else { return }
+        if reachable {
+            publishCurrentFrame()
+            Task { _ = await workout.startMirroring() }
+        }
+        // On loss there is intentionally nothing to do: Watch is already the
+        // local authority and its HKWorkoutSession keeps it alive in background.
+    }
+
+    // MARK: - Controls
+
+    func pauseResume() {
+        guard let output else { return }
+        performLocalAction(.setPaused(!output.isPaused), broadcastCommand: true)
+    }
+
+    @discardableResult
+    func skip() -> Bool {
+        guard canSkip else { return false }
+        performLocalAction(.skip, broadcastCommand: true)
+        return true
+    }
+
+    var canSkip: Bool {
+        stage == .active
+            && output?.phase.isSkippable == true
+            && !(output?.isFinished ?? false)
+    }
+
+    var canControl: Bool { stage == .active }
+
+    func end() {
+        guard let sessionID else { return }
+        let command = SessionCommand(sessionID: sessionID, action: .stop)
+        stoppedSessionIDs.insert(sessionID)
+        trimTerminalHistory()
+        broadcast(.command(command))
+        stopRuntime(clearOutput: true, finalStage: .idle)
+    }
+
+    private func handleRemoteCommand(_ command: SessionCommand) {
+        guard !processedCommandIDs.contains(command.id),
+              !acknowledgedCommandIDs.contains(command.id) else { return }
+        remember(command.id)
+
+        if case .stop = command.action {
+            stoppedSessionIDs.insert(command.sessionID)
+            trimTerminalHistory()
+            guard command.sessionID == sessionID else { return }
+            stopRuntime(clearOutput: true, finalStage: .idle)
+            return
+        }
+
+        guard command.sessionID == sessionID,
+              !stoppedSessionIDs.contains(command.sessionID) else { return }
+        acknowledge(command.id)
+
+        switch command.action {
+        case .setPaused, .skip:
+            performLocalAction(
+                command.action,
+                at: command.issuedAt,
+                broadcastCommand: false
+            )
+        case .requestSync:
+            publishCurrentFrame()
+        case .stop:
+            break
+        }
+    }
+
+    private func performLocalAction(
+        _ action: SessionCommand.Action,
+        at now: Date = .now,
+        broadcastCommand: Bool
+    ) {
+        guard stage == .active, let engine else { return }
+        let outgoingCommand: SessionCommand? = if broadcastCommand, let sessionID {
+            SessionCommand(sessionID: sessionID, issuedAt: now, action: action)
+        } else {
+            nil
+        }
+        if let outgoingCommand {
+            remember(outgoingCommand.id)
+            acknowledge(outgoingCommand.id)
+        }
+        switch action {
+        case .setPaused(let paused):
+            engine.setPaused(paused, at: now)
+            if paused { workout.pause() } else { workout.resume() }
+        case .skip:
+            _ = engine.skip(at: now)
+        case .stop, .requestSync:
+            return
+        }
+
+        let result = engine.tick(at: now)
+        output = result.output
+        if let outgoingCommand {
+            broadcast(.command(outgoingCommand))
+        }
+        publish(result.output)
+    }
+
+    // MARK: - Engine loop / HR
+
+    private func ingest(bpm: Double, at date: Date) {
+        guard stage == .active, let engine else { return }
+        receivedAnyHR = true
+        latestHR = bpm
+        heartRateSource = .watch
+        if timerOnlyReason == .noReadings || timerOnlyReason == .sensorFailed {
+            showTimerOnlyWarning = false
+        }
+        engine.ingest(hrSample: bpm, at: date)
+    }
+
+    private func runLoop(engine: IntervalEngine, sessionID expectedSessionID: UUID) async {
+        while !Task.isCancelled,
+              stage == .active,
+              sessionID == expectedSessionID,
+              self.engine === engine {
             let now = Date()
             if useMockHR, !engine.isPaused {
                 let bpm = nextMockHR()
                 engine.ingest(hrSample: bpm, at: now)
                 latestHR = bpm
                 receivedAnyHR = true
+                heartRateSource = .watch
             }
+
             let result = engine.tick(at: now)
             output = result.output
-            connectivity.send(result.output)  // let a phone mirror this primary
-            // Engine self-gates coaching: goHarder/chill only fire with live HR +
-            // a target, phaseTransition always. So play everything unconditionally
-            // — timer-only just means no HR, hence no coaching cues this tick.
+            publish(result.output)
             for command in result.haptics { haptics.play(command) }
+
             if result.output.isFinished {
-                finish()
-                break
+                stoppedSessionIDs.insert(expectedSessionID)
+                trimTerminalHistory()
+                stopRuntime(
+                    clearOutput: false,
+                    finalStage: .done,
+                    completedSessionID: expectedSessionID
+                )
+                return
             }
             try? await Task.sleep(for: .seconds(1))
         }
     }
 
-    // MARK: - Mirror (a phone is primary)
-
-    private func handleRemoteOutput(_ remote: EngineOutput) {
-        switch stage {
-        case .active, .done:
-            return  // we own the session; no auto-yield (spec §5.2)
-        case .idle:
-            failover = FailoverController(role: .mirror, referenceStart: Date())
-            stage = .mirroring
-            startWatchdog()
-            fallthrough
-        case .mirroring:
-            output = remote
-            latestHR = remote.trailingHR
-            failover?.receivedPrimaryTick(at: Date())
-            if remote.isFinished { endMirror(toDone: true) }
-        }
+    private func publishCurrentFrame() {
+        guard stage == .active, let engine else { return }
+        let result = engine.tick(at: Date())
+        output = result.output
+        publish(result.output)
     }
 
-    /// Local timer that promotes this mirror to primary if the primary's stream
-    /// goes quiet past the watchdog window (spec §5.2). No auto-reclaim.
-    private func startWatchdog() {
-        watchdog = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard let self, self.stage == .mirroring else { return }
-                if self.failover?.evaluate(at: Date()) == true {
-                    await self.promoteToPrimary()
-                    return
-                }
-            }
-        }
+    private func publish(_ engineOutput: EngineOutput) {
+        guard let engine, let sessionID, let createdAt = sessionCreatedAt else { return }
+        sequence &+= 1
+        let snapshot = SessionSnapshot(
+            sessionID: sessionID,
+            createdAt: createdAt,
+            sequence: sequence,
+            authority: .watch,
+            heartRateSource: receivedAnyHR ? .watch : .none,
+            heartRateSessionActive: heartRateSessionActive,
+            acknowledgedCommandIDs: acknowledgedCommandIDs,
+            output: engineOutput,
+            checkpoint: engine.checkpoint()
+        )
+        currentSnapshot = snapshot
+        heartRateSource = snapshot.heartRateSource
+        broadcast(.snapshot(snapshot))
     }
 
-    /// Take over from a lost primary, seeding the local clock to the last mirrored
-    /// elapsed so the timeline stays continuous, then unmute local haptics.
-    private func promoteToPrimary() async {
-        guard stage == .mirroring else { return }
-        watchdog?.cancel(); watchdog = nil
-        receivedAnyHR = false
-        mockHR = latestHR ?? 80
+    private func broadcast(_ message: SessionMessage) {
+        connectivity.send(message)
+        workout.beginSendingToRemote(message)
+    }
 
-        let elapsed = output?.elapsed ?? 0
-        if useMockHR {
-            hrMax = 188
+    private func stopRuntime(
+        clearOutput: Bool,
+        finalStage: Stage,
+        completedSessionID: UUID? = nil
+    ) {
+        pendingStartID = nil
+        cancelRuntimeTasks()
+        if let completedSessionID {
+            _ = workout.completeWorkout(at: .now, sessionID: completedSessionID)
         } else {
-            hrMax = await workout.estimatedHRMax()
+            workout.teardown()
         }
-
-        // The await yields the main actor. An explicit remote stop or finished
-        // output may have ended mirroring while HealthKit was being queried.
-        guard stage == .mirroring else { return }
-
-        let engine = IntervalEngine(hrMax: hrMax, startedAt: Date().addingTimeInterval(-elapsed))
-        self.engine = engine
-        output = engine.tick(at: Date()).output
-
-        stage = .active
-        beginSensing()
-        ticker = Task { [weak self] in await self?.runLoop() }
-    }
-
-    // MARK: - Controls (spec §7) — only meaningful while we are primary.
-
-    func pauseResume() {
-        guard stage == .active, let engine else { return }
-        let now = Date()
-        if engine.isPaused { engine.resume(at: now) } else { engine.pause(at: now) }
-        output = engine.tick(at: now).output
-    }
-
-    @discardableResult
-    func skip() -> Bool {
-        guard stage == .active, let engine else { return false }
-        let now = Date()
-        let didSkip = engine.skip(at: now)
-        if didSkip { output = engine.tick(at: now).output }
-        return didSkip
-    }
-
-    var canSkip: Bool {
-        stage == .active && output?.phase.isSkippable == true && !(output?.isFinished ?? false)
-    }
-
-    var canControl: Bool { stage == .active }
-
-    func end() {
-        let wasFinished = output?.isFinished ?? false
-        connectivity.sendStop()  // tell a mirror this was intentional, not a dropped link
-        teardown()
-        stage = wasFinished ? .done : .idle
-    }
-
-    /// The remote primary explicitly ended the session: tear down and return to
-    /// idle instead of treating the ensuing silence as a failover trigger.
-    private func handleRemoteStop() {
-        switch stage {
-        case .active, .mirroring:
-            teardown()
-            stage = .idle
-        case .idle, .done:
-            break
-        }
-    }
-
-    private func finish() { teardown(); stage = .done }
-
-    private func endMirror(toDone: Bool) { teardown(); stage = toDone ? .done : .idle }
-
-    private func teardown() {
-        ticker?.cancel(); ticker = nil
-        watchdog?.cancel(); watchdog = nil
-        graceCheck?.cancel(); graceCheck = nil
-        workout.stop()
         engine = nil
-        failover = nil
+        stage = finalStage
+        receivedAnyHR = false
+        latestHR = nil
+        heartRateSource = .none
+        heartRateSessionActive = false
+        acknowledgedCommandIDs.removeAll(keepingCapacity: true)
+        sessionID = nil
+        sessionCreatedAt = nil
+        if clearOutput {
+            output = nil
+            currentSnapshot = nil
+        }
     }
 
-    // MARK: - Input
+    private func cancelRuntimeTasks() {
+        ticker?.cancel(); ticker = nil
+        graceCheck?.cancel(); graceCheck = nil
+        sensorRetryTask?.cancel(); sensorRetryTask = nil
+        systemStartTask?.cancel(); systemStartTask = nil
+    }
 
-    private func ingest(bpm: Double, at date: Date) {
-        guard stage == .active, let engine else { return }
-        receivedAnyHR = true
-        latestHR = bpm
-        engine.ingest(hrSample: bpm, at: date)
+    private func remember(_ commandID: UUID) {
+        processedCommandIDs.insert(commandID)
+        if processedCommandIDs.count > 128 {
+            processedCommandIDs.removeAll(keepingCapacity: true)
+            processedCommandIDs.insert(commandID)
+        }
+    }
+
+    private func acknowledge(_ commandID: UUID) {
+        guard !acknowledgedCommandIDs.contains(commandID) else { return }
+        acknowledgedCommandIDs.append(commandID)
+        if acknowledgedCommandIDs.count > 32 {
+            acknowledgedCommandIDs.removeFirst(acknowledgedCommandIDs.count - 32)
+        }
+    }
+
+    private func trimTerminalHistory() {
+        if stoppedSessionIDs.count > 32 {
+            let current = sessionID
+            stoppedSessionIDs.removeAll(keepingCapacity: true)
+            if let current { stoppedSessionIDs.insert(current) }
+        }
     }
 
     private func nextMockHR() -> Double {

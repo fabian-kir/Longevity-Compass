@@ -124,6 +124,20 @@ final class LocalDataStore {
         try? context.save()
     }
 
+    // MARK: - N4x4 workouts
+
+    func fetchAllN4x4WorkoutLogs() -> [N4x4WorkoutLog] {
+        let descriptor = FetchDescriptor<N4x4WorkoutLog>(
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteN4x4WorkoutLog(_ log: N4x4WorkoutLog) {
+        context.delete(log)
+        try? context.save()
+    }
+
     // MARK: - Wipe
 
     func deleteAllLocalData() {
@@ -133,6 +147,7 @@ final class LocalDataStore {
         for n in fetchAllNutritionEntries()   { context.delete(n) }
         for d in fetchAll(ExerciseDef.self)   { context.delete(d) }
         for e in fetchAll(ExerciseEntry.self) { context.delete(e) }
+        for n in fetchAll(N4x4WorkoutLog.self) { context.delete(n) }
         for b in fetchAllBloodworkPanels()    { context.delete(b) }
         try? context.save()
     }

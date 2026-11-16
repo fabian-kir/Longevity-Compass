@@ -12,6 +12,8 @@
 		4EAAAA052FE100000055F503 /* IntervalEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 4EAAAA042FE100000055F503 /* IntervalEngine */; };
 		4EAAAA072FE100000055F503 /* IntervalUI in Frameworks */ = {isa = PBXBuildFile; productRef = 4EAAAA062FE100000055F503 /* IntervalUI */; };
 		4EAAAA092FE100000055F503 /* IntervalUI in Frameworks */ = {isa = PBXBuildFile; productRef = 4EAAAA082FE100000055F503 /* IntervalUI */; };
+		4EB1000B300F000000000001 /* IntervalEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 4EB1000A300F000000000001 /* IntervalEngine */; };
+		4EB1000D300F000000000001 /* N4x4 Live Activity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4EB10002300F000000000001 /* N4x4 Live Activity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,6 +31,13 @@
 			remoteGlobalIDString = 4EA21E39300E629900083411;
 			remoteInfo = "Longevity Watch Watch App";
 		};
+		4EB1000E300F000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4E53F9C82FD9CBA80055F503 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4EB10001300F000000000001;
+			remoteInfo = "N4x4 Live Activity";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -43,12 +52,24 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4EB1000C300F000000000001 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4EB1000D300F000000000001 /* N4x4 Live Activity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		4E53F9D02FD9CBA80055F503 /* Longevity Compass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Longevity Compass.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4E5400022FE000000055F503 /* Longevity CompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Longevity CompassTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Longevity Watch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4EB10002300F000000000001 /* N4x4 Live Activity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "N4x4 Live Activity.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,11 +80,28 @@
 			);
 			target = 4EA21E39300E629900083411 /* Longevity Watch Watch App */;
 		};
+		4EB10010300F000000000001 /* Exceptions for "N4x4 Live Activity" folder in "N4x4 Live Activity" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4EB10001300F000000000001 /* N4x4 Live Activity */;
+		};
+		4EB10011300F000000000001 /* Exceptions for "Longevity Compass" folder in "Longevity Compass" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4E53F9CF2FD9CBA80055F503 /* Longevity Compass */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4E53F9D22FD9CBA80055F503 /* Longevity Compass */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4EB10011300F000000000001 /* Exceptions for "Longevity Compass" folder in "Longevity Compass" target */,
+			);
 			path = "Longevity Compass";
 			sourceTree = "<group>";
 		};
@@ -78,6 +116,14 @@
 				4EA220E0300EB2B400083411 /* Exceptions for "Longevity Watch Watch App" folder in "Longevity Watch Watch App" target */,
 			);
 			path = "Longevity Watch Watch App";
+			sourceTree = "<group>";
+		};
+		4EB10003300F000000000001 /* N4x4 Live Activity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4EB10010300F000000000001 /* Exceptions for "N4x4 Live Activity" folder in "N4x4 Live Activity" target */,
+			);
+			path = "N4x4 Live Activity";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -108,6 +154,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4EB10005300F000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4EB1000B300F000000000001 /* IntervalEngine in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -117,6 +171,7 @@
 				4E53F9D22FD9CBA80055F503 /* Longevity Compass */,
 				4E5400032FE000000055F503 /* Longevity CompassTests */,
 				4EA21E3B300E629900083411 /* Longevity Watch Watch App */,
+				4EB10003300F000000000001 /* N4x4 Live Activity */,
 				4E53F9D12FD9CBA80055F503 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -127,6 +182,7 @@
 				4E53F9D02FD9CBA80055F503 /* Longevity Compass.app */,
 				4E5400022FE000000055F503 /* Longevity CompassTests.xctest */,
 				4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */,
+				4EB10002300F000000000001 /* N4x4 Live Activity.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -142,11 +198,13 @@
 				4E53F9CD2FD9CBA80055F503 /* Frameworks */,
 				4E53F9CE2FD9CBA80055F503 /* Resources */,
 				4EA21E5B300E629A00083411 /* Embed Watch Content */,
+				4EB1000C300F000000000001 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				4EA21E59300E629A00083411 /* PBXTargetDependency */,
+				4EB1000F300F000000000001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4E53F9D22FD9CBA80055F503 /* Longevity Compass */,
@@ -207,6 +265,29 @@
 			productReference = 4EA21E3A300E629900083411 /* Longevity Watch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		4EB10001300F000000000001 /* N4x4 Live Activity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4EB10009300F000000000001 /* Build configuration list for PBXNativeTarget "N4x4 Live Activity" */;
+			buildPhases = (
+				4EB10004300F000000000001 /* Sources */,
+				4EB10005300F000000000001 /* Frameworks */,
+				4EB10006300F000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4EB10003300F000000000001 /* N4x4 Live Activity */,
+			);
+			name = "N4x4 Live Activity";
+			packageProductDependencies = (
+				4EB1000A300F000000000001 /* IntervalEngine */,
+			);
+			productName = "N4x4 Live Activity";
+			productReference = 4EB10002300F000000000001 /* N4x4 Live Activity.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -215,7 +296,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2650;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					4E53F9CF2FD9CBA80055F503 = {
 						CreatedOnToolsVersion = 26.4.1;
@@ -226,6 +307,9 @@
 					};
 					4EA21E39300E629900083411 = {
 						CreatedOnToolsVersion = 26.5;
+					};
+					4EB10001300F000000000001 = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -249,6 +333,7 @@
 				4E53F9CF2FD9CBA80055F503 /* Longevity Compass */,
 				4E5400012FE000000055F503 /* Longevity CompassTests */,
 				4EA21E39300E629900083411 /* Longevity Watch Watch App */,
+				4EB10001300F000000000001 /* N4x4 Live Activity */,
 			);
 		};
 /* End PBXProject section */
@@ -269,6 +354,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4EA21E38300E629900083411 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EB10006300F000000000001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -299,6 +391,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4EB10004300F000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -311,6 +410,11 @@
 			isa = PBXTargetDependency;
 			target = 4EA21E39300E629900083411 /* Longevity Watch Watch App */;
 			targetProxy = 4EA21E58300E629A00083411 /* PBXContainerItemProxy */;
+		};
+		4EB1000F300F000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4EB10001300F000000000001 /* N4x4 Live Activity */;
+			targetProxy = 4EB1000E300F000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -326,10 +430,12 @@
 				DEVELOPMENT_TEAM = M7M645C636;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Longevity Compass/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Longevity Compass uses the camera to scan barcodes on packaged foods and to photograph meals for nutrition estimation.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Longevity Compass reads your Apple Health data on this device so it can show what most needs your attention. Nothing leaves your iPhone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Longevity Compass writes blood-pressure readings back to Apple Health so Health remains the single source of truth.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Longevity Compass uses photos of meals to estimate nutrition. Photos are sent to the AI provider you configured in the Data tab.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -363,10 +469,12 @@
 				DEVELOPMENT_TEAM = M7M645C636;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Longevity Compass/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Longevity Compass uses the camera to scan barcodes on packaged foods and to photograph meals for nutrition estimation.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Longevity Compass reads your Apple Health data on this device so it can show what most needs your attention. Nothing leaves your iPhone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Longevity Compass writes blood-pressure readings back to Apple Health so Health remains the single source of truth.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Longevity Compass uses photos of meals to estimate nutrition. Photos are sent to the AI provider you configured in the Data tab.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -448,8 +556,10 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Debug;
 		};
@@ -505,6 +615,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -622,6 +733,68 @@
 			};
 			name = Release;
 		};
+		4EB10007300F000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "N4x4 Live Activity/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Compass.N4x4-Live-Activity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4EB10008300F000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M7M645C636;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "N4x4 Live Activity/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "FabianKirschenmann.Longevity-Compass.N4x4-Live-Activity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -661,6 +834,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		4EB10009300F000000000001 /* Build configuration list for PBXNativeTarget "N4x4 Live Activity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4EB10007300F000000000001 /* Debug */,
+				4EB10008300F000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -690,6 +872,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */;
 			productName = IntervalUI;
+		};
+		4EB1000A300F000000000001 /* IntervalEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */;
+			productName = IntervalEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

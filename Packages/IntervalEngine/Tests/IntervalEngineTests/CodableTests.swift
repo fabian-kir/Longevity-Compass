@@ -1,14 +1,13 @@
 import XCTest
 @testable import IntervalEngine
 
-/// `EngineOutput` is the primary→mirror wire payload (spec §5.2). It must survive
-/// a JSON round-trip unchanged so a mirror device renders exactly what the primary
-/// computed. These lock the `Codable` conformance in place.
+/// The shared state and command payloads must survive JSON unchanged so either
+/// device can become authority without reconstructing engine state heuristically.
 final class CodableTests: XCTestCase {
 
-    private func roundTrip(_ output: EngineOutput) throws -> EngineOutput {
-        let data = try JSONEncoder().encode(output)
-        return try JSONDecoder().decode(EngineOutput.self, from: data)
+    private func roundTrip<Value: Codable>(_ value: Value) throws -> Value {
+        let data = try JSONEncoder().encode(value)
+        return try JSONDecoder().decode(Value.self, from: data)
     }
 
     func testMidSessionOutputRoundTrips() throws {
@@ -39,12 +38,59 @@ final class CodableTests: XCTestCase {
     }
 
     func testSessionMessagesRoundTrip() throws {
-        let output = IntervalEngine(hrMax: 190, startedAt: t0).tick(at: at(1)).output
-        let messages: [SessionMessage] = [.output(output), .stop]
+        let sessionID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+        let commandID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+        let engine = IntervalEngine(hrMax: 190, startedAt: t0)
+        engine.feedConstantHR(142, from: 170, through: 190)
+        _ = engine.tick(at: at(150))
+        let output = engine.tick(at: at(185)).output
+        let snapshot = SessionSnapshot(
+            sessionID: sessionID,
+            createdAt: at(185),
+            sequence: 42,
+            authority: .watch,
+            heartRateSource: .watch,
+            heartRateSessionActive: true,
+            acknowledgedCommandIDs: [commandID],
+            output: output,
+            checkpoint: engine.checkpoint()
+        )
+        let actions: [SessionCommand.Action] = [
+            .setPaused(true), .setPaused(false), .skip, .stop, .requestSync,
+        ]
+        let messages: [SessionMessage] = [.snapshot(snapshot)] + actions.map {
+            .command(SessionCommand(
+                id: commandID,
+                sessionID: sessionID,
+                issuedAt: at(190),
+                action: $0
+            ))
+        }
 
         for message in messages {
-            let data = try JSONEncoder().encode(message)
-            XCTAssertEqual(try JSONDecoder().decode(SessionMessage.self, from: data), message)
+            XCTAssertEqual(try roundTrip(message), message)
+        }
+    }
+
+    func testCheckpointRoundTripsWithAllMutableState() throws {
+        let engine = IntervalEngine(hrMax: 190, startedAt: t0)
+        engine.feedConstantHR(140, from: 285, through: 300)
+        _ = engine.tick(at: at(150))
+        XCTAssertEqual(engine.tick(at: at(300)).haptics, [.phaseTransition, .goHarder])
+        engine.pause(at: at(301))
+
+        let checkpoint = engine.checkpoint()
+        XCTAssertFalse(checkpoint.heartRateSamples.isEmpty)
+        XCTAssertNotNil(checkpoint.lastGuidance)
+        XCTAssertEqual(try roundTrip(checkpoint), checkpoint)
+    }
+
+    func testDeviceAndHeartRateSourceCasesRoundTrip() throws {
+        for device in [SessionDevice.phone, .watch] {
+            XCTAssertEqual(try roundTrip(device), device)
+        }
+        for source in [HeartRateSource.watch, .phoneExternal, .none] {
+            XCTAssertEqual(try roundTrip(source), source)
         }
     }
 }

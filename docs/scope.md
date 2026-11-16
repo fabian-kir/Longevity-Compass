@@ -83,6 +83,7 @@ Guided Norwegian 4×4 interval training on iPhone and Apple Watch.
 
 - No backend, no cloud user accounts, no auth.
 - No Android / multi-platform port.
-- No saved HealthKit workout, workout history or post-session summary.
+- No cloud-synced workout journal; N4x4 history remains device-local while
+  completed workouts are also written to Apple Health.
 - No on-device LLM (Foundation Models) — deferred until capable hardware is available.
 - No AI gram-estimation from text descriptions.

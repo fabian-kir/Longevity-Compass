@@ -66,7 +66,7 @@ extension PhaseKind {
     }
 }
 
-public enum RingColor: Equatable, Sendable, Codable {
+public enum RingColor: Equatable, Hashable, Sendable, Codable {
     case blue, red, green
 }
 

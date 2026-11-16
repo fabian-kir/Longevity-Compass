@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2650"
+   LastUpgradeVersion = "2700"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -85,7 +85,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "4EA21E39300E629900083411"
             BuildableName = "Longevity Watch Watch App.app"
-            BlueprintName = "Longevity Watch Watch App"
             ReferencedContainer = "container:Longevity Compass.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -102,7 +101,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "4EA21E39300E629900083411"
             BuildableName = "Longevity Watch Watch App.app"
-            BlueprintName = "Longevity Watch Watch App"
             ReferencedContainer = "container:Longevity Compass.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -162,15 +162,14 @@ requirement.
   swipe-left menu, matching Apple's native Workout app interaction pattern
   rather than cluttering the main watch screen.
 
-## 8. Persistence / out of scope for v1
+## 8. Persistence
 
-Explicitly deferred, noted here as open TODOs rather than silently dropped:
-
-- **No HealthKit workout write.** The session does not get saved as a
-  workout (does not contribute to Activity rings / Fitness app / Move-Exercise
-  minutes) in v1.
-- **No in-app post-session summary** (e.g. time-in-zone per phase, avg/peak
-  HR). Session is fully ephemeral — it runs live and ends.
+- **HealthKit workout write.** A naturally completed protocol is finalized as
+  one HIIT workout by whichever device owns the live builder. Explicit stops
+  remain discarded.
+- **Local history and summary.** SwiftData retains the chart frames used by the
+  coaching algorithm, average/peak HR, target adherence, one-minute rise and
+  recovery metrics, equipment, notes, and optional machine estimates.
 - **No manual HRmax override UI** — revisit based on real-world testing
   accuracy of the automatic Tanaka + observed-max blend.
 

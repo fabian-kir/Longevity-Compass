@@ -14,7 +14,7 @@ public enum DeadBandState: Equatable, Sendable, Codable {
 
 /// Direction hint for the Live Activity arrow (spec §6.3): shown only when the
 /// user is outside the dead-band and needs to adjust.
-public enum AdjustmentHint: Equatable, Sendable, Codable {
+public enum AdjustmentHint: Equatable, Hashable, Sendable, Codable {
     case none
     case up      // raise HR (currently below target)
     case down    // lower HR (currently above target)
@@ -44,6 +44,8 @@ public struct EngineOutput: Equatable, Sendable, Codable {
     /// (a moving line); after the ramp it opens to the full band. `nil` for
     /// warm-up/cooldown and in timer-only mode.
     public let target: ClosedRange<Double>?
+    /// Latest heart-rate sample while it is still considered fresh. The
+    /// established property name is retained for wire-format compatibility.
     public let trailingHR: Double?
     public let deadBandState: DeadBandState
     public let adjustmentHint: AdjustmentHint
@@ -62,7 +64,10 @@ public final class IntervalEngine {
 
     // MARK: Tunables (spec §4)
     public static let deadBandBPM: Double = 8
-    public static let trailingWindow: TimeInterval = 10
+    /// Apple Watch heart-rate samples can arrive more than ten seconds apart.
+    /// Keep the most recent reading visible long enough to avoid flickering to
+    /// an unavailable state between valid sensor updates.
+    public static let heartRateFreshnessWindow: TimeInterval = 20
     private static let bufferRetention: TimeInterval = 30
     private static let intervalJustOutside: TimeInterval = 20
     private static let intervalFloor: TimeInterval = 5
@@ -90,6 +95,54 @@ public final class IntervalEngine {
         self.startedAt = startedAt
     }
 
+    /// Restores an engine from a transport-safe checkpoint.
+    ///
+    /// Keeping the original absolute timestamps is intentional: a running
+    /// protocol advances across a connectivity outage, while a paused protocol
+    /// remains frozen until it is resumed. Set `includeHeartRateHistory` to
+    /// `false` when sensor authority changes so samples from two sensors are not
+    /// mixed in the trailing average. Ramp and timeline state are still kept.
+    public init(
+        config: ProtocolConfig = .norwegian4x4,
+        checkpoint: EngineCheckpoint,
+        includeHeartRateHistory: Bool = true
+    ) {
+        self.config = config
+        self.hrMax = checkpoint.hrMax
+        self.startedAt = checkpoint.startedAt
+        self.pausedAt = checkpoint.pausedAt
+        self.accumulatedPause = checkpoint.accumulatedPause
+        self.skipOffset = checkpoint.skipOffset
+        self.hrBuffer = includeHeartRateHistory
+            ? checkpoint.heartRateSamples.map { (t: $0.timestamp, bpm: $0.bpm) }
+            : []
+        self.lastPhaseKind = checkpoint.lastPhaseKind
+        self.phaseStartHR = checkpoint.phaseStartHR
+        self.lastGuidance = checkpoint.lastGuidance.map { (state: $0.state, at: $0.timestamp) }
+        self.finished = checkpoint.isFinished
+    }
+
+    /// Captures every mutable input needed to continue the deterministic engine
+    /// on this or another device without restarting the protocol.
+    public func checkpoint() -> EngineCheckpoint {
+        EngineCheckpoint(
+            hrMax: hrMax,
+            startedAt: startedAt,
+            pausedAt: pausedAt,
+            accumulatedPause: accumulatedPause,
+            skipOffset: skipOffset,
+            heartRateSamples: hrBuffer.map {
+                EngineCheckpoint.HeartRateSample(timestamp: $0.t, bpm: $0.bpm)
+            },
+            lastPhaseKind: lastPhaseKind,
+            phaseStartHR: phaseStartHR,
+            lastGuidance: lastGuidance.map {
+                EngineCheckpoint.Guidance(state: $0.state, timestamp: $0.at)
+            },
+            isFinished: finished
+        )
+    }
+
     // MARK: - Control (spec §7)
 
     public var isPaused: Bool { pausedAt != nil }
@@ -103,6 +156,16 @@ public final class IntervalEngine {
         guard let pausedAt else { return }
         accumulatedPause += now.timeIntervalSince(pausedAt)
         self.pausedAt = nil
+    }
+
+    /// Applies desired pause state rather than toggling it. This makes repeated
+    /// or retried wire commands idempotent.
+    public func setPaused(_ shouldPause: Bool, at now: Date) {
+        if shouldPause {
+            pause(at: now)
+        } else {
+            resume(at: now)
+        }
     }
 
     /// Skips the remainder of the current phase, jumping the clock to the next
@@ -137,13 +200,15 @@ public final class IntervalEngine {
         return reference.timeIntervalSince(startedAt) - accumulatedPause + skipOffset
     }
 
-    /// Trailing-average HR over the last `trailingWindow` seconds ending at `now`
-    /// (spec §4), or `nil` if no sample falls in the window.
+    /// Most recent HR sample at or before `now`, or `nil` once it is older than
+    /// `heartRateFreshnessWindow`. The established method name is retained for
+    /// compatibility with the existing engine and synchronization API.
     public func trailingHR(at now: Date) -> Double? {
-        let cutoff = now.addingTimeInterval(-Self.trailingWindow)
-        let window = hrBuffer.filter { $0.t >= cutoff && $0.t <= now }
-        guard !window.isEmpty else { return nil }
-        return window.reduce(0) { $0 + $1.bpm } / Double(window.count)
+        let freshnessCutoff = now.addingTimeInterval(-Self.heartRateFreshnessWindow)
+        return hrBuffer
+            .filter { $0.t >= freshnessCutoff && $0.t <= now }
+            .max(by: { $0.t < $1.t })?
+            .bpm
     }
 
     // MARK: - Step
@@ -155,6 +220,13 @@ public final class IntervalEngine {
     public func tick(at now: Date) -> (output: EngineOutput, haptics: [HapticCommand]) {
         var haptics: [HapticCommand] = []
         let e = elapsed(at: now)
+
+        // Completion is terminal. In particular, restoring a finished
+        // checkpoint must never resurrect the final phase if a clock moves
+        // backwards or a stale tick arrives.
+        if finished {
+            return (finishedOutput(elapsed: max(e, config.totalDuration), at: now), haptics)
+        }
 
         guard let index = config.phaseIndex(atElapsed: e) else {
             finished = true

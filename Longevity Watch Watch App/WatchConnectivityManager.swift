@@ -2,25 +2,28 @@ import Foundation
 import IntervalEngine
 import WatchConnectivity
 
-/// Watch side of the primary/mirror link (spec §5.2). Streams the local engine's
-/// `EngineOutput` to the phone while this device is primary, and surfaces the
-/// phone's output (when the phone is primary) so the watch can mirror it.
-///
-/// Transport only — the *decision* of who is primary lives in `FailoverController`
-/// and the session model. A shared `SessionMessage` crosses the wire as JSON.
+/// Durable Watch side of the N4x4 state/control link. Live delivery is paired
+/// with application-context checkpoints so a background launch or reconnect can
+/// deterministically adopt the running protocol and its last command.
 @MainActor
 final class WatchConnectivityManager: NSObject {
-    /// Called (on the main actor) with each decoded tick received from a remote
-    /// primary. The session model uses this to render mirror state and to feed
-    /// its `FailoverController` watchdog.
-    var onRemoteOutput: ((EngineOutput) -> Void)?
+    var onRemoteMessage: ((SessionMessage) -> Void)?
+    var onReachabilityChanged: ((Bool) -> Void)?
+    var onSendFailure: ((SessionMessage) -> Void)?
 
-    /// Called (on the main actor) when the remote primary broadcasts an explicit
-    /// session stop. Lets an intentional End propagate instead of looking like a
-    /// dropped link — which would otherwise trip the mirror's failover promotion.
-    var onRemoteStop: (() -> Void)?
+    private enum ContextKey {
+        static let snapshot = "n4x4.snapshot"
+        static let command = "n4x4.command"
+        static let commands = "n4x4.commands"
+    }
 
     private let session: WCSession? = WCSession.isSupported() ? .default : nil
+    private var latestSnapshotData: Data?
+    private var latestCommandData: Data?
+    private var commandLogData: [Data] = []
+
+    var isReachable: Bool { session?.isReachable == true }
+    var isCompanionAvailable: Bool { session?.isCompanionAppInstalled == true }
 
     func activate() {
         guard let session else { return }
@@ -28,22 +31,66 @@ final class WatchConnectivityManager: NSObject {
         session.activate()
     }
 
-    /// Fire-and-forget stream of the local primary's output. Dropped silently when
-    /// the counterpart isn't reachable — the mirror's watchdog handles a real drop.
-    func send(_ output: EngineOutput) {
-        send(.output(output))
+    @discardableResult
+    func send(_ message: SessionMessage) -> Bool {
+        guard let data = try? JSONEncoder().encode(message) else { return false }
+        persist(data, for: message)
+
+        guard let session, session.isReachable else { return false }
+        session.sendMessageData(data, replyHandler: nil) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.onSendFailure?(message) }
+        }
+        return true
     }
 
-    /// Broadcast an explicit "session ended" control message so the counterpart
-    /// tears down too, rather than promoting itself on the ensuing silence.
-    func sendStop() {
-        send(.stop)
+    private func persist(_ data: Data, for message: SessionMessage) {
+        switch message {
+        case .snapshot:
+            latestSnapshotData = data
+        case .command:
+            latestCommandData = data
+            commandLogData.append(data)
+            if commandLogData.count > 32 {
+                commandLogData.removeFirst(commandLogData.count - 32)
+            }
+        }
+        updateApplicationContext()
     }
 
-    private func send(_ message: SessionMessage) {
-        guard let session, session.isReachable,
-              let data = try? JSONEncoder().encode(message) else { return }
-        session.sendMessageData(data, replyHandler: nil, errorHandler: nil)
+    private func updateApplicationContext() {
+        guard let session else { return }
+        var context: [String: Any] = [:]
+        if let latestSnapshotData { context[ContextKey.snapshot] = latestSnapshotData }
+        if let latestCommandData { context[ContextKey.command] = latestCommandData }
+        if !commandLogData.isEmpty { context[ContextKey.commands] = commandLogData }
+        guard !context.isEmpty else { return }
+        try? session.updateApplicationContext(context)
+    }
+
+    private func deliver(_ data: Data) {
+        guard let message = try? JSONDecoder().decode(SessionMessage.self, from: data) else { return }
+        onRemoteMessage?(message)
+    }
+
+    private func deliver(_ context: [String: Any]) {
+        let commandData: [Data]
+        if let commands = context[ContextKey.commands] as? [Data] {
+            commandData = commands
+        } else if let command = context[ContextKey.command] as? Data {
+            commandData = [command]
+        } else {
+            commandData = []
+        }
+
+        for data in commandData where isStopCommand(data) { deliver(data) }
+        if let data = context[ContextKey.snapshot] as? Data { deliver(data) }
+        for data in commandData where !isStopCommand(data) { deliver(data) }
+    }
+
+    private func isStopCommand(_ data: Data) -> Bool {
+        guard case .command(let command) = try? JSONDecoder().decode(SessionMessage.self, from: data),
+              case .stop = command.action else { return false }
+        return true
     }
 }
 
@@ -52,15 +99,28 @@ extension WatchConnectivityManager: WCSessionDelegate {
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
-    ) {}
+    ) {
+        let context = session.receivedApplicationContext
+        Task { @MainActor [weak self] in
+            self?.deliver(context)
+            self?.onReachabilityChanged?(session.isReachable)
+        }
+    }
+
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        Task { @MainActor [weak self] in
+            self?.onReachabilityChanged?(session.isReachable)
+        }
+    }
 
     nonisolated func session(_ session: WCSession, didReceiveMessageData messageData: Data) {
-        guard let message = try? JSONDecoder().decode(SessionMessage.self, from: messageData) else { return }
-        Task { @MainActor [weak self] in
-            switch message {
-            case .output(let output): self?.onRemoteOutput?(output)
-            case .stop:               self?.onRemoteStop?()
-            }
-        }
+        Task { @MainActor [weak self] in self?.deliver(messageData) }
+    }
+
+    nonisolated func session(
+        _ session: WCSession,
+        didReceiveApplicationContext applicationContext: [String: Any]
+    ) {
+        Task { @MainActor [weak self] in self?.deliver(applicationContext) }
     }
 }

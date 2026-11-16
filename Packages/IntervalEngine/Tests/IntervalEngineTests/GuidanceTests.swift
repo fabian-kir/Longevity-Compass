@@ -3,20 +3,21 @@ import XCTest
 
 final class GuidanceTests: XCTestCase {
 
-    // MARK: - Trailing average (spec §4)
+    // MARK: - Latest heart rate
 
-    func testTrailingAverageOnlyCountsLast10Seconds() {
+    func testLatestHeartRateUsesMostRecentTimestampedSample() {
         let e = IntervalEngine(hrMax: 190, startedAt: t0)
-        e.ingest(hrSample: 100, at: at(0))   // outside window at now=15
-        e.ingest(hrSample: 120, at: at(8))   // inside [5,15]
-        e.ingest(hrSample: 140, at: at(12))  // inside
-        XCTAssertEqual(e.trailingHR(at: at(15))!, 130, accuracy: 0.001)
+        e.ingest(hrSample: 100, at: at(0))
+        e.ingest(hrSample: 140, at: at(12))
+        e.ingest(hrSample: 120, at: at(8)) // Deliberately delivered out of order.
+        XCTAssertEqual(e.trailingHR(at: at(15)), 140)
     }
 
-    func testTrailingAverageNilWhenWindowEmpty() {
+    func testTrailingHeartRateExpiresAfterFreshnessWindow() {
         let e = IntervalEngine(hrMax: 190, startedAt: t0)
         e.ingest(hrSample: 120, at: at(0))
-        XCTAssertNil(e.trailingHR(at: at(20)))
+        XCTAssertNotNil(e.trailingHR(at: at(20)))
+        XCTAssertNil(e.trailingHR(at: at(21)))
     }
 
     // MARK: - Repeat-rate scaling (spec §4)

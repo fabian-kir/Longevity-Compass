@@ -6,7 +6,7 @@ import SwiftUI
 /// ring with the live HR at its center, phase/round label and time remaining, plus
 /// a swipe-left page carrying the Skip/Pause/End controls (spec §7).
 struct ContentView: View {
-    @State private var model = WatchN4x4SessionModel()
+    let model: WatchN4x4SessionModel
     @State private var selectedPage = 0
 
     var body: some View {
@@ -139,8 +139,8 @@ struct ContentView: View {
 
     @ViewBuilder
     private var sessionStatus: some View {
-        if model.stage == .mirroring {
-            Label("From iPhone", systemImage: "iphone")
+        if model.heartRateSource == .watch {
+            Label("Wrist HR", systemImage: "applewatch")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.white.opacity(0.75))
         } else if let hint = targetHintText {
@@ -250,7 +250,7 @@ struct ContentView: View {
     private var timerOnlyMessage: String {
         switch model.timerOnlyReason {
         case .noHRMax:
-            return "Couldn't estimate your max heart rate. Add your date of birth in the Health app for HR-zone coaching. Running timer and phases only for now."
+            return "Heart rate can still be shown, but target zones need an HRmax estimate. Add your date of birth or recent heart-rate history in the Health app."
         case .sensorFailed:
             return "Couldn't start heart-rate sensing on the watch. Running timer and phases only — no HR coaching."
         case .noReadings:
@@ -267,7 +267,8 @@ struct ContentView: View {
     }
 
     private var hrText: String {
-        if let hr = model.latestHR ?? model.output?.trailingHR {
+        // Both devices render the same authoritative trailing value.
+        if let hr = model.output?.trailingHR {
             return String(Int(hr.rounded()))
         }
         return "—"
@@ -303,5 +304,5 @@ private struct WatchAmbientBackdrop: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(model: WatchN4x4SessionModel())
 }

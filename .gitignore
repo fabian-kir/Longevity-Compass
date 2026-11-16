@@ -38,3 +38,6 @@ fastlane/test_output
 *.tmp
 
 .superpowers/
+
+# Generated launch-video output (/brag)
+brag-output/

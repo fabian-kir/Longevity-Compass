@@ -30,6 +30,9 @@ final class AppServices {
     let notifications: NotificationManager
     let openRouter: OpenRouterClient
     let mealCapture: MealCaptureCoordinator
+    /// App-lifetime ownership is required for Watch workout mirroring: HealthKit
+    /// can wake the phone in the background before the N4x4 tab exists.
+    let n4x4: N4x4SessionModel
     var pendingMeals: PendingMealQueue!
 
     private(set) var healthSnapshot: HealthKitSnapshot = HealthKitSnapshot()
@@ -45,10 +48,12 @@ final class AppServices {
 
     init(context: ModelContext) {
         self.store = LocalDataStore(context: context)
-        self.healthKit = HealthKitManager()
+        let healthKit = HealthKitManager()
+        self.healthKit = healthKit
         self.notifications = NotificationManager()
         self.openRouter = OpenRouterClient()
         self.mealCapture = MealCaptureCoordinator()
+        self.n4x4 = N4x4SessionModel(healthKit: healthKit, store: self.store)
         self.pendingMeals = nil
         self.pendingMeals = PendingMealQueue(openRouter: openRouter) { [weak self] entry in
             await self?.recordNutritionEntry(entry)

@@ -15,6 +15,7 @@ struct Longevity_CompassApp: App {
             NutritionEntry.self,
             ExerciseDef.self,
             ExerciseEntry.self,
+            N4x4WorkoutLog.self,
             BloodworkPanel.self,
             BloodworkMarker.self,
         ])

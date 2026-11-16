@@ -33,5 +33,9 @@ struct ContentView: View {
                 .tag(AppTab.n4x4)
         }
         .tint(bindable.selectedTab.tint)
+        .onOpenURL { url in
+            guard url.scheme == "longevity-compass", url.host == "n4x4" else { return }
+            bindable.selectedTab = .n4x4
+        }
     }
 }
