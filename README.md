@@ -11,6 +11,27 @@ actual age. It combines 24 signals from HealthKit, bloodwork and logged behaviou
 > Longevity Compass is a personal project. It is not a medical device and gives no medical advice.
 > The biological-age figure is a proxy built from wearable and lab values, not a diagnosis.
 
+## Screens
+
+Captured in the iOS simulator with the app's synthetic mock data (`-mockData`).
+
+<p align="center">
+  <img src="docs/media/demo.gif" width="320" alt="Walkthrough: Focus tab, bio-age breakdown sheet, nutrition history and a running Norwegian 4×4 session">
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/media/focus.png" width="260" alt="Focus tab with the biological-age panel and the top priority card"><br>Focus tab: biological age and top priority</td>
+    <td align="center" width="33%"><img src="docs/media/bioage.png" width="260" alt="Bio-age detail sheet listing each factor and its years impact"><br>Bio-age breakdown per factor</td>
+    <td align="center" width="33%"><img src="docs/media/nutrition.png" width="260" alt="Meal detail with food categories, plant ingredients and nutrients"><br>Logged meal detail</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/bloodwork.png" width="260" alt="Bloodwork panel detail with marker values and reference ranges"><br>Bloodwork panel with marker ranges</td>
+    <td align="center"><img src="docs/media/n4x4.png" width="260" alt="Running Norwegian 4×4 session in the first high-intensity interval with heart-rate chart"><br>Norwegian 4×4 session, interval 1</td>
+    <td align="center"><img src="docs/media/watch.png" width="200" alt="Apple Watch app during the first high-intensity interval"><br>Norwegian 4×4 on Apple Watch, interval 1</td>
+  </tr>
+</table>
+
 ## What it does
 
 - **Biological-age estimate.** One number, the difference in years between estimated and
