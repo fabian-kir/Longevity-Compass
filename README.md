@@ -1,129 +1,140 @@
 # Longevity Compass
 
-**A multi-sensor biological-age estimator for iPhone and Apple Watch — 24 HealthKit, bloodwork and behaviour signals fused into a transparent 10-factor model, plus nutrition capture and a guided Norwegian 4×4 workout.**
+An iPhone and Apple Watch app that estimates how old your physiology looks compared with your
+actual age. It combines 24 signals from HealthKit, bloodwork and logged behaviour into a transparent
+10-factor model, and adds camera-based nutrition logging and a guided Norwegian 4×4 interval workout.
 
-[![CI](https://github.com/fabian-kir/longevity-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/fabian-kir/longevity-compass/actions/workflows/ci.yml)
-![Platform](https://img.shields.io/badge/platform-iOS%2026-blue)
+[![CI](https://github.com/fabian-kir/Longevity-Compass/actions/workflows/ci.yml/badge.svg)](https://github.com/fabian-kir/Longevity-Compass/actions/workflows/ci.yml)
+![Platform](https://img.shields.io/badge/platform-iOS%2026%20%7C%20watchOS%2026-blue)
 ![Swift](https://img.shields.io/badge/Swift-SwiftUI%20%2B%20SwiftData-orange)
-![Lines of code](https://img.shields.io/badge/Swift-~14k%20LOC-informational)
 
-<!-- DEMO GIF — see docs/media/CAPTURE.md for how to record this -->
-<p align="center">
-  <img src="docs/media/demo.gif" alt="Longevity Compass walkthrough" width="320">
-</p>
+> Longevity Compass is a personal project. It is not a medical device and gives no medical advice.
+> The biological-age figure is a proxy built from wearable and lab values, not a diagnosis.
 
----
+## What it does
 
-## What it is
+- **Biological-age estimate.** One number, the difference in years between estimated and
+  chronological age, with a per-factor breakdown and the single change that would move it most.
+- **Focus tab.** The most useful thing to do today, with the reasoning behind it.
+- **Nutrition.** Take a photo or scan a barcode to log a meal.
+- **Bloodwork.** Enter lab panels by hand (ApoB, HbA1c, hs-CRP and others) with reference ranges.
+- **Training.** A strength log, and a guided Norwegian 4×4 session that runs on iPhone and Apple
+  Watch with heart-rate targets, haptics and a Live Activity.
 
-Longevity Compass turns the signals an iPhone and Apple Watch already collect into a single, explainable number: **how old your physiology looks versus your actual age**, and the *one thing* most worth doing about it today.
+There is no backend and there are no accounts. Health data stays on the device. The one exception
+is meal photos, which are sent to a vision model through OpenRouter when you use photo logging.
 
-Unlike a black-box "health score", every year the engine adds or subtracts is traceable to a single reading times a single weight. The methodology is documented in full and **reproducible by hand with a calculator** — see [`docs/biological-age-methodology.md`](docs/biological-age-methodology.md).
+## The biological-age engine
 
-This is a solo-built portfolio project. It runs entirely on-device: no backend, no accounts, no telemetry.
+`BiologicalAgeEngine` fuses noisy, irregularly sampled sensor data into one estimate under explicit
+assumptions. Nothing is learned or fitted: every year the engine adds or subtracts comes from one
+reading times one weight, and the result can be reproduced by hand with a calculator. The full
+derivation is in [docs/biological-age-methodology.md](docs/biological-age-methodology.md).
 
----
-
-## Screens
-
-| Focus | Bio-age breakdown | Nutrition capture |
-|:---:|:---:|:---:|
-| ![Focus tab](docs/media/focus.png) | ![Bio-age detail](docs/media/bioage.png) | ![Nutrition camera](docs/media/nutrition.png) |
-| Today's top lever, with rationale and one-tap actions | Per-factor z-score contributions + linearised sensitivity readout | Camera-first logging via on-device Vision + cloud vision model |
-
-| Bloodwork | Norwegian 4×4 |
-|:---:|:---:|
-| ![Bloodwork](docs/media/bloodwork.png) | Live phone + Watch workout |
-| Manual panel entry (ApoB, HbA1c, hs-CRP…) with reference ranges | HR-zone coaching, haptics, mirroring and failover |
-
----
-
-## The engineering (why this is a cybernetics project, not "an iOS app")
-
-The core is `BiologicalAgeEngine` — a multi-input estimator that fuses noisy, irregularly-sampled sensors into a single state estimate under explicit, documented assumptions.
-
-**Transparent additive model.** 24 signals are grouped into 10 factors; each factor is a freshness-and-quality-weighted mean of signed "years impact" terms, clamped at a per-factor cap so no single noisy sensor can dominate:
+**Additive model.** The 24 signals are grouped into 10 factors. Each factor is a mean of signed
+"years impact" terms, weighted by freshness and data quality, and clamped at a per-factor cap so
+that no single noisy sensor can dominate.
 
 ```
-biologicalAge = max(0, chronologicalAge + Σ_factor clamp(weightedMean_factor, ±yearsCap_factor))
+biologicalAge   = max(0, chronologicalAge + Σ clamp(weightedMean_factor, ±yearsCap_factor))
 
-rawYearsImpact   = −zScore × yearsPerSD          (z-scored against age/sex norms)
-effectiveWeight  = freshnessWeight × qualityWeight
+rawYearsImpact  = −zScore × yearsPerSD        (z-scored against age and sex norms)
+effectiveWeight = freshnessWeight × qualityWeight
 ```
 
-**Noise handling — continuous-time EWMA on HRV.** HealthKit's HRV (SDNN) is single-night noisy. Rather than the textbook fixed-grid `s_t = α·x_t + (1−α)·s_{t-1}`, the engine uses a **density-aware, continuous-time exponential smoother** with a 7-day half-life that weights each raw sample by its actual time gap (`e^(−Δt/τ)`) before z-scoring. This keeps the smoother honest when samples are irregular — exactly the kind of detail a controls/estimation reader looks for. ([methodology §5](docs/biological-age-methodology.md))
+**Smoothing for irregular samples.** Heart-rate variability from HealthKit is noisy from night to
+night and arrives at uneven intervals. Instead of a fixed-step exponential average, the engine uses
+a continuous-time exponential smoother with a 7-day half-life that weights each sample by its
+actual time gap, `e^(−Δt/τ)`, before z-scoring.
+([methodology §5](docs/biological-age-methodology.md))
 
-**Linearised sensitivity readout.** Because the signal-to-delta map is piecewise-linear, the app exposes a local slope: *"10% better HRV → −0.4 y on your delta."* This is a textbook linearised-sensitivity output (`∂delta/∂signal`, computed by finite difference) surfaced as a user-friendly number — and it correctly reads zero when a factor is saturated at its cap or suppressed. ([methodology §6](docs/biological-age-methodology.md))
+**Sensitivity readout.** The map from signal to result is piecewise linear, so the app can show a
+local slope such as "10 % better HRV → −0.4 years". It is computed by finite difference and reads
+zero when a factor is at its cap or suppressed.
+([methodology §6](docs/biological-age-methodology.md))
 
-**Cross-signal reasoning.** Three layers handle redundancy between correlated signals: downstream markers suppress the upstream behaviours they already capture (so you don't double-count), while upstream drivers and the single top lever are surfaced in the UI without touching the number.
+**Correlated signals.** Downstream markers suppress the upstream behaviours they already capture,
+so the same effect is not counted twice. Upstream drivers and the top lever are still shown in the
+interface without changing the number.
 
----
+## Nutrition pipeline
 
-## Hybrid AI nutrition pipeline
+- **Barcode:** detected on the device with `Vision`, then looked up in OpenFoodFacts.
+- **Photo:** a vision model (Claude Sonnet 4.6 through OpenRouter by default) returns a category
+  fingerprint: plate fractions, plant ingredients, macros per 100 g and a typical serving size.
+  The model is never asked for absolute grams, which it cannot estimate reliably from a photo.
+- **Offline:** captures wait in a queue backed by `NWPathMonitor` and upload when the connection
+  returns.
 
-Meal logging is camera-first and routes intelligently between local and cloud:
+The API key is stored in the Keychain. The cost of each call is tracked and shown in Settings.
 
-- **Barcode** → on-device `Vision` detection → OpenFoodFacts lookup (no network round-trip for recognition).
-- **Photo** → OpenRouter (Claude Sonnet 4.6 vision) extracts a **category fingerprint** — plate fractions, plant ingredients, macros per 100 g, typical serving size. The model is deliberately *never* asked to estimate absolute grams, avoiding false precision.
-- **Offline** → an `NWPathMonitor`-backed queue holds captures and uploads them when connectivity returns.
+## Norwegian 4×4
 
-API keys are stored in the **Keychain**; per-call cost is tracked and shown in Settings.
+A 31-minute protocol: warm-up, four high-intensity rounds, three active recoveries and a cooldown.
 
----
+- Target heart-rate bands derived from maximum heart rate, with coaching and distinct haptic cues.
+- One device owns the session and the other mirrors it. If the owner disappears, the mirror takes over.
+- When heart-rate readings are missing, the session degrades to a timer with a clear warning and
+  recovers when readings return.
+- Completed sessions are written to Apple Health.
+
+The timing and state logic lives in the local `IntervalEngine` package, separate from any UI.
 
 ## Architecture
 
-```
-Views/        SwiftUI screens, one folder per tab + shared Components/
-Models/       SwiftData @Model types + value types (snapshots, fingerprints)
-Services/     Engines + integrations (HealthKit, OpenRouter, OpenFoodFacts, Keychain, …)
-Config/       Tunable thresholds and norms
-Packages/     IntervalEngine (pure state/timing) + IntervalUI (shared phone/watch visuals)
-```
-
-Key engines (all pure, testable Swift):
+| Path | Content |
+|---|---|
+| `Longevity Compass/Views/` | SwiftUI screens, one folder per tab, plus shared components |
+| `Longevity Compass/Models/` | SwiftData models and value types |
+| `Longevity Compass/Services/` | Engines and integrations: HealthKit, OpenRouter, OpenFoodFacts, Keychain |
+| `Longevity Compass/Config/` | Thresholds and norms |
+| `Packages/IntervalEngine/` | Interval state and timing, and the visuals shared by phone and watch |
+| `Longevity Watch Watch App/` | Apple Watch companion |
+| `N4x4 Live Activity/` | Live Activity for a running session |
 
 | Engine | Responsibility |
 |---|---|
-| `BiologicalAgeEngine` | 24 signals → 10 factors → years-of-age delta |
-| `PriorityEngine` | impact × friction × status × trend across 12 domains |
-| `IntervalEngine` | deterministic N4x4 timeline, target bands, coaching and failover |
-| `NotificationManager` | quiet-hours-aware, status-driven reminders |
+| `BiologicalAgeEngine` | 24 signals → 10 factors → difference in years |
+| `PriorityEngine` | Ranks 12 health domains by impact, friction, status and trend |
+| `IntervalEngine` | Deterministic 4×4 timeline, target bands, coaching and failover |
+| `NotificationManager` | Reminders driven by status, respecting quiet hours |
 
-Persistence is **SwiftData** with lightweight migration; export is JSON via dedicated DTOs.
+Persistence uses SwiftData with lightweight migration. Export is JSON.
 
----
+Frameworks: SwiftUI, SwiftData, HealthKit, WatchConnectivity, ActivityKit, CoreHaptics, Vision, Network.
 
-## Tech stack
+## Tests
 
-`SwiftUI` · `SwiftData` · `HealthKit` · `WatchConnectivity` · `CoreHaptics` · `Vision` · `Network` (NWPathMonitor) · `Keychain` · OpenRouter · OpenFoodFacts
+- The app's XCTest target checks the engine against four synthetic profiles (elite endurance,
+  metabolic syndrome with and without bloodwork, and a vegan low-exercise case) and asserts that
+  each lands in its expected range. It also covers nutrition logic, barcode stabilisation and the
+  workout recorder.
+- The `IntervalEngine` package has tests for the timeline, targets, control, failover and the
+  message format between phone and watch.
+- GitHub Actions runs both suites on every push and pull request to `main`.
 
----
-
-## Tests & CI
-
-- An **XCTest** target (`Longevity CompassTests`) validates the engine against four synthetic profiles — elite endurance, metabolic syndrome (±bloodwork), and a vegan low-exercise case — asserting each lands in its expected bio-age band.
-- The local `IntervalEngine` package has focused timeline, target, control, failover and wire-format tests.
-- **GitHub Actions** runs both suites on every push and PR to `main` (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
-
----
-
-## Build & run
+## Build and run
 
 ```bash
-git clone <repo-url>
-cd "Longevity Compass"
+git clone https://github.com/fabian-kir/Longevity-Compass.git
+cd Longevity-Compass
 open "Longevity Compass.xcodeproj"
 ```
 
-Requires Xcode targeting **iOS 26 / watchOS 26**. Use `Longevity Compass` for the app and its tests, `Longevity Compass (Mock)` for synthetic simulator data, or `Longevity Watch Watch App` to run the companion. Health data populates from HealthKit; AI nutrition features need an OpenRouter API key stored in the Keychain.
+Requires Xcode with the iOS 26 and watchOS 26 SDKs.
 
----
+| Scheme | Use |
+|---|---|
+| `Longevity Compass` | The app and its tests |
+| `Longevity Compass (Mock)` | The app with synthetic data, for the simulator |
+| `Longevity Watch Watch App` | The watch companion |
+
+Health data comes from HealthKit. Photo logging needs an OpenRouter API key, entered in Settings.
 
 ## Scope
 
-A deliberately bounded v1 — full feature inventory in [`docs/scope.md`](docs/scope.md). Explicit non-goals include a backend, accounts, Android, workout history and post-session analytics.
+The feature list and what is deliberately left out are in [docs/scope.md](docs/scope.md).
 
 ---
 
-*Built by Fabian Kirschenmann — B.Sc. Engineering Cybernetics. The bio-age engine is the part to read: [`docs/biological-age-methodology.md`](docs/biological-age-methodology.md).*
+Built by Fabian Kirschenmann.
