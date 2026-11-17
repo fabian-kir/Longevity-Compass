@@ -80,7 +80,7 @@ enum OpenFoodFactsError: LocalizedError {
 enum OpenFoodFactsClient {
     /// Open Food Facts asks API clients to identify themselves with app name,
     /// version and a contact point.
-    private static let userAgent = "LongevityDirection/0.2 (https://github.com/fabian-kir/Longevity-Compass)"
+    private static let userAgent = "LongevityDirection/0.2 (https://github.com/fabian-kir/Longevity-Direction)"
 
     private static let searchFields = [
         "code", "product_name", "brands", "image_front_url", "image_url",
