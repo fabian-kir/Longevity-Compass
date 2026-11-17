@@ -211,8 +211,8 @@ struct ProductConfirmView: View {
                 }
             }
 
-            Section("Per 100 g (Open Food Facts)") {
-                if let v = product.kcal100g    { row("Calories",      String(format: "%.0f kcal", v)) }
+            Section {
+                if let v = product.kcal100g   { row("Calories",      String(format: "%.0f kcal", v)) }
                 if let v = product.protein100g { row("Protein",       String(format: "%.1f g", v)) }
                 if let v = product.carbs100g   { row("Carbs",         String(format: "%.1f g", v)) }
                 if let v = product.fat100g     { row("Fat",           String(format: "%.1f g", v)) }
@@ -220,6 +220,8 @@ struct ProductConfirmView: View {
                 if let v = product.satFat100g  { row("Saturated fat", String(format: "%.1f g", v)) }
                 if let v = product.sugars100g  { row("Sugars",        String(format: "%.1f g", v)) }
                 if let n = product.novaGroup   { row("NOVA group",    "\(n) / 4") }
+            } header: {
+                Text("Per 100 g (Open Food Facts)")
             } footer: {
                 OpenFoodFactsAttribution()
             }
