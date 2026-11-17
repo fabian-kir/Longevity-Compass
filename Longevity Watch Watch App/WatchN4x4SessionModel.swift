@@ -154,7 +154,8 @@ final class WatchN4x4SessionModel {
         sessionID: UUID,
         createdAt: Date,
         startingSequence: UInt64,
-        initialAcknowledgedCommandIDs: [UUID] = []
+        initialAcknowledgedCommandIDs: [UUID] = [],
+        lastKnownHR: Double? = nil
     ) {
         let continuesExistingSession = self.sessionID == sessionID
         cancelRuntimeTasks()
@@ -179,7 +180,9 @@ final class WatchN4x4SessionModel {
         heartRateSource = .none
         heartRateSessionActive = false
         showTimerOnlyWarning = false
-        mockHR = 80
+        // Taking over a running session must continue from its last heart
+        // rate; restarting the simulated pulse at rest draws a false dip.
+        mockHR = lastKnownHR ?? 80
         stage = .active
 
         let result = engine.tick(at: Date())
@@ -304,7 +307,8 @@ final class WatchN4x4SessionModel {
             sessionID: remote.sessionID,
             createdAt: remote.createdAt,
             startingSequence: remote.sequence,
-            initialAcknowledgedCommandIDs: remote.acknowledgedCommandIDs
+            initialAcknowledgedCommandIDs: remote.acknowledgedCommandIDs,
+            lastKnownHR: remote.output.trailingHR
         )
     }
 

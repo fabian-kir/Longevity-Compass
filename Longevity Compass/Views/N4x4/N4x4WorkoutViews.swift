@@ -7,9 +7,60 @@ struct N4x4HeartRateChart: View {
     let frames: [N4x4WorkoutFrame]
     var liveWindow: TimeInterval?
 
+    /// Frames normally arrive about once per second. A longer jump in elapsed
+    /// time means no samples exist for that span (a skipped phase, a stalled or
+    /// relaunched app), so the line must break instead of interpolating.
+    private static let maxFrameGap: TimeInterval = 5
+
     private var visibleFrames: [N4x4WorkoutFrame] {
-        guard let liveWindow, let end = frames.last?.elapsed else { return frames }
-        return frames.filter { $0.elapsed >= max(0, end - liveWindow) }
+        let ordered = frames.sorted { $0.elapsed < $1.elapsed }
+        guard let liveWindow, let end = ordered.last?.elapsed else { return ordered }
+        return ordered.filter { $0.elapsed >= max(0, end - liveWindow) }
+    }
+
+    struct PlotPoint: Identifiable {
+        let frame: N4x4WorkoutFrame
+        let heartRateSegment: Int
+        let targetSegment: Int
+        var id: Date { frame.id }
+    }
+
+    /// Assigns each frame to a continuous run. Charts connects every point of
+    /// one series, so a gap or a missing value starts a new series.
+    static func plotPoints(for frames: [N4x4WorkoutFrame]) -> [PlotPoint] {
+        var points: [PlotPoint] = []
+        var heartRateSegment = 0
+        var targetSegment = 0
+        var previous: N4x4WorkoutFrame?
+        for frame in frames {
+            if let previous {
+                let gap = frame.elapsed - previous.elapsed > maxFrameGap
+                if gap || previous.bpm == nil { heartRateSegment += 1 }
+                if gap || previous.targetMidpoint == nil { targetSegment += 1 }
+            }
+            points.append(PlotPoint(
+                frame: frame,
+                heartRateSegment: heartRateSegment,
+                targetSegment: targetSegment
+            ))
+            previous = frame
+        }
+        return points
+    }
+
+    /// Ticks on round times (the smallest step that keeps at most six labels),
+    /// so a label always names the exact time under it.
+    static func ticks(for domain: ClosedRange<Double>) -> [Double] {
+        let span = domain.upperBound - domain.lowerBound
+        let step = [30.0, 60, 120, 300, 600].first { span / $0 <= 6 } ?? 900
+        let first = (domain.lowerBound / step).rounded(.up) * step
+        return Array(stride(from: first, through: domain.upperBound, by: step))
+    }
+
+    static func tickLabel(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        if total % 60 == 0 { return "\(total / 60)m" }
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     private var xDomain: ClosedRange<Double> {
@@ -28,12 +79,14 @@ struct N4x4HeartRateChart: View {
 
     var body: some View {
         Chart {
-            ForEach(visibleFrames) { frame in
+            ForEach(Self.plotPoints(for: visibleFrames)) { point in
+                let frame = point.frame
                 if let low = frame.targetLower, let high = frame.targetUpper {
                     AreaMark(
                         x: .value("Elapsed", frame.elapsed),
                         yStart: .value("Target lower", low),
-                        yEnd: .value("Target upper", high)
+                        yEnd: .value("Target upper", high),
+                        series: .value("Series", "Target band \(point.targetSegment)")
                     )
                     .foregroundStyle(.yellow.opacity(0.13))
 
@@ -41,7 +94,7 @@ struct N4x4HeartRateChart: View {
                         LineMark(
                             x: .value("Elapsed", frame.elapsed),
                             y: .value("Algorithm target", target),
-                            series: .value("Series", "Target")
+                            series: .value("Series", "Target \(point.targetSegment)")
                         )
                         .foregroundStyle(.yellow)
                         .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
@@ -52,7 +105,7 @@ struct N4x4HeartRateChart: View {
                     LineMark(
                         x: .value("Elapsed", frame.elapsed),
                         y: .value("Heart rate", bpm),
-                        series: .value("Series", "Heart rate")
+                        series: .value("Series", "Heart rate \(point.heartRateSegment)")
                     )
                     .foregroundStyle(.pink)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
@@ -62,11 +115,11 @@ struct N4x4HeartRateChart: View {
         .chartXScale(domain: xDomain)
         .chartYScale(domain: yDomain)
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { value in
+            AxisMarks(values: Self.ticks(for: xDomain)) { value in
                 AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
                 AxisValueLabel {
                     if let seconds = value.as(Double.self) {
-                        Text("\(Int(seconds / 60))m")
+                        Text(Self.tickLabel(seconds))
                     }
                 }
             }

@@ -112,7 +112,13 @@ extension N4x4ConnectivityManager: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        let context = session.receivedApplicationContext
+        var context = session.receivedApplicationContext
+        #if DEBUG
+        // WatchConnectivity keeps the last context across launches. A mock run
+        // starts from fresh synthetic data, so it must not resume a session
+        // left over from an earlier run; live messages still arrive normally.
+        if MockMode.isActive { context = [:] }
+        #endif
         Task { @MainActor [weak self] in
             self?.deliver(context)
             self?.onReachabilityChanged?(session.isReachable)

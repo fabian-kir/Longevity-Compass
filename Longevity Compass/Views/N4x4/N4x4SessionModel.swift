@@ -145,7 +145,8 @@ final class N4x4SessionModel {
         sessionID: UUID,
         createdAt: Date,
         startingSequence: UInt64,
-        tryWatchHandoff: Bool
+        tryWatchHandoff: Bool,
+        lastKnownHR: Double? = nil
     ) {
         let continuesExistingSession = self.sessionID == sessionID
         cancelRuntimeTasks()
@@ -165,7 +166,9 @@ final class N4x4SessionModel {
         localSensingStarted = false
         heartRateSource = .none
         showTimerOnlyWarning = false
-        mockHR = 80
+        // Taking over a running session must continue from its last heart
+        // rate; restarting the simulated pulse at rest draws a false dip.
+        mockHR = lastKnownHR ?? 80
 
         isMirroring = false
         isRunning = true
@@ -343,7 +346,8 @@ final class N4x4SessionModel {
             sessionID: remote.sessionID,
             createdAt: remote.createdAt,
             startingSequence: remote.sequence,
-            tryWatchHandoff: false
+            tryWatchHandoff: false,
+            lastKnownHR: remote.output.trailingHR
         )
     }
 
@@ -465,7 +469,8 @@ final class N4x4SessionModel {
             sessionID: remote.sessionID,
             createdAt: remote.createdAt,
             startingSequence: remote.sequence,
-            tryWatchHandoff: false
+            tryWatchHandoff: false,
+            lastKnownHR: remote.output.trailingHR
         )
         for command in commandsToReplay {
             remember(command.id)
