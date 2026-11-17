@@ -34,7 +34,7 @@ Camera-first meal logging with hybrid local/cloud AI.
 - **Camera capture** — full-screen camera as the primary entry point.
 - **Post-capture sheet** — preview, retake, save.
 - **Barcode path** — local Vision barcode detection → OpenFoodFacts lookup.
-- **Photo path** — image sent to OpenRouter (Claude Sonnet 4.6 vision) for category fingerprint extraction (plate fractions, plant ingredients, macros per 100g, typical serving grams). AI never estimates absolute grams.
+- **Photo path** — image sent to OpenRouter (Auto Router, `openrouter/auto`, picks the vision model per request) for category fingerprint extraction (plate fractions, plant ingredients, macros per 100g, typical serving grams). AI never estimates absolute grams.
 - **Offline queue** — `NWPathMonitor`-backed pending-meal queue; entries upload when connectivity returns.
 - **Food search sheet** — text search via OpenFoodFacts for manual lookup.
 - **Manual edit / detail view** — review and adjust any logged entry; view fingerprint breakdown.

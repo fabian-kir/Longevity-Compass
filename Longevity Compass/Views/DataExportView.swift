@@ -10,7 +10,6 @@ struct DataExportView: View {
     @State private var exportError: String?
 
     @State private var apiKeyInput: String = ""
-    @State private var modelInput: String = ""
     @State private var apiSaved: Bool = false
 
     @State private var scheduled: [NotificationManager.ScheduledNotification] = []
@@ -78,16 +77,10 @@ struct DataExportView: View {
                 HStack {
                     Text("Model")
                     Spacer()
-                    Text(services.openRouter.model).font(.caption).foregroundStyle(.secondary)
+                    Label(HealthThresholds.OpenRouter.autoModelDisplayName, systemImage: "wand.and.stars")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
                 }
-                TextField("anthropic/claude-sonnet-4.6", text: $modelInput)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button {
-                    services.openRouter.setModel(modelInput.isEmpty ? HealthThresholds.OpenRouter.defaultModel : modelInput)
-                    modelInput = ""
-                } label: { Text("Update model") }
-                .disabled(modelInput.isEmpty)
 
                 if let digest = services.nutritionDigest {
                     HStack {
@@ -121,7 +114,7 @@ struct DataExportView: View {
                     }
                 }
 
-                Text("Get a key at openrouter.ai → top right → Keys → Create. Nutrition photos go to your chosen chat model (Claude Sonnet 4.6 by default) at \(String(format: "$%.2f", HealthThresholds.OpenRouter.inputUSDPerMillion))/M input + \(String(format: "$%.2f", HealthThresholds.OpenRouter.outputUSDPerMillion))/M output. Exercise icons use \(HealthThresholds.OpenRouter.imageModel) at \(String(format: "$%.2f", HealthThresholds.OpenRouter.imageInputUSDPerMillion))/M input + \(String(format: "$%.2f", HealthThresholds.OpenRouter.imageOutputUSDPerMillion))/M image-output (~$0.04/icon).")
+                Text("Get a key at openrouter.ai → top right → Keys → Create. All AI features (meal photos, muscle tagging, exercise icons) run in OpenRouter's Auto mode (\(HealthThresholds.OpenRouter.autoModel)): OpenRouter picks the model for each request, so newer models are used automatically. Costs shown are what OpenRouter actually charged.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 if let err = services.openRouter.lastError {

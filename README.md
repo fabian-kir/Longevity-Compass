@@ -90,7 +90,7 @@ interface without changing the number.
 
 - **Barcode:** detected on the device with `Vision`, then looked up in Open Food Facts
   (data © Open Food Facts contributors, ODbL).
-- **Photo:** a vision model (Claude Sonnet 4.6 through OpenRouter by default) returns a category
+- **Photo:** a vision model picked by OpenRouter's Auto mode (`openrouter/auto`) returns a category
   fingerprint: plate fractions, plant ingredients, macros per 100 g and a typical serving size.
   The model is never asked for absolute grams, which it cannot estimate reliably from a photo.
 - **Offline:** captures wait in a queue backed by `NWPathMonitor` and upload when the connection

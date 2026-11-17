@@ -223,25 +223,16 @@ enum HealthThresholds {
     // MARK: - OpenRouter / vision LLM
 
     enum OpenRouter {
-        // Default model. OpenRouter accepts model IDs of the form "anthropic/claude-sonnet-4.6".
-        // If your OpenRouter account exposes a different variant, change this string here.
-        static let defaultModel = "anthropic/claude-sonnet-4.6"
-
-        // Pricing per million tokens (USD). Adjust when official pricing changes.
-        // Sonnet 4.6 standard rates as of late 2025.
-        static let inputUSDPerMillion: Double  = 3.00
-        static let outputUSDPerMillion: Double = 15.00
+        // Every call (meal photos, muscle classification, exercise icons) uses
+        // OpenRouter's Auto Router. It picks the model per request, so new models
+        // are adopted without code changes. The model that actually answered is
+        // read from the response's `model` field; cost from `usage.cost`.
+        static let autoModel = "openrouter/auto"
+        static let autoModelDisplayName = "OpenRouter Auto"
 
         static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
         static let httpReferer = "https://github.com/fabian-kir/Longevity-Direction"
         static let appTitle    = "Longevity Direction"
-
-        // Image-output model used for auto-generated exercise icons.
-        // Must support chat-completions image+text output modalities on OpenRouter.
-        // Each image ~1290 image-output tokens → roughly $0.04 per icon.
-        static let imageModel = "google/gemini-2.5-flash-image"
-        static let imageInputUSDPerMillion:  Double = 0.30
-        static let imageOutputUSDPerMillion: Double = 30.00
     }
 
     // MARK: - Biological age estimation

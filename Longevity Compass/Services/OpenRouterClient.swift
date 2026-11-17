@@ -50,9 +50,8 @@ final class OpenRouterClient {
     var lastError: String?
 
     var hasAPIKey: Bool { Keychain.get(.openRouterAPIKey)?.isEmpty == false }
-    var model: String {
-        Keychain.get(.openRouterModel) ?? HealthThresholds.OpenRouter.defaultModel
-    }
+    /// Always OpenRouter's Auto Router — it picks the model per request.
+    let model = HealthThresholds.OpenRouter.autoModel
 
     func setAPIKey(_ key: String) {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -60,15 +59,6 @@ final class OpenRouterClient {
             Keychain.delete(.openRouterAPIKey)
         } else {
             Keychain.set(trimmed, for: .openRouterAPIKey)
-        }
-    }
-
-    func setModel(_ id: String) {
-        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            Keychain.delete(.openRouterModel)
-        } else {
-            Keychain.set(trimmed, for: .openRouterModel)
         }
     }
 
@@ -120,6 +110,7 @@ final class OpenRouterClient {
         let usage = json["usage"] as? [String: Any] ?? [:]
         let inputTokens  = (usage["prompt_tokens"]     as? Int) ?? 0
         let outputTokens = (usage["completion_tokens"] as? Int) ?? 0
+        let cost = reportedCost(usage)
 
         guard
             let choices = json["choices"] as? [[String: Any]],
@@ -140,7 +131,6 @@ final class OpenRouterClient {
         guard !contentString.isEmpty else { throw OpenRouterError.noContent }
 
         let parsed = try parseFingerprint(contentString)
-        let cost = computeCost(inputTokens: inputTokens, outputTokens: outputTokens)
         return MealFingerprintAnalysis(
             fingerprint: parsed,
             model: usedModel,
@@ -171,7 +161,7 @@ final class OpenRouterClient {
         """
 
         let body: [String: Any] = [
-            "model": HealthThresholds.OpenRouter.imageModel,
+            "model": model,
             "messages": [
                 ["role": "user", "content": prompt],
             ],
@@ -198,10 +188,11 @@ final class OpenRouterClient {
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw OpenRouterError.malformedResponse("Top-level JSON")
         }
-        let usedModel = (json["model"] as? String) ?? HealthThresholds.OpenRouter.imageModel
+        let usedModel = (json["model"] as? String) ?? model
         let usage = json["usage"] as? [String: Any] ?? [:]
         let inputTokens  = (usage["prompt_tokens"]     as? Int) ?? 0
         let outputTokens = (usage["completion_tokens"] as? Int) ?? 0
+        let cost = reportedCost(usage)
 
         guard
             let choices = json["choices"] as? [[String: Any]],
@@ -218,7 +209,6 @@ final class OpenRouterClient {
             throw OpenRouterError.malformedResponse("Image data URL decode")
         }
 
-        let cost = computeImageCost(inputTokens: inputTokens, outputTokens: outputTokens)
         return GeneratedExerciseImage(
             imageData: imageData,
             model: usedModel,
@@ -298,6 +288,7 @@ final class OpenRouterClient {
         let usage = json["usage"] as? [String: Any] ?? [:]
         let inputTokens  = (usage["prompt_tokens"]     as? Int) ?? 0
         let outputTokens = (usage["completion_tokens"] as? Int) ?? 0
+        let cost = reportedCost(usage)
 
         guard
             let choices = json["choices"] as? [[String: Any]],
@@ -318,7 +309,6 @@ final class OpenRouterClient {
         guard !contentString.isEmpty else { throw OpenRouterError.noContent }
 
         let (primary, secondary) = try parseMuscleClassification(contentString)
-        let cost = computeCost(inputTokens: inputTokens, outputTokens: outputTokens)
         return ExerciseMuscleClassification(
             primary: primary,
             secondary: secondary,
@@ -363,16 +353,10 @@ final class OpenRouterClient {
 
     // MARK: - Cost
 
-    func computeCost(inputTokens: Int, outputTokens: Int) -> Double {
-        let input  = Double(inputTokens)  * HealthThresholds.OpenRouter.inputUSDPerMillion  / 1_000_000.0
-        let output = Double(outputTokens) * HealthThresholds.OpenRouter.outputUSDPerMillion / 1_000_000.0
-        return input + output
-    }
-
-    func computeImageCost(inputTokens: Int, outputTokens: Int) -> Double {
-        let input  = Double(inputTokens)  * HealthThresholds.OpenRouter.imageInputUSDPerMillion  / 1_000_000.0
-        let output = Double(outputTokens) * HealthThresholds.OpenRouter.imageOutputUSDPerMillion / 1_000_000.0
-        return input + output
+    /// OpenRouter reports the actual charge (USD credits) in `usage.cost`, priced
+    /// for whichever model the Auto Router picked. Missing → 0.
+    private func reportedCost(_ usage: [String: Any]) -> Double {
+        (usage["cost"] as? NSNumber)?.doubleValue ?? 0
     }
 
     // MARK: - Parsing

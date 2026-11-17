@@ -6,7 +6,6 @@ enum Keychain {
 
     enum Key: String {
         case openRouterAPIKey = "openrouter.apiKey"
-        case openRouterModel  = "openrouter.model"
     }
 
     static func set(_ value: String, for key: Key) {
