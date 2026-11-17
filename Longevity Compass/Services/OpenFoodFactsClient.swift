@@ -79,7 +79,7 @@ enum OpenFoodFactsClient {
             throw OpenFoodFactsError.malformedResponse
         }
         var request = URLRequest(url: url, timeoutInterval: 15)
-        request.setValue("LongevityCompass/0.2 (personal)", forHTTPHeaderField: "User-Agent")
+        request.setValue("LongevityDirection/0.2 (personal)", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -105,7 +105,7 @@ enum OpenFoodFactsClient {
         guard !normalized.isEmpty else { throw OpenFoodFactsError.notFound }
         let url = URL(string: "https://world.openfoodfacts.org/api/v2/product/\(normalized).json")!
         var request = URLRequest(url: url)
-        request.setValue("LongevityCompass/0.2 (personal)", forHTTPHeaderField: "User-Agent")
+        request.setValue("LongevityDirection/0.2 (personal)", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {

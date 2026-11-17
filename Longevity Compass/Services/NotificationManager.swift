@@ -272,6 +272,6 @@ final class NotificationManager {
         if let first = result.topItems.first {
             return "This week's focus: \(first.title). Open the app for details."
         }
-        return "Open Longevity Compass for a quick review."
+        return "Open Longevity Direction for a quick review."
     }
 }

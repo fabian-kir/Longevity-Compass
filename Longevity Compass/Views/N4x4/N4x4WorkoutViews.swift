@@ -167,7 +167,7 @@ struct N4x4MachineResultsSheet: View {
                 } header: {
                     Text("Machine estimate")
                 } footer: {
-                    Text("These values stay labeled as machine estimates in Longevity Compass. Apple Health keeps the workout's own measured values.")
+                    Text("These values stay labeled as machine estimates in Longevity Direction. Apple Health keeps the workout's own measured values.")
                 }
 
                 Section("Notes") {

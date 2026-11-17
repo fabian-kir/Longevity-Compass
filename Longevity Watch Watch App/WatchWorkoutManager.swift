@@ -201,7 +201,7 @@ final class WatchWorkoutManager: NSObject {
             do {
                 try await builder.endCollection(at: endDate)
                 try await builder.addMetadata([
-                    HKMetadataKeyWorkoutBrandName: "Longevity Compass N4x4",
+                    HKMetadataKeyWorkoutBrandName: "Longevity Direction N4x4",
                     HKMetadataKeySyncIdentifier: sessionID.uuidString,
                     HKMetadataKeySyncVersion: 1,
                 ])

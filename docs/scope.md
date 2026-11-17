@@ -1,4 +1,4 @@
-# Scope — Longevity Compass v1
+# Scope — Longevity Direction v1
 
 The complete user-facing feature list for v1, organized by tab. Anything not on this list is out of scope.
 
