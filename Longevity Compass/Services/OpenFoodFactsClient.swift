@@ -5,7 +5,14 @@ struct OpenFoodFactsProduct {
     let name: String?
     let brand: String?
     let imageURL: URL?
+    /// One labelled serving, in grams (or millilitres for drinks; Open Food
+    /// Facts reports drink nutrients per 100 ml, so the scaling is the same).
     let servingSizeGrams: Double?
+    let servingUnit: String
+    /// Free-text serving label, e.g. "1 biscuit (10 g)".
+    let servingLabel: String?
+    /// Net content of the whole pack, in the same unit as the serving.
+    let packageGrams: Double?
     let novaGroup: Int?               // 1 (whole) … 4 (ultra-processed)
     // Per-100g nutrients
     let kcal100g: Double?
@@ -71,15 +78,76 @@ enum OpenFoodFactsError: LocalizedError {
 }
 
 enum OpenFoodFactsClient {
+    /// Open Food Facts asks API clients to identify themselves with app name,
+    /// version and a contact point.
+    private static let userAgent = "LongevityDirection/0.2 (https://github.com/fabian-kir/Longevity-Compass)"
+
+    private static let searchFields = [
+        "code", "product_name", "brands", "image_front_url", "image_url",
+        "serving_size", "serving_quantity", "serving_quantity_unit",
+        "product_quantity", "product_quantity_unit", "quantity", "nova_group", "nutriments",
+    ].joined(separator: ",")
+
+    struct Quantity: Equatable {
+        let value: Double
+        let unit: String   // "g" or "ml"
+    }
+
+    /// Reads an amount as grams or millilitres. Prefers the numeric field and
+    /// falls back to the last "<number> <unit>" in the free-text label, so
+    /// "1 biscuit (10 g)" yields 10 g rather than the leading count.
+    static func quantity(amount: Any?, unit: Any?, label: String?) -> Quantity? {
+        let numeric: Double? = {
+            if let v = amount as? Double { return v }
+            if let v = amount as? Int { return Double(v) }
+            if let s = amount as? String { return Double(s.replacingOccurrences(of: ",", with: ".")) }
+            return nil
+        }()
+        if let numeric, numeric > 0,
+           let q = normalized(numeric, unit: (unit as? String) ?? "g") {
+            return q
+        }
+
+        guard let label else { return nil }
+        let pattern = #"(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
+        let range = NSRange(label.startIndex..., in: label)
+        guard let match = regex.matches(in: label, range: range).last,
+              let numberRange = Range(match.range(at: 1), in: label),
+              let unitRange = Range(match.range(at: 2), in: label),
+              let value = Double(label[numberRange].replacingOccurrences(of: ",", with: ".")),
+              value > 0
+        else { return nil }
+        return normalized(value, unit: String(label[unitRange]))
+    }
+
+    private static func normalized(_ value: Double, unit: String) -> Quantity? {
+        switch unit.lowercased() {
+        case "g":  Quantity(value: value, unit: "g")
+        case "kg": Quantity(value: value * 1000, unit: "g")
+        case "ml": Quantity(value: value, unit: "ml")
+        case "cl": Quantity(value: value * 10, unit: "ml")
+        case "l":  Quantity(value: value * 1000, unit: "ml")
+        default:   nil
+        }
+    }
+
     static func search(query: String) async throws -> [OpenFoodFactsProduct] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return [] }
-        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://world.openfoodfacts.org/cgi/search.pl?search_terms=\(encoded)&search_simple=1&action=process&json=1&page_size=25") else {
+        // Search-a-licious replaces the legacy cgi/search.pl endpoint, which is
+        // heavily rate limited and answers roughly half of requests with HTTP 503.
+        var components = URLComponents(string: "https://search.openfoodfacts.org/search")!
+        components.queryItems = [
+            URLQueryItem(name: "q", value: trimmed),
+            URLQueryItem(name: "page_size", value: "25"),
+            URLQueryItem(name: "fields", value: searchFields),
+        ]
+        guard let url = components.url else {
             throw OpenFoodFactsError.malformedResponse
         }
         var request = URLRequest(url: url, timeoutInterval: 15)
-        request.setValue("LongevityDirection/0.2 (personal)", forHTTPHeaderField: "User-Agent")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -89,7 +157,7 @@ enum OpenFoodFactsClient {
             throw OpenFoodFactsError.network("HTTP \(http.statusCode)")
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let products = json["products"] as? [[String: Any]] else {
+              let products = json["hits"] as? [[String: Any]] else {
             throw OpenFoodFactsError.malformedResponse
         }
         return products.compactMap { dict in
@@ -100,12 +168,30 @@ enum OpenFoodFactsClient {
         }
     }
 
+    /// Looks a barcode up on the product API, then falls back to the search
+    /// service. The product API rate limits aggressively (HTTP 429/503 after a
+    /// handful of requests), while search runs on separate infrastructure.
     static func lookup(barcode: String) async throws -> OpenFoodFactsProduct {
         let normalized = barcode.trimmingCharacters(in: .whitespaces)
         guard !normalized.isEmpty else { throw OpenFoodFactsError.notFound }
-        let url = URL(string: "https://world.openfoodfacts.org/api/v2/product/\(normalized).json")!
-        var request = URLRequest(url: url)
-        request.setValue("LongevityDirection/0.2 (personal)", forHTTPHeaderField: "User-Agent")
+        do {
+            return try await productAPILookup(barcode: normalized)
+        } catch OpenFoodFactsError.notFound {
+            throw OpenFoodFactsError.notFound
+        } catch {
+            if let product = try await searchLookup(barcode: normalized) {
+                return product
+            }
+            throw error
+        }
+    }
+
+    private static func productAPILookup(barcode: String) async throws -> OpenFoodFactsProduct {
+        var components = URLComponents(string: "https://world.openfoodfacts.org/api/v2/product/\(barcode).json")!
+        components.queryItems = [URLQueryItem(name: "fields", value: searchFields)]
+        guard let url = components.url else { throw OpenFoodFactsError.malformedResponse }
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -115,14 +201,36 @@ enum OpenFoodFactsClient {
         guard (200...299).contains(http.statusCode) else {
             throw OpenFoodFactsError.network("HTTP \(http.statusCode)")
         }
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw OpenFoodFactsError.malformedResponse
         }
         let status = (json["status"] as? Int) ?? 0
         guard status == 1, let product = json["product"] as? [String: Any] else {
             throw OpenFoodFactsError.notFound
         }
-        return parse(product: product, barcode: normalized)
+        return parse(product: product, barcode: barcode)
+    }
+
+    /// Returns nil when the search service is unreachable or has no match, so the
+    /// caller can surface the original product API error instead.
+    private static func searchLookup(barcode: String) async throws -> OpenFoodFactsProduct? {
+        var components = URLComponents(string: "https://search.openfoodfacts.org/search")!
+        components.queryItems = [
+            URLQueryItem(name: "q", value: "code:\(barcode)"),
+            URLQueryItem(name: "page_size", value: "1"),
+            URLQueryItem(name: "fields", value: searchFields),
+        ]
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let hit = (json["hits"] as? [[String: Any]])?.first(where: { ($0["code"] as? String) == barcode })
+        else { return nil }
+        return parse(product: hit, barcode: barcode)
     }
 
     private static func parse(product: [String: Any], barcode: String) -> OpenFoodFactsProduct {
@@ -134,21 +242,31 @@ enum OpenFoodFactsClient {
             return nil
         }
         let imageString = product["image_front_url"] as? String ?? product["image_url"] as? String
-        let servingSizeStr = product["serving_size"] as? String
-        let servingGrams: Double? = {
-            guard let s = servingSizeStr else { return nil }
-            let digits = s.split(separator: " ").first.map(String.init) ?? s
-            let cleaned = digits.replacingOccurrences(of: "g", with: "")
-                                .replacingOccurrences(of: ",", with: ".")
-                                .trimmingCharacters(in: .whitespaces)
-            return Double(cleaned)
-        }()
+        let servingLabel = (product["serving_size"] as? String)?
+            .trimmingCharacters(in: .whitespaces)
+        let serving = quantity(
+            amount: product["serving_quantity"],
+            unit: product["serving_quantity_unit"],
+            label: servingLabel
+        )
+        let package = quantity(
+            amount: product["product_quantity"],
+            unit: product["product_quantity_unit"],
+            label: product["quantity"] as? String
+        )
         return OpenFoodFactsProduct(
             barcode: barcode,
             name: product["product_name"] as? String,
-            brand: (product["brands"] as? String)?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces),
+            // The product API returns brands as a comma-separated string; search returns an array.
+            brand: ((product["brands"] as? [String])?.first
+                    ?? (product["brands"] as? String)?.components(separatedBy: ",").first)?
+                .trimmingCharacters(in: .whitespaces),
             imageURL: imageString.flatMap { URL(string: $0) },
-            servingSizeGrams: servingGrams,
+            servingSizeGrams: serving?.value,
+            servingUnit: serving?.unit ?? package?.unit ?? "g",
+            servingLabel: servingLabel.flatMap { $0.isEmpty ? nil : $0 },
+            // A pack measured in another unit than the serving cannot be combined with it.
+            packageGrams: package.flatMap { serving == nil || $0.unit == serving?.unit ? $0.value : nil },
             novaGroup: (product["nova_group"] as? Int) ?? Int((product["nova_group"] as? String) ?? ""),
             kcal100g:    d("energy-kcal_100g") ?? d("energy_kcal_100g"),
             protein100g: d("proteins_100g"),

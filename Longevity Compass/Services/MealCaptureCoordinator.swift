@@ -146,7 +146,8 @@ final class MealCaptureCoordinator: NSObject {
         session.beginConfiguration()
         session.sessionPreset = .photo
 
-        if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+        let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+        if let device,
            let input = try? AVCaptureDeviceInput(device: device),
            session.canAddInput(input) {
             session.addInput(input)
@@ -168,7 +169,39 @@ final class MealCaptureCoordinator: NSObject {
         }
 
         session.commitConfiguration()
+        // The session preset only resolves the device's active format on commit,
+        // so zoom and focus are set afterwards.
+        if let device { configureCloseRangeFocus(device) }
         didConfigure = true
+    }
+
+    /// Wide-angle cameras on recent Pro iPhones cannot focus closer than roughly
+    /// 20 cm, so a barcode held at a natural distance stays blurred and never
+    /// decodes. Following Apple's AVCamBarcode sample, zoom in just enough that a
+    /// 20 mm barcode fills the frame width at the minimum focus distance, and bias
+    /// autofocus toward near subjects.
+    nonisolated private func configureCloseRangeFocus(_ device: AVCaptureDevice) {
+        guard (try? device.lockForConfiguration()) != nil else { return }
+        defer { device.unlockForConfiguration() }
+
+        if device.isAutoFocusRangeRestrictionSupported {
+            device.autoFocusRangeRestriction = .near
+        }
+        if device.isFocusModeSupported(.continuousAutoFocus) {
+            device.focusMode = .continuousAutoFocus
+        }
+
+        let minFocusDistanceMM = Float(device.minimumFocusDistance)
+        guard minFocusDistanceMM > 0 else { return }
+        let fieldOfView = device.activeFormat.videoFieldOfView * .pi / 180
+        let minBarcodeWidthMM: Float = 20
+        let fillRatio: Float = 0.4
+        let minSubjectDistanceMM = (minBarcodeWidthMM / fillRatio) / (2 * tan(fieldOfView / 2))
+        guard minSubjectDistanceMM < minFocusDistanceMM else { return }
+
+        let zoomFactor = CGFloat(minFocusDistanceMM / minSubjectDistanceMM)
+        let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 2.0)
+        device.videoZoomFactor = max(1.0, min(zoomFactor, maxZoom))
     }
 }
 

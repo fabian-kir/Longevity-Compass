@@ -86,9 +86,11 @@ struct NutritionTabView: View {
         }
         .overlay(alignment: .top) { toast }
         .task { await services.mealCapture.start() }
-        .task(id: services.mealCapture.detectedBarcode?.id) {
+        // Not `.task(id:)`: resolveBarcode consumes the detection, which changes
+        // the id and would cancel its own in-flight lookup request.
+        .onChange(of: services.mealCapture.detectedBarcode?.id) {
             guard let detection = services.mealCapture.detectedBarcode else { return }
-            await resolveBarcode(detection)
+            Task { await resolveBarcode(detection) }
         }
         .onDisappear { services.mealCapture.stop() }
         .onChange(of: scenePhase) { _, phase in
@@ -287,8 +289,14 @@ struct NutritionTabView: View {
             let product = try await OpenFoodFactsClient.lookup(barcode: detection.payload)
             detectedProduct = DetectedProduct(product: product, detectedAt: detection.detectedAt)
         } catch {
-            // Live scanning is intentionally quiet. Unknown products and transient
-            // lookup failures simply return the camera to recognition mode.
+            // A short toast tells the user the code was read, so an unknown
+            // product or a failed lookup is not mistaken for a scanner that
+            // never sees anything. The camera then returns to recognition mode.
+            if case OpenFoodFactsError.notFound = error {
+                flash("Barcode \(detection.payload) not in Open Food Facts")
+            } else {
+                flash("Barcode lookup failed: \(error.localizedDescription)")
+            }
             services.mealCapture.resumeBarcodeDetection()
         }
     }
@@ -356,14 +364,16 @@ private struct NutritionHistoryRow: View {
         } label: {
             HStack(spacing: 12) {
                 MealThumbnailView(fileName: entry.imageFileName, fallback: entry.source.systemImage)
+                // The date sits under the title instead of in a trailing
+                // column, so meal names get the full row width.
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Text(entry.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
                     Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
-                Spacer()
-                Text(entry.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
         }
     }

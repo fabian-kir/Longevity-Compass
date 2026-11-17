@@ -145,7 +145,12 @@ struct DetectedBarcodeProductSheet: View {
 
     var body: some View {
         NavigationStack {
-            ProductConfirmView(product: product, loggedAt: detectedAt, onSaved: onSaved)
+            ProductConfirmView(
+                product: product,
+                loggedAt: detectedAt,
+                fetchesServingDetails: false,
+                onSaved: onSaved
+            )
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }
@@ -159,22 +164,44 @@ struct ProductConfirmView: View {
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
 
-    let product: OpenFoodFactsProduct
     let loggedAt: Date
+    /// Search results lack serving data; barcode lookups already have it.
+    let fetchesServingDetails: Bool
     let onSaved: (String) -> Void
 
+    private enum PortionMode: Hashable { case grams, servings }
+
+    @State private var product: OpenFoodFactsProduct
     @State private var portionGrams: Double
+    @State private var portionMode: PortionMode
+    @State private var hasEditedPortion = false
     @State private var isSaving = false
 
     init(
         product: OpenFoodFactsProduct,
         loggedAt: Date = .now,
+        fetchesServingDetails: Bool = true,
         onSaved: @escaping (String) -> Void
     ) {
-        self.product = product
         self.loggedAt = loggedAt
+        self.fetchesServingDetails = fetchesServingDetails
         self.onSaved = onSaved
+        self._product = State(initialValue: product)
         self._portionGrams = State(initialValue: product.servingSizeGrams ?? 100)
+        self._portionMode = State(initialValue: product.servingSizeGrams == nil ? .grams : .servings)
+    }
+
+    private var unit: String { product.servingUnit }
+
+    private var servings: Binding<Double> {
+        Binding {
+            guard let serving = product.servingSizeGrams, serving > 0 else { return 1 }
+            return portionGrams / serving
+        } set: { count in
+            guard let serving = product.servingSizeGrams else { return }
+            portionGrams = count * serving
+            hasEditedPortion = true
+        }
     }
 
     var body: some View {
@@ -191,23 +218,53 @@ struct ProductConfirmView: View {
                 }
             }
 
-            Section("Portion") {
-                HStack {
-                    Text("Grams eaten")
-                    Spacer()
-                    TextField(
-                        product.servingSizeGrams.map { "\(Int($0))" } ?? "100",
-                        value: $portionGrams,
-                        format: .number
-                    )
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 120)
+            Section {
+                if product.servingSizeGrams != nil {
+                    Picker("Enter as", selection: $portionMode) {
+                        Text(unit == "ml" ? "Millilitres" : "Grams").tag(PortionMode.grams)
+                        Text("Servings").tag(PortionMode.servings)
+                    }
+                    .pickerStyle(.segmented)
                 }
-                if let s = product.servingSizeGrams {
-                    Text("Package serving: \(Int(s)) g")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+
+                switch portionMode {
+                case .grams:
+                    HStack {
+                        Text(unit == "ml" ? "Millilitres drunk" : "Grams eaten")
+                        Spacer()
+                        TextField(
+                            product.servingSizeGrams.map { "\(Int($0))" } ?? "100",
+                            value: $portionGrams,
+                            format: .number
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 120)
+                        .onChange(of: portionGrams) { hasEditedPortion = true }
+                    }
+                case .servings:
+                    Stepper(value: servings, in: 0.5...50, step: 0.5) {
+                        HStack {
+                            Text(servingsText(servings.wrappedValue))
+                            Spacer()
+                            Text("\(amountText(portionGrams)) \(unit)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+
+                if let pack = product.packageGrams {
+                    Button("Whole pack (\(amountText(pack)) \(unit))") {
+                        portionGrams = pack
+                        hasEditedPortion = true
+                    }
+                }
+            } header: {
+                Text("Portion")
+            } footer: {
+                if let serving = product.servingSizeGrams {
+                    Text("1 serving = \(product.servingLabel ?? "\(amountText(serving)) \(unit)")")
                 }
             }
 
@@ -237,6 +294,31 @@ struct ProductConfirmView: View {
         }
         .navigationTitle(product.name ?? "Product")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await loadServingDetails() }
+    }
+
+    /// Search results carry no serving or pack data, so fetch the full product
+    /// once. The portion follows the new serving unless the user already changed it.
+    private func loadServingDetails() async {
+        guard fetchesServingDetails,
+              product.servingSizeGrams == nil, product.packageGrams == nil,
+              let full = try? await OpenFoodFactsClient.lookup(barcode: product.barcode),
+              full.servingSizeGrams != nil || full.packageGrams != nil
+        else { return }
+        product = full
+        if let serving = full.servingSizeGrams, !hasEditedPortion {
+            portionGrams = serving
+            portionMode = .servings
+        }
+    }
+
+    private func servingsText(_ count: Double) -> String {
+        let number = count.formatted(.number.precision(.fractionLength(0...1)))
+        return count == 1 ? "1 serving" : "\(number) servings"
+    }
+
+    private func amountText(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...1)))
     }
 
     private func row(_ label: String, _ value: String) -> some View {
