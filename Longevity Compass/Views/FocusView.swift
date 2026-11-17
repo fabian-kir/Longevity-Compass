@@ -440,7 +440,7 @@ private struct ContributorRow: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 if let reading {
-                    ZScoreBar(zScore: reading.zScore)
+                    ZScoreBar(zScore: reading.zScore, accent: accent)
                 }
                 YearsBadgeLabel(years: item.years, accent: accent)
             }

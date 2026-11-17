@@ -15,6 +15,11 @@ import SwiftUI
 
 struct ZScoreBar: View {
     let zScore: Double
+    /// Marker colour. Callers pass the same accent as the row's icon and years
+    /// label, so a reading that moves the estimate is never shown as neutral
+    /// just because its z-score is small (a heavily weighted marker can shift
+    /// years at |z| < 0.5).
+    let accent: Color
 
     /// Soft clamp range so a runaway z (e.g. extreme outlier value) doesn't
     /// push the marker off the visible track.
@@ -22,12 +27,6 @@ struct ZScoreBar: View {
 
     private var clampedZ: Double {
         min(max(zScore, Self.visibleRange.lowerBound), Self.visibleRange.upperBound)
-    }
-
-    private var markerColor: Color {
-        if zScore > 0.5 { return .green }
-        if zScore < -0.5 { return .orange }
-        return .secondary
     }
 
     var body: some View {
@@ -53,13 +52,13 @@ struct ZScoreBar: View {
 
                 // Marker
                 Circle()
-                    .fill(markerColor)
+                    .fill(accent)
                     .overlay(
                         Circle().strokeBorder(.white.opacity(0.85), lineWidth: 1)
                     )
                     .frame(width: 10, height: 10)
                     .offset(x: markerX - 5)
-                    .shadow(color: markerColor.opacity(0.35), radius: 2, x: 0, y: 1)
+                    .shadow(color: accent.opacity(0.35), radius: 2, x: 0, y: 1)
             }
             .frame(height: 12, alignment: .center)
         }
@@ -317,7 +316,7 @@ private struct LeverRow: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 4) {
-                ZScoreBar(zScore: reading.zScore)
+                ZScoreBar(zScore: reading.zScore, accent: accent)
                 YearsBadgeLabel(years: reading.rawYearsImpact, accent: accent)
             }
         }
