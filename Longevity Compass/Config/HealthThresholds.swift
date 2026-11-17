@@ -233,8 +233,8 @@ enum HealthThresholds {
         static let outputUSDPerMillion: Double = 15.00
 
         static let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
-        static let httpReferer = "https://github.com/fabian-kir/longevity-compass"
-        static let appTitle    = "Longevity Compass"
+        static let httpReferer = "https://github.com/fabian-kir/Longevity-Direction"
+        static let appTitle    = "Longevity Direction"
 
         // Image-output model used for auto-generated exercise icons.
         // Must support chat-completions image+text output modalities on OpenRouter.

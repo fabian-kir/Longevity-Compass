@@ -153,7 +153,7 @@ final class PhoneWorkoutManager: NSObject {
             do {
                 try await builder.endCollection(at: endDate)
                 var metadata: [String: Any] = [
-                    HKMetadataKeyWorkoutBrandName: "Longevity Compass N4x4",
+                    HKMetadataKeyWorkoutBrandName: "Longevity Direction N4x4",
                     HKMetadataKeySyncIdentifier: sessionID.uuidString,
                     HKMetadataKeySyncVersion: 1,
                 ]

@@ -432,7 +432,7 @@ private struct EnergyGuideSheet: View {
                         }
                     }
                 } footer: {
-                    Text("This is a user-chosen reference point. Longevity Compass intentionally treats photo-derived calories as approximate.")
+                    Text("This is a user-chosen reference point. Longevity Direction intentionally treats photo-derived calories as approximate.")
                 }
 
                 Section("What stays primary") {

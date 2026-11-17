@@ -135,7 +135,7 @@ enum ExportService {
 
         let timestamp = ISO8601DateFormatter().string(from: payload.exportedAt)
             .replacingOccurrences(of: ":", with: "-")
-        let filename = "longevity-compass-\(timestamp).json"
+        let filename = "longevity-direction-\(timestamp).json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
         try data.write(to: url, options: .atomic)
         return url

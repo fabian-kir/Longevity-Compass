@@ -1,14 +1,18 @@
-# Longevity Compass
+# Longevity Direction
 
-An iPhone and Apple Watch app that estimates how old your physiology looks compared with your
-actual age. It combines 24 signals from HealthKit, bloodwork and logged behaviour into a transparent
-10-factor model, and adds camera-based nutrition logging and a guided Norwegian 4×4 interval workout.
+An iPhone and Apple Watch app for training, nutrition and health data: a gym log with
+progression targets, a guided Norwegian 4×4 interval workout, photo and barcode nutrition logging,
+and a transparent estimate of how old your physiology looks compared with your actual age.
 
-[![CI](https://github.com/fabian-kir/Longevity-Compass/actions/workflows/ci.yml/badge.svg)](https://github.com/fabian-kir/Longevity-Compass/actions/workflows/ci.yml)
+I built it as a learning project, to find out how far you get with AI coding agents on a real,
+non-trivial app and how to steer them well. The parts I use most day to day are the workout
+tracking and the nutrition log.
+
+[![CI](https://github.com/fabian-kir/Longevity-Direction/actions/workflows/ci.yml/badge.svg)](https://github.com/fabian-kir/Longevity-Direction/actions/workflows/ci.yml)
 ![Platform](https://img.shields.io/badge/platform-iOS%2026%20%7C%20watchOS%2026-blue)
 ![Swift](https://img.shields.io/badge/Swift-SwiftUI%20%2B%20SwiftData-orange)
 
-> Longevity Compass is a personal project. It is not a medical device and gives no medical advice.
+> Longevity Direction is a personal learning project. It is not a medical device and gives no medical advice.
 > The biological-age figure is a proxy built from wearable and lab values, not a diagnosis.
 
 ## Screens
@@ -39,11 +43,15 @@ Captured in the iOS simulator with the app's synthetic mock data (`-mockData`).
 - **Focus tab.** The most useful thing to do today, with the reasoning behind it.
 - **Nutrition.** Take a photo or scan a barcode to log a meal.
 - **Bloodwork.** Enter lab panels by hand (ApoB, HbA1c, hs-CRP and others) with reference ranges.
-- **Training.** A strength log, and a guided Norwegian 4×4 session that runs on iPhone and Apple
-  Watch with heart-rate targets, haptics and a Live Activity.
+- **Training.** A strength log that shows what you lifted last time and suggests today's weight
+  and reps. Each exercise gets an AI-generated icon (about $0.04 per icon). Plus a guided
+  Norwegian 4×4 session that runs on iPhone and Apple Watch with heart-rate targets, haptics and
+  a Live Activity.
 
-There is no backend and there are no accounts. Health data stays on the device. The one exception
-is meal photos, which are sent to a vision model through OpenRouter when you use photo logging.
+There is no backend and there are no accounts. Health data stays on the device. The exceptions are
+meal photos, which are sent to a vision model through OpenRouter when you use photo logging, and
+exercise names, which are sent through OpenRouter to generate exercise icons. Barcode lookups go to
+Open Food Facts.
 
 ## The biological-age engine
 
@@ -80,7 +88,8 @@ interface without changing the number.
 
 ## Nutrition pipeline
 
-- **Barcode:** detected on the device with `Vision`, then looked up in OpenFoodFacts.
+- **Barcode:** detected on the device with `Vision`, then looked up in Open Food Facts
+  (data © Open Food Facts contributors, ODbL).
 - **Photo:** a vision model (Claude Sonnet 4.6 through OpenRouter by default) returns a category
   fingerprint: plate fractions, plant ingredients, macros per 100 g and a typical serving size.
   The model is never asked for absolute grams, which it cannot estimate reliably from a photo.
@@ -136,9 +145,13 @@ Frameworks: SwiftUI, SwiftData, HealthKit, WatchConnectivity, ActivityKit, CoreH
 
 ## Build and run
 
+The Xcode project, targets and schemes still use the project's original working name,
+Longevity Compass.
+
+
 ```bash
-git clone https://github.com/fabian-kir/Longevity-Compass.git
-cd Longevity-Compass
+git clone https://github.com/fabian-kir/Longevity-Direction.git
+cd Longevity-Direction
 open "Longevity Compass.xcodeproj"
 ```
 
