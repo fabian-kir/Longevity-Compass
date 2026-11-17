@@ -50,14 +50,20 @@ struct FoodSearchSheet: View {
                 description: Text("Type a product name or brand, then tap Search.")
             )
         } else {
-            List(results, id: \.barcode) { product in
-                NavigationLink {
-                    ProductConfirmView(product: product) { savedTitle in
-                        onSaved(savedTitle)
-                        dismiss()
+            List {
+                Section {
+                    ForEach(results, id: \.barcode) { product in
+                        NavigationLink {
+                            ProductConfirmView(product: product) { savedTitle in
+                                onSaved(savedTitle)
+                                dismiss()
+                            }
+                        } label: {
+                            ProductSearchRow(product: product)
+                        }
                     }
-                } label: {
-                    ProductSearchRow(product: product)
+                } footer: {
+                    OpenFoodFactsAttribution()
                 }
             }
             .listStyle(.plain)
@@ -214,6 +220,8 @@ struct ProductConfirmView: View {
                 if let v = product.satFat100g  { row("Saturated fat", String(format: "%.1f g", v)) }
                 if let v = product.sugars100g  { row("Sugars",        String(format: "%.1f g", v)) }
                 if let n = product.novaGroup   { row("NOVA group",    "\(n) / 4") }
+            } footer: {
+                OpenFoodFactsAttribution()
             }
 
             Section {
@@ -263,6 +271,17 @@ struct ProductConfirmView: View {
             await services.recordNutritionEntry(entry)
             onSaved(product.name ?? "product")
             dismiss()
+        }
+    }
+}
+
+/// ODbL attribution shown wherever Open Food Facts data appears.
+struct OpenFoodFactsAttribution: View {
+    var body: some View {
+        Link(destination: URL(string: "https://world.openfoodfacts.org")!) {
+            Text("Data © Open Food Facts contributors (ODbL)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 }
