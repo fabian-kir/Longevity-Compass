@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum Keychain {
-    static let service = "FabianKirschenmann.LongevityCompass"
+    static let service = "FabianKirschenmann.LongevityDirection"
 
     enum Key: String {
         case openRouterAPIKey = "openrouter.apiKey"
