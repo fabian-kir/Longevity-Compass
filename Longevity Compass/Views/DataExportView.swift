@@ -198,6 +198,16 @@ struct DataExportView: View {
                 Text("Live from iOS. Updated when priorities refresh or when you tap Refresh above.")
             }
 
+            Section {
+                Link(destination: URL(string: "https://world.openfoodfacts.org")!) {
+                    Label("Open Food Facts", systemImage: "barcode")
+                }
+            } header: {
+                Text("Data sources")
+            } footer: {
+                Text("Barcode and product search data © Open Food Facts contributors, available under the Open Database License (ODbL).")
+            }
+
             Section("Export") {
                 Button {
                     do {
