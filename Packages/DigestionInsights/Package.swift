@@ -20,6 +20,8 @@ let package = Package(
                 // optimised. Allowed for local path packages in Xcode and
                 // SwiftPM; a remote dependency would reject unsafeFlags.
                 .unsafeFlags(["-O"], .when(configuration: .debug)),
+                // Current (non-deprecated) CBLAS interface of Accelerate.
+                .unsafeFlags(["-Xcc", "-DACCELERATE_NEW_LAPACK"]),
             ]
         ),
         .testTarget(
