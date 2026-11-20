@@ -16,6 +16,7 @@ struct EditNutritionEntrySheet: View {
     @State private var notes: String = ""
     @State private var newPlantText: String = ""
     @State private var portionGrams: Double = 0
+    @State private var profile: IngredientProfile = .emptyPhoto
     @State private var isSaving = false
 
     private var isFingerprint: Bool { entry.fingerprint != nil }
@@ -54,6 +55,9 @@ struct EditNutritionEntrySheet: View {
                 }
                 if isFingerprint {
                     fingerprintSections
+                }
+                if entry.source == .photo {
+                    profileSections
                 }
             }
             .navigationTitle("Edit entry")
@@ -136,6 +140,48 @@ struct EditNutritionEntrySheet: View {
         }
     }
 
+    // MARK: - Allergens and free-from
+
+    @ViewBuilder
+    private var profileSections: some View {
+        Section {
+            ForEach(EUAllergen.allCases) { allergen in
+                Toggle(isOn: allergenBinding(allergen)) {
+                    HStack {
+                        Text(allergen.label)
+                        if profile.source(of: allergen) == .ai {
+                            Text("AI").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("Allergens")
+        } footer: {
+            Text("AI can be wrong. Tick what the meal contained, untick what it did not.")
+        }
+
+        Section("Free from") {
+            ForEach(FreeFromLabel.allCases) { label in
+                Toggle(label.label, isOn: freeFromBinding(label))
+            }
+        }
+    }
+
+    private func allergenBinding(_ allergen: EUAllergen) -> Binding<Bool> {
+        Binding(
+            get: { profile.contains(allergen) },
+            set: { profile = profile.settingAllergen(allergen, present: $0) }
+        )
+    }
+
+    private func freeFromBinding(_ label: FreeFromLabel) -> Binding<Bool> {
+        Binding(
+            get: { profile.isFree(from: label) },
+            set: { profile = profile.settingFreeFrom(label, present: $0) }
+        )
+    }
+
     private func binding(for category: MealCategory) -> Binding<Double> {
         Binding(
             get: { items.first(where: { $0.category == category })?.plateFraction ?? 0 },
@@ -153,6 +199,7 @@ struct EditNutritionEntrySheet: View {
         date = entry.date
         productName = entry.productName ?? ""
         portionGrams = entry.portionGrams ?? 0
+        profile = entry.ingredientProfile ?? .emptyPhoto
         if let fp = entry.fingerprint {
             items = fp.items
             plantIngredients = fp.plantIngredients
@@ -176,7 +223,7 @@ struct EditNutritionEntrySheet: View {
         isSaving = true
         entry.date = date
 
-        if isFingerprint {
+        if let fingerprint = entry.fingerprint {
             let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
             let cleanedFraction = items.map {
                 MealFingerprint.Item(
@@ -185,18 +232,11 @@ struct EditNutritionEntrySheet: View {
                 )
             }
             let trimmedTitle = productName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let updated = MealFingerprint(
+            let updated = fingerprint.edited(
                 items: cleanedFraction,
                 plantIngredients: plantIngredients,
                 aiNotes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-                confidence: entry.fingerprint?.confidence,
-                title: trimmedTitle.isEmpty ? nil : trimmedTitle,
-                estimatedKcalPer100g: entry.fingerprint?.estimatedKcalPer100g,
-                proteinPer100g: entry.fingerprint?.proteinPer100g,
-                carbsPer100g: entry.fingerprint?.carbsPer100g,
-                fatPer100g: entry.fingerprint?.fatPer100g,
-                fiberPer100g: entry.fingerprint?.fiberPer100g,
-                typicalServingGrams: entry.fingerprint?.typicalServingGrams
+                title: trimmedTitle.isEmpty ? nil : trimmedTitle
             )
             entry.productName = trimmedTitle.isEmpty ? nil : trimmedTitle
             if let data = try? JSONEncoder().encode(updated),
@@ -207,6 +247,11 @@ struct EditNutritionEntrySheet: View {
         } else {
             let trimmedName = productName.trimmingCharacters(in: .whitespacesAndNewlines)
             entry.productName = trimmedName.isEmpty ? nil : trimmedName
+        }
+
+        // An untouched legacy entry stays without a profile (unknown).
+        if entry.source == .photo, entry.ingredientProfile != nil || profile != .emptyPhoto {
+            entry.ingredientProfile = profile
         }
 
         if portionGrams > 0 && portionGrams != entry.portionGrams {

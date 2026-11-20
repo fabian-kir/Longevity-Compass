@@ -169,3 +169,42 @@ extension EUAllergen {
         return out
     }
 }
+
+extension IngredientProfile {
+    /// Starting point when the user reviews a photo meal that has no profile yet.
+    static var emptyPhoto: IngredientProfile {
+        IngredientProfile(
+            origin: .photoAI,
+            allergens: [],
+            traces: [],
+            ingredientIDs: [],
+            unmatchedIngredientNames: [],
+            freeFrom: []
+        )
+    }
+
+    /// Profile of a photo meal. Allergens count as `ai`; names the taxonomy
+    /// cannot match are kept for display only. The AI never sets free-from
+    /// labels. Nil for fingerprints from before the AI was asked for either field.
+    static func fromFingerprint(_ fingerprint: MealFingerprint, taxonomy: IngredientTaxonomy) -> IngredientProfile? {
+        guard fingerprint.allergens != nil || fingerprint.ingredients != nil else { return nil }
+        var ids: [String] = []
+        var unmatched: [String] = []
+        for name in fingerprint.ingredients ?? [] {
+            if let id = taxonomy.id(forName: name) {
+                if !ids.contains(id) { ids.append(id) }
+            } else {
+                let trimmed = IngredientTaxonomy.normalize(name)
+                if !trimmed.isEmpty && !unmatched.contains(trimmed) { unmatched.append(trimmed) }
+            }
+        }
+        return IngredientProfile(
+            origin: .photoAI,
+            allergens: EUAllergen.parse(fingerprint.allergens ?? []).map { AllergenMark(allergen: $0, source: .ai) },
+            traces: [],
+            ingredientIDs: ids,
+            unmatchedIngredientNames: unmatched,
+            freeFrom: []
+        )
+    }
+}

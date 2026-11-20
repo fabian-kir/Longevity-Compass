@@ -82,7 +82,8 @@ final class OpenRouterClient {
                 ["role": "user",   "content": content],
             ],
             "response_format": ["type": "json_object"],
-            "max_tokens": 650,
+            // Allergens and up to 15 ingredient names add roughly 200 output tokens.
+            "max_tokens": 900,
             "temperature": 0.1,
         ]
 
@@ -130,7 +131,7 @@ final class OpenRouterClient {
 
         guard !contentString.isEmpty else { throw OpenRouterError.noContent }
 
-        let parsed = try parseFingerprint(contentString)
+        let parsed = try Self.parseFingerprint(contentString)
         return MealFingerprintAnalysis(
             fingerprint: parsed,
             model: usedModel,
@@ -361,7 +362,9 @@ final class OpenRouterClient {
 
     // MARK: - Parsing
 
-    private func parseFingerprint(_ raw: String) throws -> MealFingerprint {
+    /// Decodes the model's JSON. Allergens outside the EU list are dropped and
+    /// ingredient names trimmed, deduplicated and capped at 15.
+    static func parseFingerprint(_ raw: String) throws -> MealFingerprint {
         let cleaned = raw
             .replacingOccurrences(of: "```json", with: "")
             .replacingOccurrences(of: "```", with: "")
@@ -371,16 +374,30 @@ final class OpenRouterClient {
         }
         do {
             let decoder = JSONDecoder()
-            return try decoder.decode(MealFingerprint.self, from: data)
+            var fingerprint = try decoder.decode(MealFingerprint.self, from: data)
+            fingerprint.allergens = fingerprint.allergens.map { EUAllergen.parse($0).map(\.rawValue) }
+            fingerprint.ingredients = fingerprint.ingredients.map(cleanedIngredientNames)
+            return fingerprint
         } catch {
             throw OpenRouterError.malformedResponse("JSON decode: \(error.localizedDescription)\nRaw: \(cleaned.prefix(400))")
         }
     }
 
+    private static func cleanedIngredientNames(_ names: [String]) -> [String] {
+        var out: [String] = []
+        for name in names {
+            let trimmed = IngredientTaxonomy.normalize(name)
+            guard !trimmed.isEmpty, !out.contains(trimmed) else { continue }
+            out.append(trimmed)
+        }
+        return Array(out.prefix(15))
+    }
+
     // MARK: - Prompts
 
     private var systemPrompt: String {
-        """
+        let allergenIDs = EUAllergen.allCases.map { "\"\($0.rawValue)\"" }.joined(separator: ", ")
+        return """
         You are a meal photo classifier for a longevity app. Given a photo, return a JSON object describing the meal in terms of food categories, plant ingredients, and macro estimates.
 
         Schema (return only this JSON object, no markdown, no prose):
@@ -395,7 +412,9 @@ final class OpenRouterClient {
           "carbsPer100g": <number|null>,
           "fatPer100g": <number|null>,
           "fiberPer100g": <number|null>,
-          "typicalServingGrams": <number|null>
+          "typicalServingGrams": <number|null>,
+          "allergens": [ <allergen>, ... ],
+          "ingredients": [ <string>, ... ]
         }
 
         Allowed category values (use exactly these strings):
@@ -425,6 +444,9 @@ final class OpenRouterClient {
         - estimatedKcalPer100g, proteinPer100g, carbsPer100g, fatPer100g: Estimate macronutrients per 100 g of the dish as typically prepared, using your knowledge of standard recipes for the identified dish. If the dish is too ambiguous to estimate reliably, return null for all four fields.
         - fiberPer100g: Estimate dietary fibre per 100 g of the dish the same way. Return null when the macro fields are null.
         - typicalServingGrams: Your best-guess typical serving weight in grams for this dish (e.g. a restaurant plate of pasta ≈ 450 g, a side salad ≈ 150 g, a full meal salad ≈ 350 g). Return null if genuinely uncertain.
+        - allergens: use only these exact strings: \(allergenIDs). List an allergen only when it is visible or part of the standard recipe of the dish you identified (e.g. pasta → "en:gluten", cheese → "en:milk"). Never list one as a precaution. If unsure, omit it. Empty list is fine.
+        - ingredients: the main and standard-recipe ingredients of the dish, at most 15, plant and animal alike. Use plain English, singular, lowercase names as in the Open Food Facts ingredient taxonomy, e.g. "onion", "garlic", "wheat flour", "milk", "butter". Empty list is fine.
+        - Never claim a free-from property (lactose-free, gluten-free, alcohol-free, decaf); a photo cannot show it.
         - If the photo is ambiguous, pick the most likely interpretation and put your assumption in aiNotes.
         - Do not output anything other than the JSON object.
         """

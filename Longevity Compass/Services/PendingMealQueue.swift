@@ -216,7 +216,8 @@ extension NutritionEntry {
             outputTokens: analysis.outputTokens,
             costUSD: analysis.costUSD,
             fingerprintJSON: json,
-            imageFileName: imageFileName
+            imageFileName: imageFileName,
+            ingredientProfile: IngredientProfile.fromFingerprint(fp, taxonomy: .shared)
         )
     }
 }

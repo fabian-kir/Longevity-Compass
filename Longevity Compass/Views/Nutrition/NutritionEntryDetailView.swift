@@ -44,8 +44,11 @@ struct NutritionEntryDetailView: View {
                 }
             }
 
-            if entry.source == .barcode, let profile = entry.ingredientProfile {
-                declaredProfileSection(profile)
+            if let profile = entry.ingredientProfile {
+                switch entry.source {
+                case .barcode: declaredProfileSection(profile)
+                case .photo:   photoProfileSection(profile)
+                }
             }
 
             if let fp = entry.fingerprint {
@@ -126,6 +129,52 @@ struct NutritionEntryDetailView: View {
             Text("Allergens & labels")
         } footer: {
             OpenFoodFactsAttribution()
+        }
+    }
+
+    /// AI-detected or user-reviewed data of a photo meal.
+    private func photoProfileSection(_ profile: IngredientProfile) -> some View {
+        let taxonomy = IngredientTaxonomy.shared
+        let matched = profile.ingredientIDs.map { taxonomy.name(of: $0) ?? $0 }
+        return Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Contains").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                if profile.allergens.isEmpty {
+                    Text("None marked").font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(profile.allergens, id: \.allergen) { mark in
+                        HStack {
+                            Text(mark.allergen.label).font(.subheadline)
+                            Spacer()
+                            Text(mark.source == .user ? "You" : "AI")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Ingredients").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                if matched.isEmpty && profile.unmatchedIngredientNames.isEmpty {
+                    Text("None detected").font(.subheadline).foregroundStyle(.secondary)
+                }
+                if !matched.isEmpty {
+                    Text(matched.joined(separator: ", ")).font(.subheadline)
+                }
+                if !profile.unmatchedIngredientNames.isEmpty {
+                    Text(profile.unmatchedIngredientNames.joined(separator: ", "))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            labelRow("Free from", profile.freeFrom.map(\.label.label))
+        } header: {
+            Text("Allergens & ingredients")
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("AI can be wrong. Grey ingredients are not matched to the Open Food Facts list.")
+                OpenFoodFactsAttribution()
+            }
         }
     }
 
