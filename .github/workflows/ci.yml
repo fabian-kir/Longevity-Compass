@@ -33,6 +33,9 @@ jobs:
       - name: Test interval package
         run: swift test --package-path Packages/IntervalEngine
 
+      - name: Test digestion package
+        run: swift test --package-path Packages/DigestionInsights
+
       - name: Test iOS app
         run: |
           set -o pipefail
