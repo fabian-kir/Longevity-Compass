@@ -55,8 +55,6 @@ struct NutritionDigest {
         mealsWithoutLimitFlags: 0,
         assessedMeals: 0
     )
-    var estimatedCaloriesPerLoggedDay: Double?
-    var energyEstimateDays: Int = 0
 
     func rollup(for bucket: NutrientBucket) -> NutritionBucketRollup? {
         rollups.first { $0.bucket == bucket }
@@ -223,15 +221,6 @@ enum NutritionEngine {
         }
         let pattern = patternSnapshot(from: fingerprinted, recent: recent)
 
-        let energyByDay = Dictionary(grouping: recent.compactMap { entry -> (Date, Double)? in
-            guard let kcal = entry.caloriesKcal, kcal > 0 else { return nil }
-            return (cal.startOfDay(for: entry.date), kcal)
-        }, by: \.0)
-            .mapValues { $0.reduce(0) { $0 + $1.1 } }
-        let energyAverage: Double? = energyByDay.isEmpty
-            ? nil
-            : energyByDay.values.reduce(0, +) / Double(energyByDay.count)
-
         let monthStart: Date = {
             var comps = cal.dateComponents([.year, .month], from: now)
             comps.day = 1
@@ -247,9 +236,7 @@ enum NutritionEngine {
             totalEntries: recent.count,
             costThisMonthUSD: monthCost,
             costAllTimeUSD: totalCost,
-            pattern: pattern,
-            estimatedCaloriesPerLoggedDay: energyAverage,
-            energyEstimateDays: energyByDay.count
+            pattern: pattern
         )
     }
 

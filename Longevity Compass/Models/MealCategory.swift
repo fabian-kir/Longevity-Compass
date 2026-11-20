@@ -110,6 +110,8 @@ nonisolated struct MealFingerprint: Codable, Equatable {
     let proteinPer100g: Double?
     let carbsPer100g: Double?
     let fatPer100g: Double?
+    /// Nil on entries logged before the AI was asked for fibre.
+    let fiberPer100g: Double?
     /// AI's best-guess typical serving weight; used to pre-fill the weight field in the capture flow.
     let typicalServingGrams: Double?
 
@@ -121,12 +123,14 @@ nonisolated struct MealFingerprint: Codable, Equatable {
 
     var hasMacroEstimates: Bool { estimatedKcalPer100g != nil }
 
-    func scaledMacros(toGrams grams: Double) -> (kcal: Double, protein: Double, carbs: Double, fat: Double)? {
+    func scaledMacros(
+        toGrams grams: Double
+    ) -> (kcal: Double, protein: Double, carbs: Double, fat: Double, fiber: Double?)? {
         guard let kcal = estimatedKcalPer100g,
               let protein = proteinPer100g,
               let carbs = carbsPer100g,
               let fat = fatPer100g else { return nil }
         let f = grams / 100.0
-        return (kcal * f, protein * f, carbs * f, fat * f)
+        return (kcal * f, protein * f, carbs * f, fat * f, fiberPer100g.map { $0 * f })
     }
 }

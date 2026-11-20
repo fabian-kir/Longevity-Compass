@@ -2,19 +2,16 @@ import SwiftUI
 
 struct NutritionDashboardView: View {
     let digest: NutritionDigest
+    let entries: [NutritionEntry]
 
-    @AppStorage("nutrition.energyIntent") private var energyIntentRaw = EnergyIntent.maintain.rawValue
-    @AppStorage("nutrition.energyGuideKcal") private var energyGuideKcal = 2_200.0
     @State private var showWeeklyDetails = false
-    @State private var showEnergySettings = false
-
-    private var energyIntent: EnergyIntent {
-        EnergyIntent(rawValue: energyIntentRaw) ?? .maintain
-    }
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 12) {
+            IntakeCard(entries: entries)
+
             dashboardHeader
+                .padding(.top, 8)
 
             if digest.totalEntries == 0 {
                 NutritionStartCard()
@@ -24,14 +21,7 @@ struct NutritionDashboardView: View {
                 }
                 FoodPatternCard(digest: digest)
                 weeklyDetailsCard
-                energyCard
             }
-        }
-        .sheet(isPresented: $showEnergySettings) {
-            EnergyGuideSheet(
-                intentRaw: $energyIntentRaw,
-                dailyGuideKcal: $energyGuideKcal
-            )
         }
     }
 
@@ -90,79 +80,6 @@ struct NutritionDashboardView: View {
                 NutritionSignalRow(rollup: rollup)
             }
         }
-    }
-
-    private var energyCard: some View {
-        Button {
-            showEnergySettings = true
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Energy direction", systemImage: "dial.medium")
-                        .font(.headline)
-                    Spacer()
-                    Text(energyIntent.displayLabel)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .glassChip(tint: .blue, tintOpacity: 0.18)
-                }
-
-                if let average = digest.estimatedCaloriesPerLoggedDay {
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("~\(Int(average.rounded())) kcal/day")
-                                .font(.title3.weight(.bold))
-                                .monospacedDigit()
-                            Text("Logged estimate across \(digest.energyEstimateDays) days")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("\(Int(energyGuideKcal.rounded()))")
-                                .font(.headline)
-                                .monospacedDigit()
-                            Text("daily guide")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text(energyComparison(average))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.blue)
-                } else {
-                    Text("Set a flexible daily guide for a deficit, maintenance or surplus.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "approximately")
-                    Text("Directional only — photo estimates and incomplete meal logs are not precise intake measurements.")
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding()
-        .glassCard(tint: .blue, cornerRadius: 18, tintOpacity: 0.10)
-        .accessibilityHint("Opens energy direction and daily guide settings")
-    }
-
-    private func energyComparison(_ average: Double) -> String {
-        let difference = average - energyGuideKcal
-        let magnitude = Int(abs(difference).rounded() / 10) * 10
-        if abs(difference) < energyGuideKcal * 0.05 {
-            return "Near your flexible guide"
-        }
-        return difference < 0
-            ? "~\(magnitude) kcal below your guide"
-            : "~\(magnitude) kcal above your guide"
     }
 }
 
@@ -366,88 +283,5 @@ private struct NutritionSignalRow: View {
         return rollup.bucket.lowerIsBetter
             ? "\(value) / ≤\(target)"
             : "\(value) / \(target)"
-    }
-}
-
-private enum EnergyIntent: String, CaseIterable, Identifiable {
-    case deficit
-    case maintain
-    case surplus
-
-    var id: String { rawValue }
-
-    var displayLabel: String {
-        switch self {
-        case .deficit: "Deficit"
-        case .maintain: "Maintain"
-        case .surplus: "Surplus"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .deficit: "Use the guide as a gentle ceiling, while keeping diet quality visible."
-        case .maintain: "Use the guide as a flexible centreline, not a daily pass/fail score."
-        case .surplus: "Use the guide as a gentle floor, while keeping food quality visible."
-        }
-    }
-}
-
-private struct EnergyGuideSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var intentRaw: String
-    @Binding var dailyGuideKcal: Double
-
-    private var intent: Binding<EnergyIntent> {
-        Binding(
-            get: { EnergyIntent(rawValue: intentRaw) ?? .maintain },
-            set: { intentRaw = $0.rawValue }
-        )
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Direction") {
-                    Picker("Direction", selection: intent) {
-                        ForEach(EnergyIntent.allCases) { option in
-                            Text(option.displayLabel).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Text(intent.wrappedValue.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    Stepper(value: $dailyGuideKcal, in: 1_000...5_000, step: 50) {
-                        HStack {
-                            Text("Daily guide")
-                            Spacer()
-                            Text("\(Int(dailyGuideKcal)) kcal")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
-                    }
-                } footer: {
-                    Text("This is a user-chosen reference point. Longevity Direction intentionally treats photo-derived calories as approximate.")
-                }
-
-                Section("What stays primary") {
-                    Label("Plant and food-group variety", systemImage: "leaf")
-                    Label("Protective foods across the week", systemImage: "heart.text.square")
-                    Label("Patterns worth adding or limiting", systemImage: "arrow.left.arrow.right")
-                }
-            }
-            .navigationTitle("Energy guide")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
     }
 }

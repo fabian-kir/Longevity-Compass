@@ -201,6 +201,9 @@ struct PostCaptureSheet: View {
                         row("Protein",  String(format: "%.0f g",    scaled.protein))
                         row("Carbs",    String(format: "%.0f g",    scaled.carbs))
                         row("Fat",      String(format: "%.0f g",    scaled.fat))
+                        if let fiber = scaled.fiber {
+                            row("Fibre", String(format: "%.0f g", fiber))
+                        }
                     }
                 }
             }

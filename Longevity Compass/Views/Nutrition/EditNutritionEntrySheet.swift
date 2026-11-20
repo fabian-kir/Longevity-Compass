@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Edit a previously logged nutrition entry. Photo entries expose the AI fingerprint
 /// (categories, plant ingredients, notes) so the user can fix miscategorisations.
-/// Barcode entries only allow editing the display name and date — macro rescaling
-/// from the original per-100 g values isn't worth the bookkeeping.
+/// Any entry with a portion or per-100 g estimates can change its portion; the
+/// nutrients scale with it.
 struct EditNutritionEntrySheet: View {
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
@@ -15,6 +15,7 @@ struct EditNutritionEntrySheet: View {
     @State private var plantIngredients: [String] = []
     @State private var notes: String = ""
     @State private var newPlantText: String = ""
+    @State private var portionGrams: Double = 0
     @State private var isSaving = false
 
     private var isFingerprint: Bool { entry.fingerprint != nil }
@@ -38,6 +39,18 @@ struct EditNutritionEntrySheet: View {
 
                 Section("Title") {
                     TextField("Meal name", text: $productName)
+                }
+                if entry.canRescalePortion {
+                    Section {
+                        WholeNumberFieldRow(
+                            title: "Portion",
+                            unit: "g",
+                            placeholder: entry.fingerprint?.typicalServingGrams.map { "\(Int($0))" } ?? "g",
+                            value: $portionGrams
+                        )
+                    } footer: {
+                        Text("Calories, macros and fibre scale with the portion.")
+                    }
                 }
                 if isFingerprint {
                     fingerprintSections
@@ -139,6 +152,7 @@ struct EditNutritionEntrySheet: View {
     private func load() {
         date = entry.date
         productName = entry.productName ?? ""
+        portionGrams = entry.portionGrams ?? 0
         if let fp = entry.fingerprint {
             items = fp.items
             plantIngredients = fp.plantIngredients
@@ -181,6 +195,7 @@ struct EditNutritionEntrySheet: View {
                 proteinPer100g: entry.fingerprint?.proteinPer100g,
                 carbsPer100g: entry.fingerprint?.carbsPer100g,
                 fatPer100g: entry.fingerprint?.fatPer100g,
+                fiberPer100g: entry.fingerprint?.fiberPer100g,
                 typicalServingGrams: entry.fingerprint?.typicalServingGrams
             )
             entry.productName = trimmedTitle.isEmpty ? nil : trimmedTitle
@@ -192,6 +207,10 @@ struct EditNutritionEntrySheet: View {
         } else {
             let trimmedName = productName.trimmingCharacters(in: .whitespacesAndNewlines)
             entry.productName = trimmedName.isEmpty ? nil : trimmedName
+        }
+
+        if portionGrams > 0 && portionGrams != entry.portionGrams {
+            entry.rescale(toPortionGrams: portionGrams)
         }
 
         Task {

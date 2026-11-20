@@ -34,10 +34,13 @@ Camera-first meal logging with hybrid local/cloud AI.
 - **Camera capture** — full-screen camera as the primary entry point.
 - **Post-capture sheet** — preview, retake, save.
 - **Barcode path** — local Vision barcode detection → OpenFoodFacts lookup.
-- **Photo path** — image sent to OpenRouter (Auto Router, `openrouter/auto`, picks the vision model per request) for category fingerprint extraction (plate fractions, plant ingredients, macros per 100g, typical serving grams). AI never estimates absolute grams.
+- **Photo path** — image sent to OpenRouter (Auto Router, `openrouter/auto`, picks the vision model per request) for category fingerprint extraction (plate fractions, plant ingredients, macros and fibre per 100g, typical serving grams). AI never estimates absolute grams; the user confirms the weight.
 - **Offline queue** — `NWPathMonitor`-backed pending-meal queue; entries upload when connectivity returns.
 - **Food search sheet** — text search via OpenFoodFacts for manual lookup.
-- **Manual edit / detail view** — review and adjust any logged entry; view fingerprint breakdown.
+- **Intake card** — calories, protein, carbs, fat and fibre consumed today against optional daily targets. The calorie target carries a goal (deficit, maintain, surplus); protein and fibre are minimums, carbs and fat are limits.
+- **Tracking window (advanced)** — daily by default, or fixed N-day blocks from an anchor date, or a rolling N-day window. Targets scale with the window length, with a per-day bar strip and the budget left per remaining day. Aimed at intermittent fasting.
+- **History by day** — meal history grouped per day with daily calorie totals.
+- **Manual edit / detail view** — review and adjust any logged entry, including the portion (nutrients rescale); view fingerprint breakdown.
 - **Permission-denied fallback** — clear message with Settings deep-link when camera access is refused.
 - **Empty state** — "Snap your first meal to get started."
 

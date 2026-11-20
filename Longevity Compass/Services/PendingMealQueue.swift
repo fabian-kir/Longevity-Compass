@@ -83,9 +83,14 @@ final class PendingMealQueue {
             do {
                 let analysis = try await MealAnalysisPipeline.analyze(image: image, openRouter: openRouter)
                 let storedImage = MealImageStore.ingest(jpegAt: imageURL(for: meal.imageFileName))
+                // Nobody confirms a weight for a queued meal, so the AI's typical
+                // serving stands in. The user can correct the portion later in
+                // the edit sheet; without it the meal would count as 0 kcal.
+                let fingerprint = analysis.fingerprint
                 let entry = NutritionEntry.fromFingerprint(
                     analysis,
                     capturedAt: meal.capturedAt,
+                    portionGrams: fingerprint.hasMacroEstimates ? fingerprint.typicalServingGrams : nil,
                     imageFileName: storedImage
                 )
                 await onEntryReady(entry)
@@ -174,7 +179,7 @@ final class PendingMealQueue {
 extension NutritionEntry {
     /// Builds a photo-source entry from an AI fingerprint analysis.
     /// Pass `portionGrams` to scale the per-100 g macro estimates into absolute values;
-    /// nil leaves macro fields empty (used by the offline queue which has no user weight input).
+    /// nil leaves macro fields empty.
     @MainActor static func fromFingerprint(
         _ analysis: MealFingerprintAnalysis,
         capturedAt: Date,
@@ -196,7 +201,7 @@ extension NutritionEntry {
             caloriesKcal: scaled?.kcal,
             portionGrams: portionGrams,
             proteinGrams: scaled?.protein,
-            fiberGrams: nil,
+            fiberGrams: scaled?.fiber,
             carbsGrams: scaled?.carbs,
             fatGrams: scaled?.fat,
             saturatedFatGrams: nil,

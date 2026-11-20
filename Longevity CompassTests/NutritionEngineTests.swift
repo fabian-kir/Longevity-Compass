@@ -4,7 +4,7 @@ import XCTest
 final class NutritionEngineTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    func testDigestCapturesDietBreadthAndApproximateEnergyByLoggedDay() throws {
+    func testDigestCapturesDietBreadth() {
         let first = entry(
             daysAgo: 0,
             categories: [.leafyGreens, .fruit, .wholeGrains],
@@ -24,8 +24,6 @@ final class NutritionEngineTests: XCTestCase {
         XCTAssertEqual(digest.pattern.beneficialGroupTarget, 9)
         XCTAssertEqual(digest.pattern.mealsWithoutLimitFlags, 1)
         XCTAssertEqual(digest.pattern.assessedMeals, 2)
-        XCTAssertEqual(digest.energyEstimateDays, 2)
-        XCTAssertEqual(try XCTUnwrap(digest.estimatedCaloriesPerLoggedDay), 600, accuracy: 0.001)
     }
 
     func testLimitConcernTakesPriorityOverAdditionGap() {
@@ -108,6 +106,7 @@ final class NutritionEngineTests: XCTestCase {
             proteinPer100g: nil,
             carbsPer100g: nil,
             fatPer100g: nil,
+            fiberPer100g: nil,
             typicalServingGrams: nil
         )
         let json = try? JSONEncoder().encode(fingerprint)

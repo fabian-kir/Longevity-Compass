@@ -248,65 +248,65 @@ enum MockData {
     // MARK: - Nutrition (photo entries with AI fingerprints, last 7 days = the digest window)
 
     private static func nutritionEntries() -> [NutritionEntry] {
-        // (dayOffset, title, [category:plateFraction], [plant ingredients], kcal/100g, P, C, F, serving g)
-        let meals: [(Int, String, [(MealCategory, Double)], [String], Double, Double, Double, Double, Double)] = [
+        // (dayOffset, title, [category:plateFraction], [plant ingredients], kcal/100g, P, C, F, fibre, serving g)
+        let meals: [(Int, String, [(MealCategory, Double)], [String], Double, Double, Double, Double, Double, Double)] = [
             (0, "Oatmeal with blueberries, banana & chia",
                 [(.wholeGrains, 0.5), (.fruit, 0.3), (.nutsAndSeeds, 0.2)],
-                ["oats", "blueberries", "banana", "chia seeds"], 150, 5, 27, 4, 320),
+                ["oats", "blueberries", "banana", "chia seeds"], 150, 5, 27, 4, 4.0, 320),
             (0, "Salmon, quinoa & roasted broccoli",
                 [(.omega3Source, 0.35), (.wholeGrains, 0.3), (.cruciferous, 0.35)],
-                ["broccoli", "quinoa"], 180, 14, 14, 8, 420),
+                ["broccoli", "quinoa"], 180, 14, 14, 8, 2.5, 420),
             (0, "Greek yogurt with walnuts & berries",
                 [(.fermented, 0.5), (.nutsAndSeeds, 0.25), (.fruit, 0.25)],
-                ["walnuts", "raspberries", "strawberries"], 120, 9, 9, 5, 220),
+                ["walnuts", "raspberries", "strawberries"], 120, 9, 9, 5, 1.5, 220),
             (1, "Lentil & spinach curry with brown rice",
                 [(.legumes, 0.45), (.leafyGreens, 0.25), (.wholeGrains, 0.3)],
-                ["lentils", "spinach", "brown rice", "onion", "garlic", "tomato"], 140, 8, 20, 3, 450),
+                ["lentils", "spinach", "brown rice", "onion", "garlic", "tomato"], 140, 8, 20, 3, 4.5, 450),
             (1, "Chicken salad with mixed leaves & avocado",
                 [(.leanProtein, 0.4), (.leafyGreens, 0.3), (.otherVeg, 0.3)],
-                ["arugula", "lettuce", "avocado", "cucumber", "bell pepper"], 160, 15, 6, 9, 380),
+                ["arugula", "lettuce", "avocado", "cucumber", "bell pepper"], 160, 15, 6, 9, 3.0, 380),
             (2, "Tofu & edamame stir-fry with peppers",
                 [(.legumes, 0.4), (.otherVeg, 0.4), (.wholeGrains, 0.2)],
-                ["tofu", "edamame", "bell pepper", "carrot", "mushroom"], 145, 12, 12, 6, 400),
+                ["tofu", "edamame", "bell pepper", "carrot", "mushroom"], 145, 12, 12, 6, 3.0, 400),
             (2, "Kefir smoothie with kale & flax",
                 [(.fermented, 0.5), (.leafyGreens, 0.3), (.nutsAndSeeds, 0.2)],
-                ["kefir", "kale", "flax seeds", "apple"], 90, 6, 12, 2, 350),
+                ["kefir", "kale", "flax seeds", "apple"], 90, 6, 12, 2, 2.0, 350),
             (3, "Sardines on rye with rocket",
                 [(.omega3Source, 0.5), (.wholeGrains, 0.3), (.leafyGreens, 0.2)],
-                ["arugula", "rye"], 200, 18, 16, 9, 250),
+                ["arugula", "rye"], 200, 18, 16, 9, 3.5, 250),
             (3, "Chickpea & roasted veg bowl",
                 [(.legumes, 0.4), (.otherVeg, 0.4), (.cruciferous, 0.2)],
-                ["chickpeas", "sweet potato", "cauliflower", "zucchini", "red onion"], 150, 8, 22, 4, 430),
+                ["chickpeas", "sweet potato", "cauliflower", "zucchini", "red onion"], 150, 8, 22, 4, 5.0, 430),
             (4, "Kimchi fried rice with egg",
                 [(.fermented, 0.35), (.wholeGrains, 0.4), (.leanProtein, 0.25)],
-                ["kimchi", "brown rice", "scallion", "peas"], 170, 9, 24, 5, 360),
+                ["kimchi", "brown rice", "scallion", "peas"], 170, 9, 24, 5, 2.0, 360),
             (4, "Burger and fries",
                 [(.redMeat, 0.4), (.fried, 0.35), (.refinedCarbs, 0.25)],
-                [], 280, 13, 28, 14, 450),
+                [], 280, 13, 28, 14, 1.5, 450),
             (5, "Bean chili with cornbread",
                 [(.legumes, 0.5), (.otherVeg, 0.3), (.wholeGrains, 0.2)],
-                ["kidney beans", "black beans", "sweet corn", "tomato", "celery"], 135, 8, 19, 3, 460),
+                ["kidney beans", "black beans", "sweet corn", "tomato", "celery"], 135, 8, 19, 3, 5.5, 460),
             (5, "Spinach & mushroom omelette",
                 [(.leanProtein, 0.5), (.leafyGreens, 0.3), (.otherVeg, 0.2)],
-                ["spinach", "mushroom"], 150, 13, 3, 10, 240),
+                ["spinach", "mushroom"], 150, 13, 3, 10, 1.0, 240),
             (6, "Grilled mackerel with asparagus & potatoes",
                 [(.omega3Source, 0.4), (.otherVeg, 0.3), (.wholeGrains, 0.3)],
-                ["asparagus", "potato", "beetroot"], 175, 16, 14, 8, 400),
+                ["asparagus", "potato", "beetroot"], 175, 16, 14, 8, 2.0, 400),
             (6, "Almond-butter toast with apple",
                 [(.wholeGrains, 0.45), (.nutsAndSeeds, 0.3), (.fruit, 0.25)],
-                ["almonds", "apple"], 230, 8, 24, 11, 180),
+                ["almonds", "apple"], 230, 8, 24, 11, 4.5, 180),
             // A couple of older entries so the list scrolls (outside the 7-day digest window).
             (9, "Protein shake & berries",
                 [(.dairyOrAlt, 0.6), (.fruit, 0.4)],
-                ["blueberries"], 110, 18, 8, 2, 350),
+                ["blueberries"], 110, 18, 8, 2, 1.0, 350),
             (12, "Pasta with tomato sauce",
                 [(.refinedCarbs, 0.6), (.otherVeg, 0.4)],
-                ["tomato", "basil"], 190, 7, 32, 4, 380),
+                ["tomato", "basil"], 190, 7, 32, 4, 2.0, 380),
         ]
 
         let enc = JSONEncoder()
         return meals.enumerated().map { idx, m in
-            let (offset, title, cats, plants, kcal, p, c, f, serving) = m
+            let (offset, title, cats, plants, kcal, p, c, f, fibre, serving) = m
             let fp = MealFingerprint(
                 items: cats.map { MealFingerprint.Item(category: $0.0, plateFraction: $0.1) },
                 plantIngredients: plants,
@@ -317,6 +317,7 @@ enum MockData {
                 proteinPer100g: p,
                 carbsPer100g: c,
                 fatPer100g: f,
+                fiberPer100g: fibre,
                 typicalServingGrams: serving
             )
             let json = (try? enc.encode(fp)).flatMap { String(data: $0, encoding: .utf8) }
@@ -332,6 +333,7 @@ enum MockData {
                 caloriesKcal: macros?.kcal,
                 portionGrams: grams,
                 proteinGrams: macros?.protein,
+                fiberGrams: macros?.fiber,
                 carbsGrams: macros?.carbs,
                 fatGrams: macros?.fat,
                 modelUsed: "anthropic/claude-sonnet-4.6",

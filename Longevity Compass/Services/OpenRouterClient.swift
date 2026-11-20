@@ -394,6 +394,7 @@ final class OpenRouterClient {
           "proteinPer100g": <number|null>,
           "carbsPer100g": <number|null>,
           "fatPer100g": <number|null>,
+          "fiberPer100g": <number|null>,
           "typicalServingGrams": <number|null>
         }
 
@@ -422,6 +423,7 @@ final class OpenRouterClient {
         - plateFraction is the visual fraction of the plate this category occupies. The sum across all items should be ≤ 1.0; small overlaps are fine.
         - plantIngredients is a short list of distinct *plant* ingredient names visible in the meal (e.g. ["kale","tomato","lentils","walnuts"]). Use simple lowercase singular names. Do not include animal products. Empty list is fine.
         - estimatedKcalPer100g, proteinPer100g, carbsPer100g, fatPer100g: Estimate macronutrients per 100 g of the dish as typically prepared, using your knowledge of standard recipes for the identified dish. If the dish is too ambiguous to estimate reliably, return null for all four fields.
+        - fiberPer100g: Estimate dietary fibre per 100 g of the dish the same way. Return null when the macro fields are null.
         - typicalServingGrams: Your best-guess typical serving weight in grams for this dish (e.g. a restaurant plate of pasta ≈ 450 g, a side salad ≈ 150 g, a full meal salad ≈ 350 g). Return null if genuinely uncertain.
         - If the photo is ambiguous, pick the most likely interpretation and put your assumption in aiNotes.
         - Do not output anything other than the JSON object.

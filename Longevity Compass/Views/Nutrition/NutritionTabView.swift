@@ -227,7 +227,7 @@ struct NutritionTabView: View {
     private var weeklyPanel: some View {
         if let digest = services.nutritionDigest {
             ScrollView {
-                NutritionDashboardView(digest: digest)
+                NutritionDashboardView(digest: digest, entries: entries)
                     .padding(.horizontal)
                     .padding(.vertical, 12)
             }
@@ -329,6 +329,14 @@ struct NutritionHistoryView: View {
     @Environment(AppServices.self) private var services
     @Query(sort: \NutritionEntry.date, order: .reverse) private var entries: [NutritionEntry]
 
+    /// Entries grouped by calendar day, newest day first.
+    private var days: [(day: Date, entries: [NutritionEntry])] {
+        let calendar = Calendar.current
+        return Dictionary(grouping: entries) { calendar.startOfDay(for: $0.date) }
+            .map { (day: $0.key, entries: $0.value) }
+            .sorted { $0.day > $1.day }
+    }
+
     var body: some View {
         List {
             if entries.isEmpty {
@@ -338,20 +346,57 @@ struct NutritionHistoryView: View {
                     description: Text("Snap a meal from the Nutrition tab to log it.")
                 )
             } else {
-                ForEach(entries) { entry in
-                    NutritionHistoryRow(entry: entry)
-                }
-                .onDelete { offsets in
-                    Task {
-                        for index in offsets {
-                            await services.deleteNutritionEntry(entries[index])
+                ForEach(days, id: \.day) { day in
+                    Section {
+                        ForEach(day.entries) { entry in
+                            NutritionHistoryRow(entry: entry)
                         }
+                        .onDelete { offsets in
+                            let doomed = offsets.map { day.entries[$0] }
+                            Task {
+                                for entry in doomed {
+                                    await services.deleteNutritionEntry(entry)
+                                }
+                            }
+                        }
+                    } header: {
+                        NutritionHistoryDayHeader(day: day.day, entries: day.entries)
                     }
                 }
             }
         }
         .navigationTitle("Nutrition history")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct NutritionHistoryDayHeader: View {
+    let day: Date
+    let entries: [NutritionEntry]
+
+    private var totals: NutrientAmounts {
+        entries.reduce(into: NutrientAmounts()) { $0.add($1) }
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+            Spacer()
+            Text(summary)
+                .monospacedDigit()
+        }
+    }
+
+    private var summary: String {
+        let totals = totals
+        var parts = ["\(Int(totals.energyKcal.rounded()).formatted()) kcal"]
+        if totals.protein > 0 {
+            parts.append("P \(Int(totals.protein.rounded()))")
+        }
+        if totals.fiber > 0 {
+            parts.append("Fibre \(Int(totals.fiber.rounded()))")
+        }
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -364,12 +409,12 @@ private struct NutritionHistoryRow: View {
         } label: {
             HStack(spacing: 12) {
                 MealThumbnailView(fileName: entry.imageFileName, fallback: entry.source.systemImage)
-                // The date sits under the title instead of in a trailing
+                // The time sits under the title instead of in a trailing
                 // column, so meal names get the full row width.
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
                     Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                    Text(entry.date.formatted(date: .omitted, time: .shortened))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }

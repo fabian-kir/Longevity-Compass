@@ -118,3 +118,36 @@ final class NutritionEntry {
         return try? JSONDecoder().decode(MealFingerprint.self, from: data)
     }
 }
+
+extension NutritionEntry {
+    /// True when the entry has something to scale: AI per-100 g estimates or a known portion.
+    var canRescalePortion: Bool {
+        fingerprint?.hasMacroEstimates == true || (portionGrams ?? 0) > 0
+    }
+
+    /// Sets a new portion and scales the nutrients with it. Photo entries recompute
+    /// from the AI's per-100 g estimates; other entries scale by the ratio to the old portion.
+    func rescale(toPortionGrams grams: Double) {
+        guard grams > 0 else { return }
+        if let scaled = fingerprint?.scaledMacros(toGrams: grams) {
+            caloriesKcal = scaled.kcal
+            proteinGrams = scaled.protein
+            carbsGrams = scaled.carbs
+            fatGrams = scaled.fat
+            fiberGrams = scaled.fiber
+        } else if let old = portionGrams, old > 0 {
+            let factor = grams / old
+            caloriesKcal = caloriesKcal.map { $0 * factor }
+            proteinGrams = proteinGrams.map { $0 * factor }
+            fiberGrams = fiberGrams.map { $0 * factor }
+            carbsGrams = carbsGrams.map { $0 * factor }
+            fatGrams = fatGrams.map { $0 * factor }
+            saturatedFatGrams = saturatedFatGrams.map { $0 * factor }
+            addedSugarGrams = addedSugarGrams.map { $0 * factor }
+            sodiumMilligrams = sodiumMilligrams.map { $0 * factor }
+        } else {
+            return
+        }
+        portionGrams = grams
+    }
+}
