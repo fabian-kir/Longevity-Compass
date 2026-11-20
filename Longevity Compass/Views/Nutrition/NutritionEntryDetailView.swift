@@ -44,6 +44,10 @@ struct NutritionEntryDetailView: View {
                 }
             }
 
+            if entry.source == .barcode, let profile = entry.ingredientProfile {
+                declaredProfileSection(profile)
+            }
+
             if let fp = entry.fingerprint {
                 fingerprintSections(fp)
                 if hasMacros { macroSection }
@@ -109,6 +113,28 @@ struct NutritionEntryDetailView: View {
             Section("Plant ingredients (\(fp.plantIngredients.count))") {
                 Text(fp.plantIngredients.joined(separator: ", ")).font(.subheadline)
             }
+        }
+    }
+
+    /// Open Food Facts label data, read-only.
+    private func declaredProfileSection(_ profile: IngredientProfile) -> some View {
+        Section {
+            labelRow("Contains", profile.allergens.map(\.allergen.label))
+            labelRow("May contain traces", profile.traces.map(\.label))
+            labelRow("Free from", profile.freeFrom.map(\.label.label))
+        } header: {
+            Text("Allergens & labels")
+        } footer: {
+            OpenFoodFactsAttribution()
+        }
+    }
+
+    private func labelRow(_ title: String, _ values: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(values.isEmpty ? "None listed" : values.joined(separator: ", "))
+                .font(.subheadline)
+                .foregroundStyle(values.isEmpty ? .secondary : .primary)
         }
     }
 
