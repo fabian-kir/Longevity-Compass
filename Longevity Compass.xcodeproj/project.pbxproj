@@ -14,6 +14,7 @@
 		4EAAAA092FE100000055F503 /* IntervalUI in Frameworks */ = {isa = PBXBuildFile; productRef = 4EAAAA082FE100000055F503 /* IntervalUI */; };
 		4EB1000B300F000000000001 /* IntervalEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 4EB1000A300F000000000001 /* IntervalEngine */; };
 		4EB1000D300F000000000001 /* N4x4 Live Activity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4EB10002300F000000000001 /* N4x4 Live Activity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4EDA0004300F000000000001 /* DigestionInsightsEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 4EDA0002300F000000000001 /* DigestionInsightsEngine */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -135,6 +136,7 @@
 			files = (
 				4EAAAA032FE100000055F503 /* IntervalEngine in Frameworks */,
 				4EAAAA072FE100000055F503 /* IntervalUI in Frameworks */,
+				4EDA0004300F000000000001 /* DigestionInsightsEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,6 +215,7 @@
 			packageProductDependencies = (
 				4EAAAA022FE100000055F503 /* IntervalEngine */,
 				4EAAAA062FE100000055F503 /* IntervalUI */,
+				4EDA0002300F000000000001 /* DigestionInsightsEngine */,
 			);
 			productName = "Longevity Compass";
 			productReference = 4E53F9D02FD9CBA80055F503 /* Longevity Compass.app */;
@@ -324,6 +327,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */,
+				4EDA0001300F000000000001 /* XCLocalSwiftPackageReference "Packages/DigestionInsights" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4E53F9D12FD9CBA80055F503 /* Products */;
@@ -852,6 +856,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/IntervalEngine;
 		};
+		4EDA0001300F000000000001 /* XCLocalSwiftPackageReference "Packages/DigestionInsights" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DigestionInsights;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -879,6 +887,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4EAAAA012FE100000055F503 /* XCLocalSwiftPackageReference "Packages/IntervalEngine" */;
 			productName = IntervalEngine;
+		};
+		4EDA0002300F000000000001 /* DigestionInsightsEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4EDA0001300F000000000001 /* XCLocalSwiftPackageReference "Packages/DigestionInsights" */;
+			productName = DigestionInsightsEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

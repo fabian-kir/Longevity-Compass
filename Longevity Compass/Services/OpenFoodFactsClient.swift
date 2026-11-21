@@ -24,6 +24,9 @@ struct OpenFoodFactsProduct {
     let sugars100g: Double?
     let salt100g: Double?
     let sodium100g: Double?
+    /// Allergens, traces, free-from labels and ingredients. Nil for search
+    /// results and for products without any of these fields.
+    var ingredientProfile: IngredientProfile? = nil
 
     var ultraProcessedScore: Double? {
         guard let n = novaGroup else { return nil }
@@ -86,6 +89,14 @@ enum OpenFoodFactsClient {
         "code", "product_name", "brands", "image_front_url", "image_url",
         "serving_size", "serving_quantity", "serving_quantity_unit",
         "product_quantity", "product_quantity_unit", "quantity", "nova_group", "nutriments",
+    ].joined(separator: ",")
+
+    /// The search service does not return `ingredients`, `traces_tags` or
+    /// `unknown_ingredients_n` (checked 2026-11-20), so only the product API
+    /// asks for the ingredient profile fields.
+    private static let productFields = searchFields + "," + [
+        "allergens_tags", "traces_tags", "labels_tags", "ingredients", "ingredients_n",
+        "unknown_ingredients_n", "states_tags",
     ].joined(separator: ",")
 
     struct Quantity: Equatable {
@@ -188,7 +199,7 @@ enum OpenFoodFactsClient {
 
     private static func productAPILookup(barcode: String) async throws -> OpenFoodFactsProduct {
         var components = URLComponents(string: "https://world.openfoodfacts.org/api/v2/product/\(barcode).json")!
-        components.queryItems = [URLQueryItem(name: "fields", value: searchFields)]
+        components.queryItems = [URLQueryItem(name: "fields", value: productFields)]
         guard let url = components.url else { throw OpenFoodFactsError.malformedResponse }
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
@@ -208,7 +219,7 @@ enum OpenFoodFactsClient {
         guard status == 1, let product = json["product"] as? [String: Any] else {
             throw OpenFoodFactsError.notFound
         }
-        return parse(product: product, barcode: barcode)
+        return parse(product: product, barcode: barcode, includesProfile: true)
     }
 
     /// Returns nil when the search service is unreachable or has no match, so the
@@ -233,7 +244,14 @@ enum OpenFoodFactsClient {
         return parse(product: hit, barcode: barcode)
     }
 
-    private static func parse(product: [String: Any], barcode: String) -> OpenFoodFactsProduct {
+    /// `includesProfile` is false for search service results, which lack the
+    /// fields a complete profile needs.
+    static func parse(
+        product: [String: Any],
+        barcode: String,
+        includesProfile: Bool = false,
+        taxonomy: IngredientTaxonomy = .shared
+    ) -> OpenFoodFactsProduct {
         let nutriments = product["nutriments"] as? [String: Any] ?? [:]
         func d(_ key: String) -> Double? {
             if let v = nutriments[key] as? Double { return v }
@@ -276,7 +294,79 @@ enum OpenFoodFactsClient {
             satFat100g:  d("saturated-fat_100g"),
             sugars100g:  d("sugars_100g"),
             salt100g:    d("salt_100g"),
-            sodium100g:  d("sodium_100g")
+            sodium100g:  d("sodium_100g"),
+            ingredientProfile: includesProfile
+                ? ingredientProfile(product: product, alcohol100g: d("alcohol_100g"), taxonomy: taxonomy)
+                : nil
         )
+    }
+
+    // MARK: - Ingredient profile
+
+    private static let profileFields = ["allergens_tags", "traces_tags", "labels_tags", "ingredients"]
+
+    /// Builds the profile from Open Food Facts' own fields only; no scoring of our own.
+    static func ingredientProfile(
+        product: [String: Any],
+        alcohol100g: Double?,
+        taxonomy: IngredientTaxonomy
+    ) -> IngredientProfile? {
+        guard profileFields.contains(where: { product[$0] != nil }) else { return nil }
+
+        let labelTags = strings(product["labels_tags"])
+        var freeFrom: [FreeFromMark] = []
+        for tag in labelTags {
+            guard let label = taxonomy.freeFromLabel(forLabelTag: tag),
+                  !freeFrom.contains(where: { $0.label == label }) else { continue }
+            freeFrom.append(FreeFromMark(label: label, source: .declared))
+        }
+
+        var ingredientIDs: [String] = []
+        collectIngredientIDs(product["ingredients"], taxonomy: taxonomy, into: &ingredientIDs)
+
+        let containsAlcohol: Bool? = {
+            if labelTags.contains("en:contains-alcohol") { return true }
+            return alcohol100g.map { $0 > 0.5 }
+        }()
+        let unknownCount = int(product["unknown_ingredients_n"])
+        let complete: Bool? = product["states_tags"] == nil ? nil
+            : strings(product["states_tags"]).contains("en:ingredients-completed") && unknownCount == 0
+
+        return IngredientProfile(
+            origin: .openFoodFacts,
+            allergens: EUAllergen.parse(strings(product["allergens_tags"]))
+                .map { AllergenMark(allergen: $0, source: .declared) },
+            traces: EUAllergen.parse(strings(product["traces_tags"])),
+            ingredientIDs: ingredientIDs,
+            unmatchedIngredientNames: [],
+            freeFrom: freeFrom,
+            containsAlcohol: containsAlcohol,
+            offIngredientsComplete: complete,
+            offIngredientsCount: int(product["ingredients_n"]),
+            offUnknownIngredientsCount: unknownCount
+        )
+    }
+
+    /// Walks nested ingredients depth first, keeping IDs the bundled taxonomy
+    /// knows, in listed order, without duplicates.
+    private static func collectIngredientIDs(_ value: Any?, taxonomy: IngredientTaxonomy, into ids: inout [String]) {
+        for item in value as? [[String: Any]] ?? [] {
+            let inOFFTaxonomy = int(item["is_in_taxonomy"]).map { $0 != 0 } ?? true
+            if let id = item["id"] as? String, inOFFTaxonomy, taxonomy.contains(id), !ids.contains(id) {
+                ids.append(id)
+            }
+            collectIngredientIDs(item["ingredients"], taxonomy: taxonomy, into: &ids)
+        }
+    }
+
+    private static func strings(_ value: Any?) -> [String] {
+        value as? [String] ?? []
+    }
+
+    private static func int(_ value: Any?) -> Int? {
+        if let v = value as? Int { return v }
+        if let v = value as? Double { return Int(v) }
+        if let s = value as? String { return Int(s) }
+        return nil
     }
 }

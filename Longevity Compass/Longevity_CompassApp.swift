@@ -18,6 +18,9 @@ struct Longevity_CompassApp: App {
             N4x4WorkoutLog.self,
             BloodworkPanel.self,
             BloodworkMarker.self,
+            SymptomEntry.self,
+            DigestionTrackingPeriod.self,
+            DigestionAnalysisRun.self,
         ])
         var inMemory = false
         #if DEBUG
@@ -34,7 +37,9 @@ struct Longevity_CompassApp: App {
             #if DEBUG
             if MockMode.isActive { MockData.seed(into: container.mainContext) }
             #endif
-            self._services = State(initialValue: AppServices(context: container.mainContext))
+            let services = AppServices(context: container.mainContext)
+            self._services = State(initialValue: services)
+            DigestionBackgroundTask.register(services: services)
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }

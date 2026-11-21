@@ -138,6 +138,70 @@ final class LocalDataStore {
         try? context.save()
     }
 
+    // MARK: - Digestion Insights
+
+    func insertSymptom(_ entry: SymptomEntry) {
+        context.insert(entry)
+        try? context.save()
+    }
+
+    func fetchAllSymptoms() -> [SymptomEntry] {
+        let descriptor = FetchDescriptor<SymptomEntry>(
+            sortBy: [SortDescriptor(\.onset, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteSymptom(_ entry: SymptomEntry) {
+        context.delete(entry)
+        try? context.save()
+    }
+
+    func fetchTrackingPeriods() -> [DigestionTrackingPeriod] {
+        let descriptor = FetchDescriptor<DigestionTrackingPeriod>(
+            sortBy: [SortDescriptor(\.start, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func activeTrackingPeriod() -> DigestionTrackingPeriod? {
+        fetchTrackingPeriods().first { $0.end == nil }
+    }
+
+    /// Starts a new period. Returns the existing one if tracking is already active.
+    @discardableResult
+    func startTracking(at start: Date = .now) -> DigestionTrackingPeriod {
+        if let active = activeTrackingPeriod() { return active }
+        let period = DigestionTrackingPeriod(start: start)
+        context.insert(period)
+        try? context.save()
+        return period
+    }
+
+    func stopTracking(at end: Date = .now) {
+        guard let active = activeTrackingPeriod() else { return }
+        active.end = max(end, active.start)
+        try? context.save()
+    }
+
+    func insertAnalysisRun(_ run: DigestionAnalysisRun) {
+        context.insert(run)
+        try? context.save()
+    }
+
+    /// Newest first.
+    func fetchAnalysisRuns() -> [DigestionAnalysisRun] {
+        let descriptor = FetchDescriptor<DigestionAnalysisRun>(
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteAnalysisRun(_ run: DigestionAnalysisRun) {
+        context.delete(run)
+        try? context.save()
+    }
+
     // MARK: - Wipe
 
     func deleteAllLocalData() {
@@ -149,6 +213,9 @@ final class LocalDataStore {
         for e in fetchAll(ExerciseEntry.self) { context.delete(e) }
         for n in fetchAll(N4x4WorkoutLog.self) { context.delete(n) }
         for b in fetchAllBloodworkPanels()    { context.delete(b) }
+        for s in fetchAllSymptoms()           { context.delete(s) }
+        for p in fetchTrackingPeriods()       { context.delete(p) }
+        for r in fetchAnalysisRuns()          { context.delete(r) }
         try? context.save()
     }
 

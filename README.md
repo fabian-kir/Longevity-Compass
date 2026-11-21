@@ -43,6 +43,9 @@ Captured in the iOS simulator with the app's synthetic mock data (`-mockData`).
 - **Focus tab.** The most useful thing to do today, with the reasoning behind it.
 - **Nutrition.** Take a photo or scan a barcode to log a meal.
 - **Bloodwork.** Enter lab panels by hand (ApoB, HbA1c, hs-CRP and others) with reference ranges.
+- **Digestion Insights.** Opt-in. Log digestive symptoms from the Nutrition tab; an on-device
+  Bayesian model looks for ingredients your symptoms tend to follow, and how many hours later.
+  Pattern matching only: no diagnosis, no diet advice, results shown only from converged runs.
 - **Training.** A strength log that shows what you lifted last time and suggests today's weight
   and reps. Each exercise gets an AI-generated icon (about $0.04 per icon). Plus a guided
   Norwegian 4×4 session that runs on iPhone and Apple Watch with heart-rate targets, haptics and
@@ -51,7 +54,7 @@ Captured in the iOS simulator with the app's synthetic mock data (`-mockData`).
 There is no backend and there are no accounts. Health data stays on the device. The exceptions are
 meal photos, which are sent to a vision model through OpenRouter when you use photo logging, and
 exercise names, which are sent through OpenRouter to generate exercise icons. Barcode lookups go to
-Open Food Facts.
+Open Food Facts. Symptom logs and the Digestion Insights analysis never leave the device.
 
 ## The biological-age engine
 
@@ -86,6 +89,33 @@ zero when a factor is at its cap or suppressed.
 so the same effect is not counted twice. Upstream drivers and the top lever are still shown in the
 interface without changing the number.
 
+## The Digestion Insights engine
+
+`DigestionInsightsEngine` (local package `Packages/DigestionInsights`) fits a Bayesian
+distributed-lag Poisson model to one person's hourly symptom counts. Each logged meal contributes
+exposures to EU allergens, Open Food Facts ingredients and ingredient groups, weighted by how
+reliable the source is. A cubic-spline lag curve over 0–96 hours estimates for each food how
+strongly, and how long after eating, symptoms follow. Horseshoe shrinkage keeps the many foods
+without an effect near zero.
+
+The engine has its own No-U-Turn sampler written in Swift with Accelerate: four chains, Stan-style
+warmup, rank-normalised R̂ and effective sample size. It runs nightly while the phone charges. A
+result is shown only when all three fits (full data, first half, second half) pass the convergence
+checks.
+
+A simulation study with synthetic users (staples, foods eaten together, sloppy logging, AI
+misdetection) calibrated the decision thresholds and measured what the engine can and cannot
+find. With typical logging, a ×2 trigger did not reach an early signal in most users within 180
+logged days; slow effects (24–60 h after eating) were found, acute ones (within 12 h) were not,
+even at ten times the baseline rate. Null users showed a false "clear pattern" in 0 of 208
+analyses (95 % interval 0–1.8 %). The results are reported as measured, including what does not
+work yet.
+
+The simulation study, its settings and its limits are in
+[Packages/DigestionInsights/Simulation/results.md](Packages/DigestionInsights/Simulation/results.md);
+the model, priors, levels and validation in
+[docs/digestion-insights-methodology.md](docs/digestion-insights-methodology.md).
+
 ## Nutrition pipeline
 
 - **Barcode:** detected on the device with `Vision`, then looked up in Open Food Facts
@@ -119,6 +149,7 @@ The timing and state logic lives in the local `IntervalEngine` package, separate
 | `Longevity Compass/Services/` | Engines and integrations: HealthKit, OpenRouter, OpenFoodFacts, Keychain |
 | `Longevity Compass/Config/` | Thresholds and norms |
 | `Packages/IntervalEngine/` | Interval state and timing, and the visuals shared by phone and watch |
+| `Packages/DigestionInsights/` | Digestion Insights model, NUTS sampler and simulation study |
 | `Longevity Watch Watch App/` | Apple Watch companion |
 | `N4x4 Live Activity/` | Live Activity for a running session |
 
@@ -128,10 +159,12 @@ The timing and state logic lives in the local `IntervalEngine` package, separate
 | `PriorityEngine` | Ranks 12 health domains by impact, friction, status and trend |
 | `IntervalEngine` | Deterministic 4×4 timeline, target bands, coaching and failover |
 | `NotificationManager` | Reminders driven by status, respecting quiet hours |
+| `DigestionInsightsEngine` | Meals and symptoms → distributed-lag model → pattern level, effect size and delay per ingredient |
 
 Persistence uses SwiftData with lightweight migration. Export is JSON.
 
-Frameworks: SwiftUI, SwiftData, HealthKit, WatchConnectivity, ActivityKit, CoreHaptics, Vision, Network.
+Frameworks: SwiftUI, SwiftData, HealthKit, WatchConnectivity, ActivityKit, CoreHaptics, Vision, Network,
+BackgroundTasks, Charts, Accelerate.
 
 ## Tests
 
@@ -141,6 +174,9 @@ Frameworks: SwiftUI, SwiftData, HealthKit, WatchConnectivity, ActivityKit, CoreH
   workout recorder.
 - The `IntervalEngine` package has tests for the timeline, targets, control, failover and the
   message format between phone and watch.
+- The `DigestionInsights` package tests the sampler against targets with known answers, the
+  model gradient against finite differences, the level rules and the simulation tools. A separate
+  simulation study (`digestion-sim`) checks calibration and recovery of planted triggers.
 - GitHub Actions runs both suites on every push and pull request to `main`.
 
 ## Build and run

@@ -1,0 +1,4579 @@
+{
+  "calibration" : {
+    "backgroundFalseClear" : {
+      "lower" : 0.020620270120208947,
+      "rate" : 0.03333333333333333,
+      "successes" : 16,
+      "trials" : 480,
+      "upper" : 0.05345659581055706
+    },
+    "backgroundFalseEarly" : {
+      "lower" : 0.16666080439604022,
+      "rate" : 0.2,
+      "successes" : 96,
+      "trials" : 480,
+      "upper" : 0.23810289513088082
+    },
+    "clearProb" : 0.8,
+    "curve" : [
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.022928471562726035,
+          "rate" : 0.04326923076923077,
+          "successes" : 9,
+          "trials" : 208,
+          "upper" : 0.08017438184773279
+        },
+        "threshold" : 0.8
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.022928471562726035,
+          "rate" : 0.04326923076923077,
+          "successes" : 9,
+          "trials" : 208,
+          "upper" : 0.08017438184773279
+        },
+        "threshold" : 0.81
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.019615669254283066,
+          "rate" : 0.038461538461538464,
+          "successes" : 8,
+          "trials" : 208,
+          "upper" : 0.07404616156049638
+        },
+        "threshold" : 0.82
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.0075032571738019235,
+          "rate" : 0.019230769230769232,
+          "successes" : 4,
+          "trials" : 208,
+          "upper" : 0.04839448325826
+        },
+        "threshold" : 0.83
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.0026408579840607876,
+          "rate" : 0.009615384615384616,
+          "successes" : 2,
+          "trials" : 208,
+          "upper" : 0.03437483725664237
+        },
+        "threshold" : 0.84
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.0008491804641579965,
+          "rate" : 0.004807692307692308,
+          "successes" : 1,
+          "trials" : 208,
+          "upper" : 0.026725492180865777
+        },
+        "threshold" : 0.85
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.0008491804641579965,
+          "rate" : 0.004807692307692308,
+          "successes" : 1,
+          "trials" : 208,
+          "upper" : 0.026725492180865777
+        },
+        "threshold" : 0.86
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.0008491804641579965,
+          "rate" : 0.004807692307692308,
+          "successes" : 1,
+          "trials" : 208,
+          "upper" : 0.026725492180865777
+        },
+        "threshold" : 0.87
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0.0008491804641579965,
+          "rate" : 0.004807692307692308,
+          "successes" : 1,
+          "trials" : 208,
+          "upper" : 0.026725492180865777
+        },
+        "threshold" : 0.88
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.89
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.9
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.91
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.92
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.93
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.94
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.95
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.96
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.97
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.98
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.99
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.995
+      },
+      {
+        "falseClearWithEqualHalf" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 208,
+          "upper" : 0.018133650049344387
+        },
+        "threshold" : 0.999
+      }
+    ],
+    "earlyProb" : 0.8,
+    "falseClearEver" : {
+      "lower" : 0,
+      "rate" : 0,
+      "successes" : 0,
+      "trials" : 48,
+      "upper" : 0.07410013074848033
+    },
+    "falseClearPooled" : {
+      "lower" : 0,
+      "rate" : 0,
+      "successes" : 0,
+      "trials" : 208,
+      "upper" : 0.018133650049344387
+    },
+    "falseClearShown" : {
+      "lower" : 0,
+      "rate" : 0,
+      "successes" : 0,
+      "trials" : 208,
+      "upper" : 0.018133650049344387
+    },
+    "falseClearTarget" : 0.01,
+    "falseEarlyEver" : {
+      "lower" : 0.0585705140436488,
+      "rate" : 0.125,
+      "successes" : 6,
+      "trials" : 48,
+      "upper" : 0.2470045840177115
+    },
+    "falseEarlyPooled" : {
+      "lower" : 0.022928471562726035,
+      "rate" : 0.04326923076923077,
+      "successes" : 9,
+      "trials" : 208,
+      "upper" : 0.08017438184773279
+    },
+    "falseEarlyShown" : {
+      "lower" : 0.022928471562726035,
+      "rate" : 0.04326923076923077,
+      "successes" : 9,
+      "trials" : 208,
+      "upper" : 0.08017438184773279
+    },
+    "falseEarlyTarget" : 0.05,
+    "grid" : [
+      0.8,
+      0.81,
+      0.82,
+      0.83,
+      0.84,
+      0.85,
+      0.86,
+      0.87,
+      0.88,
+      0.89,
+      0.9,
+      0.91,
+      0.92,
+      0.93,
+      0.94,
+      0.95,
+      0.96,
+      0.97,
+      0.98,
+      0.99,
+      0.995,
+      0.999
+    ],
+    "halfProb" : 0.8,
+    "nullAnalyses" : 208,
+    "nullUsers" : 48,
+    "perHorizon" : [
+      {
+        "falseClear" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 48,
+          "upper" : 0.07410013074848033
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 48,
+          "upper" : 0.07410013074848033
+        },
+        "horizon" : 14
+      },
+      {
+        "falseClear" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 48,
+          "upper" : 0.07410013074848033
+        },
+        "falseEarly" : {
+          "lower" : 0.003687110936731193,
+          "rate" : 0.020833333333333332,
+          "successes" : 1,
+          "trials" : 48,
+          "upper" : 0.10899218103056246
+        },
+        "horizon" : 30
+      },
+      {
+        "falseClear" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 48,
+          "upper" : 0.07410013074848033
+        },
+        "falseEarly" : {
+          "lower" : 0.02148323274107221,
+          "rate" : 0.0625,
+          "successes" : 3,
+          "trials" : 48,
+          "upper" : 0.16835438166384809
+        },
+        "horizon" : 60
+      },
+      {
+        "falseClear" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 48,
+          "upper" : 0.07410013074848033
+        },
+        "falseEarly" : {
+          "lower" : 0.04532171875500551,
+          "rate" : 0.10416666666666667,
+          "successes" : 5,
+          "trials" : 48,
+          "upper" : 0.22167421808754145
+        },
+        "horizon" : 90
+      },
+      {
+        "falseClear" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 16,
+          "upper" : 0.1936076829974049
+        },
+        "falseEarly" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 16,
+          "upper" : 0.1936076829974049
+        },
+        "horizon" : 180
+      }
+    ],
+    "targetsMet" : true
+  },
+  "compute" : {
+    "build" : "swift build -c release",
+    "logicalCores" : 8,
+    "machine" : "Apple M3",
+    "notes" : [
+      "Before the final runs: about 25 min of pilots and divergence probes (target acceptance 0.8 and 0.95 without the slab, prior variants); their runs are not in the results.",
+      "Phase logs were restarted when concurrency changed; the run file resumes, so no analysis was counted twice. The simulation was paused for about 8 min in total during builds; those pauses are inside the logged wall times."
+    ],
+    "phases" : [
+      {
+        "log" : "recovery-phase1a.log",
+        "runs" : 16,
+        "wallSeconds" : 158
+      },
+      {
+        "log" : "recovery-phase1b.log",
+        "runs" : 151,
+        "wallSeconds" : 1706
+      },
+      {
+        "log" : "recovery-phase1c.log",
+        "runs" : 457,
+        "wallSeconds" : 5022
+      },
+      {
+        "log" : "recovery-phase2.log",
+        "runs" : 40,
+        "wallSeconds" : 2295
+      },
+      {
+        "log" : "recovery-phase3.log",
+        "runs" : 24,
+        "wallSeconds" : 1522
+      },
+      {
+        "log" : "sbc.log",
+        "runs" : 1000,
+        "wallSeconds" : 683
+      }
+    ],
+    "totalWallSeconds" : 11386
+  },
+  "convergence" : [
+    {
+      "converged" : {
+        "lower" : 0.8435748852621204,
+        "rate" : 0.9423076923076923,
+        "successes" : 49,
+        "trials" : 52,
+        "upper" : 0.980185828042016
+      },
+      "diligence" : "careful",
+      "horizon" : 14,
+      "medianMaxRhat" : 1.0072883542924342,
+      "medianSeconds" : 12.311099958,
+      "medianSymptoms" : 9,
+      "withDivergences" : {
+        "lower" : 0.0034028080333148927,
+        "rate" : 0.019230769230769232,
+        "successes" : 1,
+        "trials" : 52,
+        "upper" : 0.10120511228827589
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.898794887711724,
+        "rate" : 0.9807692307692307,
+        "successes" : 51,
+        "trials" : 52,
+        "upper" : 0.996597191966685
+      },
+      "diligence" : "careful",
+      "horizon" : 30,
+      "medianMaxRhat" : 1.0075259027609027,
+      "medianSeconds" : 22.0334866045,
+      "medianSymptoms" : 18,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 52,
+        "upper" : 0.06879223713445441
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8435748852621204,
+        "rate" : 0.9423076923076923,
+        "successes" : 49,
+        "trials" : 52,
+        "upper" : 0.980185828042016
+      },
+      "diligence" : "careful",
+      "horizon" : 60,
+      "medianMaxRhat" : 1.0073952046341819,
+      "medianSeconds" : 32.549375561999994,
+      "medianSymptoms" : 34.5,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 52,
+        "upper" : 0.06879223713445441
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.9312077628655455,
+        "rate" : 1,
+        "successes" : 52,
+        "trials" : 52,
+        "upper" : 1
+      },
+      "diligence" : "careful",
+      "horizon" : 90,
+      "medianMaxRhat" : 1.0071773174319882,
+      "medianSeconds" : 46.242127083499994,
+      "medianSymptoms" : 49,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 52,
+        "upper" : 0.06879223713445441
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8701881073969999,
+        "rate" : 0.9615384615384616,
+        "successes" : 50,
+        "trials" : 52,
+        "upper" : 0.9893882890942729
+      },
+      "diligence" : "typical",
+      "horizon" : 14,
+      "medianMaxRhat" : 1.0075682107324848,
+      "medianSeconds" : 12.214709833499999,
+      "medianSymptoms" : 8,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 52,
+        "upper" : 0.06879223713445441
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8298046255332168,
+        "rate" : 0.921875,
+        "successes" : 59,
+        "trials" : 64,
+        "upper" : 0.9661688233055712
+      },
+      "diligence" : "typical",
+      "horizon" : 30,
+      "medianMaxRhat" : 1.0075827979208145,
+      "medianSeconds" : 23.6777517295,
+      "medianSymptoms" : 17,
+      "withDivergences" : {
+        "lower" : 0.0027635418927853816,
+        "rate" : 0.015625,
+        "successes" : 1,
+        "trials" : 64,
+        "upper" : 0.08334101684786545
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.898794887711724,
+        "rate" : 0.9807692307692307,
+        "successes" : 51,
+        "trials" : 52,
+        "upper" : 0.996597191966685
+      },
+      "diligence" : "typical",
+      "horizon" : 60,
+      "medianMaxRhat" : 1.0073517092835722,
+      "medianSeconds" : 34.580789229000004,
+      "medianSymptoms" : 32.5,
+      "withDivergences" : {
+        "lower" : 0.0034028080333148927,
+        "rate" : 0.019230769230769232,
+        "successes" : 1,
+        "trials" : 52,
+        "upper" : 0.10120511228827589
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.9166589831521346,
+        "rate" : 0.984375,
+        "successes" : 63,
+        "trials" : 64,
+        "upper" : 0.9972364581072146
+      },
+      "diligence" : "typical",
+      "horizon" : 90,
+      "medianMaxRhat" : 1.007409338335838,
+      "medianSeconds" : 47.71913375,
+      "medianSymptoms" : 52.5,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 64,
+        "upper" : 0.05662406063551054
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8349612250489412,
+        "rate" : 0.95,
+        "successes" : 38,
+        "trials" : 40,
+        "upper" : 0.9861793327384413
+      },
+      "diligence" : "typical",
+      "horizon" : 180,
+      "medianMaxRhat" : 1.0074388361188515,
+      "medianSeconds" : 152.2689213955,
+      "medianSymptoms" : 104,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8435748852621204,
+        "rate" : 0.9423076923076923,
+        "successes" : 49,
+        "trials" : 52,
+        "upper" : 0.980185828042016
+      },
+      "diligence" : "sloppy",
+      "horizon" : 14,
+      "medianMaxRhat" : 1.0074890125215372,
+      "medianSeconds" : 11.4866312085,
+      "medianSymptoms" : 6,
+      "withDivergences" : {
+        "lower" : 0.010611710905727038,
+        "rate" : 0.038461538461538464,
+        "successes" : 2,
+        "trials" : 52,
+        "upper" : 0.12981189260300013
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8182643750912105,
+        "rate" : 0.9230769230769231,
+        "successes" : 48,
+        "trials" : 52,
+        "upper" : 0.9696806550257896
+      },
+      "diligence" : "sloppy",
+      "horizon" : 30,
+      "medianMaxRhat" : 1.0076654154888303,
+      "medianSeconds" : 20.491667958500003,
+      "medianSymptoms" : 14,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 52,
+        "upper" : 0.06879223713445441
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.8701881073969999,
+        "rate" : 0.9615384615384616,
+        "successes" : 50,
+        "trials" : 52,
+        "upper" : 0.9893882890942729
+      },
+      "diligence" : "sloppy",
+      "horizon" : 60,
+      "medianMaxRhat" : 1.0078003719668274,
+      "medianSeconds" : 31.6379311875,
+      "medianSymptoms" : 25.5,
+      "withDivergences" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 52,
+        "upper" : 0.06879223713445441
+      }
+    },
+    {
+      "converged" : {
+        "lower" : 0.898794887711724,
+        "rate" : 0.9807692307692307,
+        "successes" : 51,
+        "trials" : 52,
+        "upper" : 0.996597191966685
+      },
+      "diligence" : "sloppy",
+      "horizon" : 90,
+      "medianMaxRhat" : 1.0077386216448938,
+      "medianSeconds" : 39.7679928125,
+      "medianSymptoms" : 39,
+      "withDivergences" : {
+        "lower" : 0.0034028080333148927,
+        "rate" : 0.019230769230769232,
+        "successes" : 1,
+        "trials" : 52,
+        "upper" : 0.10120511228827589
+      }
+    }
+  ],
+  "headline" : {
+    "clearShares" : [
+      {
+        "horizon" : 14,
+        "share" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 12,
+          "upper" : 0.2424940095530979
+        }
+      },
+      {
+        "horizon" : 30,
+        "share" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 12,
+          "upper" : 0.2424940095530979
+        }
+      },
+      {
+        "horizon" : 60,
+        "share" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 12,
+          "upper" : 0.2424940095530979
+        }
+      },
+      {
+        "horizon" : 90,
+        "share" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 12,
+          "upper" : 0.2424940095530979
+        }
+      },
+      {
+        "horizon" : 180,
+        "share" : {
+          "lower" : 0.014865094239669363,
+          "rate" : 0.08333333333333333,
+          "successes" : 1,
+          "trials" : 12,
+          "upper" : 0.35387991372124555
+        }
+      }
+    ],
+    "earlyShares" : [
+      {
+        "horizon" : 14,
+        "share" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 12,
+          "upper" : 0.2424940095530979
+        }
+      },
+      {
+        "horizon" : 30,
+        "share" : {
+          "lower" : 0,
+          "rate" : 0,
+          "successes" : 0,
+          "trials" : 12,
+          "upper" : 0.2424940095530979
+        }
+      },
+      {
+        "horizon" : 60,
+        "share" : {
+          "lower" : 0.08894166769488562,
+          "rate" : 0.25,
+          "successes" : 3,
+          "trials" : 12,
+          "upper" : 0.5323053370816633
+        }
+      },
+      {
+        "horizon" : 90,
+        "share" : {
+          "lower" : 0.08894166769488562,
+          "rate" : 0.25,
+          "successes" : 3,
+          "trials" : 12,
+          "upper" : 0.5323053370816633
+        }
+      },
+      {
+        "horizon" : 180,
+        "share" : {
+          "lower" : 0.08894166769488562,
+          "rate" : 0.25,
+          "successes" : 3,
+          "trials" : 12,
+          "upper" : 0.5323053370816633
+        }
+      }
+    ],
+    "expectationClear" : "refuted: not reached within 180 logged days",
+    "expectationEarly" : "refuted: not reached within 180 logged days",
+    "sentence" : "With typical logging, a ×2 trigger reaches an early signal after more than 180 (not reached in the study) logged days and a clear pattern after more than 180 (not reached in the study) logged days (median user, converged runs only); null false-clear 0.0 % (95 % interval 0.0–1.8 %)."
+  },
+  "lagErrors" : [
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 60,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 60,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 180,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 60,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 180,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 10,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 10,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "fast",
+      "trueMedianLag" : 2.5
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 60,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 60,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 180,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 60,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 90,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 4,
+      "found" : 0,
+      "horizon" : 180,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 10,
+      "found" : 0,
+      "horizon" : 30,
+      "kernel" : "medium",
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 10,
+      "found" : 1,
+      "horizon" : 90,
+      "kernel" : "medium",
+      "medianAbsoluteError" : 1.1696287291234189,
+      "medianError" : 1.1696287291234189,
+      "trueMedianLag" : 8
+    },
+    {
+      "effect" : 1.5,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "slow",
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 1.5,
+      "found" : 2,
+      "horizon" : 30,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 8.021479696442304,
+      "medianError" : -8.021479696442304,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 1.5,
+      "found" : 1,
+      "horizon" : 60,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 4.3127513413163925,
+      "medianError" : -4.3127513413163925,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 1.5,
+      "found" : 2,
+      "horizon" : 90,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 5.231275665332433,
+      "medianError" : -5.231275665332433,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 2,
+      "found" : 0,
+      "horizon" : 14,
+      "kernel" : "slow",
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 2,
+      "found" : 1,
+      "horizon" : 30,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 4.394619889389162,
+      "medianError" : -4.394619889389162,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 2,
+      "found" : 6,
+      "horizon" : 60,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 2.5693698558235916,
+      "medianError" : 0.4809698776359106,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 2,
+      "found" : 10,
+      "horizon" : 90,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 3.902003047066316,
+      "medianError" : -2.6617215824788225,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 2,
+      "found" : 4,
+      "horizon" : 180,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 1.4785303068961682,
+      "medianError" : 1.2508985415631209,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 4,
+      "found" : 6,
+      "horizon" : 14,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 2.199016586957569,
+      "medianError" : -2.199016586957569,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 4,
+      "found" : 8,
+      "horizon" : 30,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 2.538468082899243,
+      "medianError" : -2.2505240266672466,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 4,
+      "found" : 9,
+      "horizon" : 60,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 4.041525536098682,
+      "medianError" : -3.082733133568084,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 4,
+      "found" : 11,
+      "horizon" : 90,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 4.887999271608962,
+      "medianError" : -3.3649492639959817,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 4,
+      "found" : 4,
+      "horizon" : 180,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 4.153516062505371,
+      "medianError" : -4.153516062505371,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 10,
+      "found" : 3,
+      "horizon" : 30,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 1.1789451960046193,
+      "medianError" : -1.1789451960046193,
+      "trueMedianLag" : 42
+    },
+    {
+      "effect" : 10,
+      "found" : 4,
+      "horizon" : 90,
+      "kernel" : "slow",
+      "medianAbsoluteError" : 4.001411230282166,
+      "medianError" : -1.4397037408960962,
+      "trueMedianLag" : 42
+    }
+  ],
+  "partner" : [
+    {
+      "flaggedAsConfounded" : {
+        "lower" : 0.004920407085360526,
+        "rate" : 0.027777777777777776,
+        "successes" : 1,
+        "trials" : 36,
+        "upper" : 0.1416971878852477
+      },
+      "horizon" : 14,
+      "partnerClear" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 36,
+        "upper" : 0.09641862996887933
+      },
+      "partnerEarly" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 36,
+        "upper" : 0.09641862996887933
+      },
+      "partnerEarlyWhenTriggerFound" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 0,
+        "upper" : 1
+      }
+    },
+    {
+      "flaggedAsConfounded" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      },
+      "horizon" : 30,
+      "partnerClear" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      },
+      "partnerEarly" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      },
+      "partnerEarlyWhenTriggerFound" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 0,
+        "upper" : 1
+      }
+    },
+    {
+      "flaggedAsConfounded" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 36,
+        "upper" : 0.09641862996887933
+      },
+      "horizon" : 60,
+      "partnerClear" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 36,
+        "upper" : 0.09641862996887933
+      },
+      "partnerEarly" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 36,
+        "upper" : 0.09641862996887933
+      },
+      "partnerEarlyWhenTriggerFound" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 0,
+        "upper" : 1
+      }
+    },
+    {
+      "flaggedAsConfounded" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      },
+      "horizon" : 90,
+      "partnerClear" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      },
+      "partnerEarly" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 40,
+        "upper" : 0.08762160245846368
+      },
+      "partnerEarlyWhenTriggerFound" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 1,
+        "upper" : 0.7934506882081973
+      }
+    },
+    {
+      "flaggedAsConfounded" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 8,
+        "upper" : 0.3244075683414076
+      },
+      "horizon" : 180,
+      "partnerClear" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 8,
+        "upper" : 0.3244075683414076
+      },
+      "partnerEarly" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 8,
+        "upper" : 0.3244075683414076
+      },
+      "partnerEarlyWhenTriggerFound" : {
+        "lower" : 0,
+        "rate" : 0,
+        "successes" : 0,
+        "trials" : 0,
+        "upper" : 1
+      }
+    }
+  ],
+  "peakAlternative" : {
+    "nullFalseEarly" : {
+      "lower" : 0.0008491804641579965,
+      "rate" : 0.004807692307692308,
+      "successes" : 1,
+      "trials" : 208,
+      "upper" : 0.026725492180865777
+    },
+    "rows" : [
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 14,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 30,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 60,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 90,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 14,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 30,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 60,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 90,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 180,
+        "kernel" : "fast",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 14,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 30,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 60,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 90,
+        "kernel" : "fast",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 180,
+        "kernel" : "fast",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 10,
+        "horizon" : 30,
+        "kernel" : "fast",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 10,
+        "horizon" : 90,
+        "kernel" : "fast",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 14,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 30,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 60,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 90,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 14,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 30,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 60,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 90,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 180,
+        "kernel" : "medium",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 14,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 30,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 60,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 90,
+        "kernel" : "medium",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 4,
+        "horizon" : 180,
+        "kernel" : "medium",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 10,
+        "horizon" : 30,
+        "kernel" : "medium",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 2,
+        "earlyViaProbRaises" : 1,
+        "effect" : 10,
+        "horizon" : 90,
+        "kernel" : "medium",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 1.5,
+        "horizon" : 14,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 2,
+        "earlyViaProbRaises" : 2,
+        "effect" : 1.5,
+        "horizon" : 30,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 1,
+        "earlyViaProbRaises" : 1,
+        "effect" : 1.5,
+        "horizon" : 60,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 2,
+        "effect" : 1.5,
+        "horizon" : 90,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 0,
+        "effect" : 2,
+        "horizon" : 14,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 0,
+        "earlyViaProbRaises" : 1,
+        "effect" : 2,
+        "horizon" : 30,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 4,
+        "earlyViaProbRaises" : 6,
+        "effect" : 2,
+        "horizon" : 60,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 5,
+        "earlyViaProbRaises" : 10,
+        "effect" : 2,
+        "horizon" : 90,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 4,
+        "earlyViaProbRaises" : 4,
+        "effect" : 2,
+        "horizon" : 180,
+        "kernel" : "slow",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 6,
+        "earlyViaProbRaises" : 6,
+        "effect" : 4,
+        "horizon" : 14,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 10,
+        "earlyViaProbRaises" : 8,
+        "effect" : 4,
+        "horizon" : 30,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 12,
+        "earlyViaProbRaises" : 9,
+        "effect" : 4,
+        "horizon" : 60,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 11,
+        "earlyViaProbRaises" : 11,
+        "effect" : 4,
+        "horizon" : 90,
+        "kernel" : "slow",
+        "users" : 12
+      },
+      {
+        "earlyViaPeak" : 4,
+        "earlyViaProbRaises" : 4,
+        "effect" : 4,
+        "horizon" : 180,
+        "kernel" : "slow",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 3,
+        "earlyViaProbRaises" : 3,
+        "effect" : 10,
+        "horizon" : 30,
+        "kernel" : "slow",
+        "users" : 4
+      },
+      {
+        "earlyViaPeak" : 4,
+        "earlyViaProbRaises" : 4,
+        "effect" : 10,
+        "horizon" : 90,
+        "kernel" : "slow",
+        "users" : 4
+      }
+    ],
+    "threshold" : 0.8
+  },
+  "recovery" : [
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 4,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 1,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 4,
+        "earlyShown" : 4,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 3,
+        "clearShown" : 3,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 3,
+        "clearShown" : 3,
+        "early" : 4,
+        "earlyShown" : 4,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "careful",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 180,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 4,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 180,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 1,
+        "early" : 4,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 2,
+      "horizon" : 180,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 180,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 180,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 1,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 0,
+        "early" : 3,
+        "earlyShown" : 2,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 2,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 1,
+        "early" : 4,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 4,
+      "horizon" : 180,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 10,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 10,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 10,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 10,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 1,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 10,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 2,
+        "early" : 4,
+        "earlyShown" : 4,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "typical",
+      "effect" : 10,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 1.5,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 4,
+        "earlyShown" : 4,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 2,
+      "horizon" : 90,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "fast"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "medium"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 3,
+        "earlyShown" : 2,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 14,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 30,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 3,
+        "clearShown" : 3,
+        "early" : 3,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 60,
+      "kernel" : "slow"
+    },
+    {
+      "counts" : {
+        "clear" : 3,
+        "clearShown" : 2,
+        "early" : 4,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "diligence" : "sloppy",
+      "effect" : 4,
+      "horizon" : 90,
+      "kernel" : "slow"
+    }
+  ],
+  "recoveryByFood" : [
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 4,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 6,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 6,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 7,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "effect" : 2,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 180
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 4,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 5,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "effect" : 4,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 180
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "effect" : 10,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "effect" : 10,
+      "food" : "ingredient:en:garlic",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "group:en:legume",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "group:en:legume",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "group:en:legume",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 4,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "group:en:legume",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "group:en:legume",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "group:en:legume",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "group:en:legume",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "group:en:legume",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 4,
+        "users" : 4
+      },
+      "effect" : 2,
+      "food" : "group:en:legume",
+      "horizon" : 180
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "group:en:legume",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "group:en:legume",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "group:en:legume",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 5,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "group:en:legume",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 3,
+        "users" : 4
+      },
+      "effect" : 4,
+      "food" : "group:en:legume",
+      "horizon" : 180
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "effect" : 10,
+      "food" : "group:en:legume",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "effect" : 10,
+      "food" : "group:en:legume",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 2,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "allergen:en:milk",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 4,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "allergen:en:milk",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 8,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "allergen:en:milk",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 9,
+        "users" : 12
+      },
+      "effect" : 1.5,
+      "food" : "allergen:en:milk",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 0,
+        "earlyShown" : 0,
+        "noLinkFound" : 1,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "allergen:en:milk",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 1,
+        "earlyShown" : 1,
+        "noLinkFound" : 5,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "allergen:en:milk",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 6,
+        "earlyShown" : 6,
+        "noLinkFound" : 2,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "allergen:en:milk",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 1,
+        "early" : 10,
+        "earlyShown" : 10,
+        "noLinkFound" : 2,
+        "users" : 12
+      },
+      "effect" : 2,
+      "food" : "allergen:en:milk",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 1,
+        "early" : 4,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "effect" : 2,
+      "food" : "allergen:en:milk",
+      "horizon" : 180
+    },
+    {
+      "counts" : {
+        "clear" : 0,
+        "clearShown" : 0,
+        "early" : 6,
+        "earlyShown" : 5,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "allergen:en:milk",
+      "horizon" : 14
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 1,
+        "early" : 8,
+        "earlyShown" : 8,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "allergen:en:milk",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 7,
+        "clearShown" : 6,
+        "early" : 9,
+        "earlyShown" : 8,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "allergen:en:milk",
+      "horizon" : 60
+    },
+    {
+      "counts" : {
+        "clear" : 8,
+        "clearShown" : 7,
+        "early" : 11,
+        "earlyShown" : 10,
+        "noLinkFound" : 0,
+        "users" : 12
+      },
+      "effect" : 4,
+      "food" : "allergen:en:milk",
+      "horizon" : 90
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 1,
+        "early" : 4,
+        "earlyShown" : 3,
+        "noLinkFound" : 0,
+        "users" : 4
+      },
+      "effect" : 4,
+      "food" : "allergen:en:milk",
+      "horizon" : 180
+    },
+    {
+      "counts" : {
+        "clear" : 1,
+        "clearShown" : 1,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 2,
+        "users" : 4
+      },
+      "effect" : 10,
+      "food" : "allergen:en:milk",
+      "horizon" : 30
+    },
+    {
+      "counts" : {
+        "clear" : 2,
+        "clearShown" : 2,
+        "early" : 2,
+        "earlyShown" : 2,
+        "noLinkFound" : 1,
+        "users" : 4
+      },
+      "effect" : 10,
+      "food" : "allergen:en:milk",
+      "horizon" : 90
+    }
+  ],
+  "sbc" : {
+    "bins" : 10,
+    "medianSymptoms" : 72.5,
+    "quantities" : [
+      {
+        "chiSquare" : 11.24,
+        "histogram" : [
+          117,
+          87,
+          97,
+          103,
+          97,
+          96,
+          97,
+          93,
+          91,
+          122
+        ],
+        "name" : "alpha[abdominalPain]",
+        "pValue" : 0.25961628155096816
+      },
+      {
+        "chiSquare" : 11.579999999999998,
+        "histogram" : [
+          120,
+          99,
+          92,
+          82,
+          117,
+          97,
+          103,
+          94,
+          101,
+          95
+        ],
+        "name" : "alpha[bloating]",
+        "pValue" : 0.23803529559295075
+      },
+      {
+        "chiSquare" : 10.799999999999999,
+        "histogram" : [
+          104,
+          114,
+          103,
+          91,
+          102,
+          104,
+          88,
+          113,
+          79,
+          102
+        ],
+        "name" : "tod[sin 1]",
+        "pValue" : 0.28966749038847905
+      },
+      {
+        "chiSquare" : 6.119999999999999,
+        "histogram" : [
+          106,
+          88,
+          95,
+          101,
+          110,
+          112,
+          97,
+          100,
+          103,
+          88
+        ],
+        "name" : "log sigma_drift",
+        "pValue" : 0.7278506992125444
+      },
+      {
+        "chiSquare" : 3.98,
+        "histogram" : [
+          104,
+          99,
+          98,
+          105,
+          94,
+          111,
+          104,
+          101,
+          87,
+          97
+        ],
+        "name" : "log tau_global",
+        "pValue" : 0.9127239348792624
+      },
+      {
+        "chiSquare" : 14.18,
+        "histogram" : [
+          101,
+          119,
+          102,
+          103,
+          99,
+          80,
+          107,
+          94,
+          81,
+          114
+        ],
+        "name" : "log lambda[coffee]",
+        "pValue" : 0.11606480187621421
+      },
+      {
+        "chiSquare" : 17.08,
+        "histogram" : [
+          107,
+          104,
+          91,
+          99,
+          100,
+          92,
+          72,
+          98,
+          115,
+          122
+        ],
+        "name" : "log lambda[garlic]",
+        "pValue" : 0.047477824073163845
+      },
+      {
+        "chiSquare" : 12.5,
+        "histogram" : [
+          95,
+          87,
+          92,
+          95,
+          102,
+          106,
+          126,
+          89,
+          97,
+          111
+        ],
+        "name" : "log sigma_kind",
+        "pValue" : 0.1865659748584512
+      },
+      {
+        "chiSquare" : 8.72,
+        "histogram" : [
+          113,
+          86,
+          104,
+          115,
+          100,
+          100,
+          94,
+          90,
+          107,
+          91
+        ],
+        "name" : "beta_shared[coffee](6 h)",
+        "pValue" : 0.463511820990947
+      },
+      {
+        "chiSquare" : 11.940000000000001,
+        "histogram" : [
+          94,
+          76,
+          120,
+          101,
+          95,
+          101,
+          100,
+          105,
+          97,
+          111
+        ],
+        "name" : "beta_shared[garlic](6 h)",
+        "pValue" : 0.21671299733239685
+      },
+      {
+        "chiSquare" : 4.859999999999999,
+        "histogram" : [
+          102,
+          94,
+          98,
+          98,
+          114,
+          106,
+          94,
+          105,
+          88,
+          101
+        ],
+        "name" : "sum_l beta_shared[garlic](l)",
+        "pValue" : 0.8463375969135872
+      }
+    ],
+    "redraws" : 25,
+    "replications" : 1000,
+    "replicationsWithDivergences" : 1,
+    "thinnedDraws" : 99
+  },
+  "schemaVersion" : 1,
+  "settings" : {
+    "analyses" : 688,
+    "analysisConfig" : {
+      "chains" : 4,
+      "chartDraws" : 10,
+      "confoundingCorrelation" : 0.9,
+      "driftKnotSpacingDays" : 30,
+      "fitHalves" : true,
+      "interiorKnots" : [
+        3,
+        8,
+        24,
+        48
+      ],
+      "maxLagHours" : 96,
+      "maxTreeDepth" : 10,
+      "minExposures" : 5,
+      "minSymptomsAfter" : 3,
+      "priors" : {
+        "driftScale" : 0.3,
+        "globalScale" : 0.5,
+        "interceptSD" : 2,
+        "kindDeviationScale" : 1,
+        "kindDeviationScaling" : "local",
+        "lagDecayHours" : 24,
+        "lagRidge" : 1,
+        "lagSmoothing" : 1,
+        "localDistribution" : "halfCauchy",
+        "localScale" : 1,
+        "slabScale" : 1,
+        "timeOfDaySD" : 1
+      },
+      "samples" : 1000,
+      "seed" : 0,
+      "targetAcceptance" : 0.8,
+      "thresholds" : {
+        "clearProb" : 0.98,
+        "earlyProb" : 0.9,
+        "halfProb" : 0.9,
+        "noLinkLower" : 0.8,
+        "noLinkMinExposures" : 15,
+        "noLinkUpper" : 1.25
+      },
+      "warmup" : 1000
+    },
+    "designCaveats" : [
+      "In the main grid (×1.5, ×2, ×4) trigger food and lag window share one index: garlic triggers are always fast, legume medium, milk slow. Food and window effects cannot be separated there. The ×10 extension rotates foods across windows.",
+      "Effects are rate ratios on a low hourly baseline, so a short window adds few symptoms in absolute terms (see expected extra symptoms per exposure). Detection depends on that excess, not on the ratio alone.",
+      "Only typical logging was run at 180 logged days, and only for ×2 and ×4 triggers and typical null users. The ×10 extension covers typical logging at 30 and 90 logged days.",
+      "The threshold grid starts at 0.80, a stated floor: a posterior probability below 0.8 is not called a signal. If the false-positive targets are already met at the floor, the floor decides.",
+      "15 foods and 3 symptom kinds per user; the app has more of both (unit 3's reference workload: 40 foods, 6 kinds). More foods mean more chances for a false hit per analysis."
+    ],
+    "diligence" : {
+      "careful" : {
+        "lateLogMaxHours" : 2,
+        "lateLogRate" : 0.02,
+        "missedDayRate" : 0.01,
+        "missedMealRate" : 0.03,
+        "missedSymptomRate" : 0.05,
+        "timeJitterHours" : 0.25
+      },
+      "sloppy" : {
+        "lateLogMaxHours" : 4,
+        "lateLogRate" : 0.25,
+        "missedDayRate" : 0.12,
+        "missedMealRate" : 0.25,
+        "missedSymptomRate" : 0.35,
+        "timeJitterHours" : 1
+      },
+      "typical" : {
+        "lateLogMaxHours" : 3,
+        "lateLogRate" : 0.1,
+        "missedDayRate" : 0.04,
+        "missedMealRate" : 0.1,
+        "missedSymptomRate" : 0.15,
+        "timeJitterHours" : 0.5
+      }
+    },
+    "evidence" : {
+      "barcodeCompleteShare" : 0.25,
+      "barcodeIncompleteShare" : 0.1,
+      "incompleteMissRate" : 0.15,
+      "level1" : 1,
+      "level2" : 0.85,
+      "level3" : 0.5,
+      "noProfileShare" : 0.09999999999999998,
+      "photoFalseRatePerAbsentFood" : 0.02,
+      "photoMissRate" : 0.25,
+      "photoShare" : 0.55
+    },
+    "expectedExcessPerExposure" : {
+      "×1.5 fast" : 0.010416666666666666,
+      "×1.5 medium" : 0.027777777777777776,
+      "×1.5 slow" : 0.125,
+      "×10 fast" : 0.1875,
+      "×10 medium" : 0.5,
+      "×10 slow" : 2.25,
+      "×2 fast" : 0.020833333333333332,
+      "×2 medium" : 0.05555555555555555,
+      "×2 slow" : 0.25,
+      "×4 fast" : 0.0625,
+      "×4 medium" : 0.16666666666666666,
+      "×4 slow" : 0.75
+    },
+    "foods" : [
+      "allergen:en:gluten",
+      "ingredient:en:coffee",
+      "allergen:en:milk",
+      "ingredient:en:cheese",
+      "ingredient:en:garlic",
+      "ingredient:en:onion",
+      "alcohol",
+      "allergen:en:fish",
+      "allergen:en:eggs",
+      "ingredient:en:tomato",
+      "ingredient:en:apple",
+      "group:en:legume",
+      "allergen:en:nuts",
+      "ingredient:en:rice",
+      "ingredient:en:chocolate"
+    ],
+    "generatorNotes" : [
+      "2-4 meals a day (20 % two, 55 % three, 25 % four), weekend meals 1 h later, meal time SD 0.6 h around slot centre",
+      "15 foods; per-user taste factor exp(N(0, 0.3^2)) on every food's frequency",
+      "staples: bread (gluten) at most meals, coffee most breakfasts, milk with 70 % of coffees and in all cheese",
+      "co-eaten pair: onion with 85 % of garlic meals; weekly rhythm: alcohol on Friday and Saturday dinners, fish on Friday",
+      "baseline symptoms 0.2-0.8 a day (uniform per user), split 40\/35\/25 % over 3 kinds, ±30 % time-of-day wave",
+      "planted trigger: one food, one kind, rate x effect for every true exposure (logged or not) inside the lag window; overlapping windows multiply",
+      "trigger food cycles over garlic (co-eaten), legume (occasional), milk (staple); trigger kind cycles over the 3 kinds",
+      "4 days of meal history before tracking starts (B3); observed days = days with at least one logged meal"
+    ],
+    "horizons" : [
+      14,
+      30,
+      60,
+      90,
+      180
+    ],
+    "kinds" : [
+      "abdominalPain",
+      "bloating",
+      "diarrhoea"
+    ],
+    "nullUsers" : 48,
+    "plantedUsers" : 120,
+    "sbcPlan" : {
+      "baseSeed" : 7201826,
+      "concurrency" : 3,
+      "features" : [
+        "ingredient:en:coffee",
+        "ingredient:en:garlic",
+        "ingredient:en:tomato"
+      ],
+      "kinds" : [
+        "abdominalPain",
+        "bloating"
+      ],
+      "loggedDays" : 30,
+      "maxHourlyRate" : 50,
+      "replications" : 1000,
+      "samples" : 500,
+      "targetAcceptance" : 0.8,
+      "thinnedDraws" : 99,
+      "warmup" : 500
+    },
+    "triggerFoods" : [
+      "ingredient:en:garlic",
+      "group:en:legume",
+      "allergen:en:milk"
+    ]
+  }
+}

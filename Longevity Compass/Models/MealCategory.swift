@@ -114,6 +114,12 @@ nonisolated struct MealFingerprint: Codable, Equatable {
     let fiberPer100g: Double?
     /// AI's best-guess typical serving weight; used to pre-fill the weight field in the capture flow.
     let typicalServingGrams: Double?
+    /// EU allergen IDs (`EUAllergen` raw values) the AI saw or expects from the
+    /// standard recipe. Nil on entries logged before the field existed.
+    var allergens: [String]? = nil
+    /// Main and standard-recipe ingredient names, matched against the Open Food
+    /// Facts taxonomy. Nil on entries logged before the field existed.
+    var ingredients: [String]? = nil
 
     var categories: Set<MealCategory> { Set(items.map(\.category)) }
 
@@ -132,5 +138,33 @@ nonisolated struct MealFingerprint: Codable, Equatable {
               let fat = fatPer100g else { return nil }
         let f = grams / 100.0
         return (kcal * f, protein * f, carbs * f, fat * f, fiberPer100g.map { $0 * f })
+    }
+}
+
+extension MealFingerprint {
+    /// Copy with the fields the edit sheet changes; every other field, including
+    /// the AI's allergens and ingredients, carries over.
+    func edited(
+        items: [Item],
+        plantIngredients: [String],
+        aiNotes: String?,
+        title: String?
+    ) -> MealFingerprint {
+        var copy = MealFingerprint(
+            items: items,
+            plantIngredients: plantIngredients,
+            aiNotes: aiNotes,
+            confidence: confidence,
+            title: title,
+            estimatedKcalPer100g: estimatedKcalPer100g,
+            proteinPer100g: proteinPer100g,
+            carbsPer100g: carbsPer100g,
+            fatPer100g: fatPer100g,
+            fiberPer100g: fiberPer100g,
+            typicalServingGrams: typicalServingGrams
+        )
+        copy.allergens = allergens
+        copy.ingredients = ingredients
+        return copy
     }
 }
