@@ -69,14 +69,17 @@ Only symptoms are logged, so "no entry" has to mean something. The rule is:
 
 - Tracking runs in periods (`DigestionTrackingPeriod`): "Start tracking" opens one, turning the
   setting off closes it. Time between periods is not observed, and there is no backfill.
-- Inside a period, a calendar day with at least one logged meal and no symptom entry counts as
-  symptom-free.
+- Inside a period, a calendar day with at least one meal logged inside the period and no symptom
+  entry counts as symptom-free. On the first and last day only the part inside the period counts,
+  and today counts up to now.
 - A day without any logged meal is not observed at all: neither symptom-free nor symptomatic.
 - Meals from the 96 hours before a period starts count as exposure history only, so that symptoms
   early in the period can be related to what was eaten just before it.
 
 The engine receives these as observation windows (`ObservationWindow`): an hour belongs to the data
-when its centre lies inside a window.
+when its centre lies inside a window. Symptoms outside the windows are dropped before the analysis,
+and only symptom kinds that occur inside the windows enter the model (a kind never logged would
+only add parameters fixed by their priors). The app builds the input in `ExposureBuilder`.
 
 ### 2.3 Ingredient data
 
@@ -283,11 +286,15 @@ network needed, earliest start 02:00 local time), and only while tracking is act
   then warmup 4000 at 0.95, each with 1000 draws per chain. The next attempt runs only after a
   `notConverged` result.
 - If the system ends the task early, the engine is cancelled, the attempt is recorded and the task
-  asks to run again (at least 15 minutes later, still on external power). Slow nights are fine.
+  asks to run again (at least 15 minutes later, still on external power). When the data have not
+  changed, the next run resumes at the interrupted attempt. Slow nights are fine.
 - The seed is a 64-bit FNV-1a hash of the canonical input JSON (sorted keys, dates as seconds
   since 1970, seed field set to 0) XOR the attempt number, so the same data give the same result.
+  The hash is taken over the attempt-1 input, so it identifies the data alone; the stored run keeps
+  the exact input of its last attempt, seed included.
 - The app keeps the last good result. When a newer run fails, it shows the last good result with
-  its date.
+  its date. A run that ends with "insufficient data" counts as good: it is an honest answer for the
+  data at hand. Only the latest run and the last good run are stored (`DigestionAnalysisRun`).
 - Settings has "Run analysis now" (foreground, with progress, cancellable) and the last run's
   diagnostics: date, duration, attempts, status, max R̂, min bulk ESS and divergences.
 

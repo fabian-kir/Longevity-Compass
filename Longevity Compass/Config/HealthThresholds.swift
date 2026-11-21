@@ -520,4 +520,33 @@ enum HealthThresholds {
             .bloodPressure, .nicotine, .cardio, .strength, .bodyComposition, .sleep, .bloodwork,
         ]
     }
+
+    // MARK: - Digestion Insights
+    //
+    // Exposure values (evidence levels) and run policy. Fixed for everyone,
+    // never tuned per user; the simulation study (Packages/DigestionInsights/
+    // Simulation) uses the same values. See docs/digestion-insights-methodology.md.
+
+    enum Digestion {
+        /// L1: allergen declared by Open Food Facts or set by the user; alcohol from Open Food Facts.
+        static let declaredValue: Double = 1.0
+        /// L2: ingredients from a complete Open Food Facts ingredient list.
+        static let completeIngredientsValue: Double = 0.85
+        /// L3: traces, AI-detected allergens, photo ingredients, incomplete OFF lists, photo alcohol.
+        static let uncertainValue: Double = 0.5
+
+        /// Meals this long before a tracking period starts count as exposure history.
+        static let historyHours: Double = 96
+
+        /// Attempts per night: (warmup, target acceptance). The next attempt runs only after `notConverged`.
+        static let attempts: [(warmup: Int, targetAcceptance: Double)] = [
+            (1000, 0.8),
+            (2000, 0.9),
+            (4000, 0.95),
+        ]
+        /// Nightly run starts no earlier than this local hour.
+        static let earliestRunHour: Int = 2
+        /// After the system ends a run early, ask again no sooner than this.
+        static let retryDelayMinutes: Double = 15
+    }
 }

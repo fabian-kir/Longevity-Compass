@@ -184,6 +184,24 @@ final class LocalDataStore {
         try? context.save()
     }
 
+    func insertAnalysisRun(_ run: DigestionAnalysisRun) {
+        context.insert(run)
+        try? context.save()
+    }
+
+    /// Newest first.
+    func fetchAnalysisRuns() -> [DigestionAnalysisRun] {
+        let descriptor = FetchDescriptor<DigestionAnalysisRun>(
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func deleteAnalysisRun(_ run: DigestionAnalysisRun) {
+        context.delete(run)
+        try? context.save()
+    }
+
     // MARK: - Wipe
 
     func deleteAllLocalData() {
@@ -197,6 +215,7 @@ final class LocalDataStore {
         for b in fetchAllBloodworkPanels()    { context.delete(b) }
         for s in fetchAllSymptoms()           { context.delete(s) }
         for p in fetchTrackingPeriods()       { context.delete(p) }
+        for r in fetchAnalysisRuns()          { context.delete(r) }
         try? context.save()
     }
 

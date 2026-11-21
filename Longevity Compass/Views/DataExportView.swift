@@ -217,6 +217,7 @@ struct DataExportView: View {
                         DigestionInsightsView()
                     }
                 }
+                DigestionRunSettingsRows()
             } header: {
                 Text("Digestion Insights")
             } footer: {

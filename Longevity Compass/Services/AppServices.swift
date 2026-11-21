@@ -33,6 +33,7 @@ final class AppServices {
     /// App-lifetime ownership is required for Watch workout mirroring: HealthKit
     /// can wake the phone in the background before the N4x4 tab exists.
     let n4x4: N4x4SessionModel
+    let digestion: DigestionAnalysisService
     var pendingMeals: PendingMealQueue!
 
     private(set) var healthSnapshot: HealthKitSnapshot = HealthKitSnapshot()
@@ -58,6 +59,7 @@ final class AppServices {
         self.openRouter = OpenRouterClient()
         self.mealCapture = MealCaptureCoordinator()
         self.n4x4 = N4x4SessionModel(healthKit: healthKit, store: self.store)
+        self.digestion = DigestionAnalysisService(store: store)
         self.pendingMeals = nil
         self.pendingMeals = PendingMealQueue(openRouter: openRouter) { [weak self] entry in
             await self?.recordNutritionEntry(entry)
@@ -73,6 +75,7 @@ final class AppServices {
         #endif
         await healthKit.requestAuthorization()
         if !skipNotificationAuth { await notifications.requestAuthorization() }
+        if isTrackingDigestion { DigestionBackgroundTask.schedule() }
         await refresh()
     }
 
@@ -195,11 +198,13 @@ final class AppServices {
     func startDigestionTracking(at start: Date = .now) {
         store.startTracking(at: start)
         isTrackingDigestion = true
+        DigestionBackgroundTask.schedule()
     }
 
     func stopDigestionTracking(at end: Date = .now) {
         store.stopTracking(at: end)
         isTrackingDigestion = false
+        DigestionBackgroundTask.cancel()
     }
 
     func recordSymptom(_ entry: SymptomEntry) {
@@ -211,8 +216,11 @@ final class AppServices {
     }
 
     func deleteAllLocalData() async {
+        digestion.cancel()
         store.deleteAllLocalData()
         isTrackingDigestion = false
+        DigestionBackgroundTask.cancel()
+        digestion.reload()
         MealImageStore.wipeAll()
         notifications.cancelAll()
         await refresh()
