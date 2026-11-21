@@ -183,18 +183,18 @@ final class DigestionAnalysisService {
     // MARK: - JSON
 
     /// Canonical form, same as the engine's fingerprint (sorted keys, seconds since 1970).
-    static func encoder(pretty: Bool = false) -> JSONEncoder {
+    nonisolated static func encoder(pretty: Bool = false) -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = pretty ? [.sortedKeys, .prettyPrinted] : [.sortedKeys]
         encoder.dateEncodingStrategy = .secondsSince1970
         return encoder
     }
 
-    static func encode<T: Encodable>(_ value: T) -> String? {
+    nonisolated static func encode<T: Encodable>(_ value: T) -> String? {
         (try? encoder().encode(value)).flatMap { String(data: $0, encoding: .utf8) }
     }
 
-    static func decode<T: Decodable>(_ type: T.Type, from json: String) -> T? {
+    nonisolated static func decode<T: Decodable>(_ type: T.Type, from json: String) -> T? {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         return json.data(using: .utf8).flatMap { try? decoder.decode(type, from: $0) }

@@ -102,6 +102,7 @@ enum MockData {
         }
         for n in nutritionEntries() { context.insert(n) }
         for x in exerciseEntries()  { context.insert(x) }
+        seedDigestion(into: context)
         try? context.save()
     }
 
@@ -340,7 +341,8 @@ enum MockData {
                 inputTokens: 1_100,
                 outputTokens: 240,
                 costUSD: 0.012,
-                fingerprintJSON: json
+                fingerprintJSON: json,
+                ingredientProfile: photoProfile(title: title, plants: plants)
             )
         }
     }
@@ -376,6 +378,167 @@ enum MockData {
             let dia = 76 + cos(Double(d) * 0.4) * 3
             return BloodPressureReading(systolic: sys, diastolic: dia, date: daysAgo(d))
         }
+    }
+
+    // MARK: - Digestion Insights
+
+    /// Tracking started this many days ago.
+    static let digestionTrackingDays = 120
+    /// Recent days use the screenshot meals above; older days get generated meals.
+    private static let digestionGeneratedFromDay = 13
+
+    /// Deterministic generator (SplitMix64), so every mock launch plants the same pattern.
+    struct SplitMix64 {
+        var state: UInt64
+        mutating func next() -> UInt64 {
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
+        mutating func uniform() -> Double { Double(next() >> 11) / Double(1 << 53) }
+        mutating func pick<T>(_ items: [T]) -> T { items[Int(next() % UInt64(items.count))] }
+    }
+
+    private struct MockMeal {
+        let title: String
+        let source: NutritionSource
+        let kcal: Double
+        let profile: IngredientProfile
+    }
+
+    private static func declared(_ allergens: [EUAllergen], traces: [EUAllergen] = [], ingredients: [String],
+                                 freeFrom: [FreeFromLabel] = [], alcohol: Bool? = nil, complete: Bool = true) -> IngredientProfile {
+        IngredientProfile(
+            origin: .openFoodFacts,
+            allergens: allergens.map { AllergenMark(allergen: $0, source: .declared) },
+            traces: traces,
+            ingredientIDs: ingredients,
+            unmatchedIngredientNames: [],
+            freeFrom: freeFrom.map { FreeFromMark(label: $0, source: .declared) },
+            containsAlcohol: alcohol,
+            offIngredientsComplete: complete,
+            offIngredientsCount: ingredients.count,
+            offUnknownIngredientsCount: complete ? 0 : 1
+        )
+    }
+
+    private static func detected(_ allergens: [EUAllergen], ingredients: [String]) -> IngredientProfile {
+        IngredientProfile(
+            origin: .photoAI,
+            allergens: allergens.map { AllergenMark(allergen: $0, source: .ai) },
+            traces: [],
+            ingredientIDs: ingredients,
+            unmatchedIngredientNames: [],
+            freeFrom: []
+        )
+    }
+
+    // Barcode-like meals carry declared Open Food Facts data; photo-like meals carry AI detections.
+    private static let breakfasts: [MockMeal] = [
+        MockMeal(title: "Caffè latte", source: .barcode, kcal: 120,
+                 profile: declared([.milk], ingredients: ["en:milk", "en:coffee"])),
+        MockMeal(title: "Natural yogurt", source: .barcode, kcal: 150,
+                 profile: declared([.milk], ingredients: ["en:yogurt"])),
+        MockMeal(title: "Wholegrain bread", source: .barcode, kcal: 230,
+                 profile: declared([.gluten], traces: [.sesame], ingredients: ["en:wheat-flour", "en:rye-flour", "en:salt"])),
+        MockMeal(title: "Lactose-free milk with oats", source: .barcode, kcal: 260,
+                 profile: declared([.milk, .gluten], ingredients: ["en:milk", "en:oat-flakes"], freeFrom: [.lactoseFree])),
+        MockMeal(title: "Peanut butter", source: .barcode, kcal: 190,
+                 profile: declared([.peanuts], ingredients: ["en:peanut", "en:salt"], complete: false)),
+    ]
+
+    private static let mains: [MockMeal] = [
+        MockMeal(title: "Pasta with tomato sauce", source: .photo, kcal: 620,
+                 profile: detected([.gluten], ingredients: ["en:pasta", "en:tomato", "en:onion", "en:garlic"])),
+        MockMeal(title: "Chicken rice bowl", source: .photo, kcal: 580,
+                 profile: detected([], ingredients: ["en:chicken", "en:rice", "en:broccoli"])),
+        MockMeal(title: "Lentil curry with rice", source: .photo, kcal: 540,
+                 profile: detected([], ingredients: ["en:lentils", "en:onion", "en:garlic", "en:tomato", "en:rice"])),
+        MockMeal(title: "Cheese omelette", source: .photo, kcal: 430,
+                 profile: detected([.eggs, .milk], ingredients: ["en:egg", "en:cheese"])),
+        MockMeal(title: "Salmon with potatoes", source: .photo, kcal: 610,
+                 profile: detected([.fish], ingredients: ["en:salmon", "en:potato"])),
+    ]
+
+    private static let apple = MockMeal(title: "Apple", source: .photo, kcal: 80,
+                                        profile: detected([], ingredients: ["en:apple"]))
+    private static let beer = MockMeal(title: "Lager beer", source: .barcode, kcal: 210,
+                                       profile: declared([.gluten], ingredients: ["en:water", "en:beer"], alcohol: true))
+
+    /// Rough AI profile for the screenshot meals above.
+    private static func photoProfile(title: String, plants: [String]) -> IngredientProfile {
+        let lower = title.lowercased()
+        var allergens: [EUAllergen] = []
+        if ["yogurt", "kefir", "protein shake"].contains(where: lower.contains) { allergens.append(.milk) }
+        if ["oatmeal", "rye", "pasta", "burger", "toast", "cornbread"].contains(where: lower.contains) { allergens.append(.gluten) }
+        if ["omelette", "egg"].contains(where: lower.contains) { allergens.append(.eggs) }
+        if ["salmon", "sardines", "mackerel"].contains(where: lower.contains) { allergens.append(.fish) }
+        if ["walnuts", "almond"].contains(where: lower.contains) { allergens.append(.treeNuts) }
+        var ids: [String] = []
+        for id in plants.compactMap({ IngredientTaxonomy.shared.id(forName: $0) }) where !ids.contains(id) { ids.append(id) }
+        return detected(allergens, ingredients: ids)
+    }
+
+    /// Tracking period, generated meals and symptoms. Planted pattern: diarrhoea
+    /// 4–8 h after meals with milk (lactose-free milk excluded), plus background
+    /// symptoms at random times.
+    struct DigestionMock {
+        let period: DigestionTrackingPeriod
+        let meals: [NutritionEntry]
+        let symptoms: [SymptomEntry]
+    }
+
+    static func digestionMock(recentMeals: [NutritionEntry]) -> DigestionMock {
+        var rng = SplitMix64(state: 20_261_121)
+        let periodStart = daysAgo(digestionTrackingDays)
+        let historyDays = digestionTrackingDays + 4
+
+        var meals: [NutritionEntry] = []
+        func add(_ meal: MockMeal, day: Int, hour: Double) {
+            let date = cal.startOfDay(for: daysAgo(day)).addingTimeInterval(hour * 3600)
+            guard date <= now else { return }
+            meals.append(NutritionEntry(
+                date: date, source: meal.source, rawInput: "", productName: meal.title,
+                caloriesKcal: meal.kcal, ingredientProfile: meal.profile
+            ))
+        }
+        for day in stride(from: historyDays, through: digestionGeneratedFromDay, by: -1) {
+            add(rng.pick(breakfasts), day: day, hour: 7 + rng.uniform() * 2)
+            add(rng.pick(mains), day: day, hour: 12 + rng.uniform() * 1.5)
+            if rng.uniform() < 0.5 { add(apple, day: day, hour: 15.5 + rng.uniform()) }
+            add(rng.pick(mains), day: day, hour: 18.5 + rng.uniform() * 1.5)
+            if rng.uniform() < 0.2 { add(beer, day: day, hour: 20.5 + rng.uniform()) }
+        }
+
+        var symptoms: [SymptomEntry] = []
+        func symptom(_ kind: SymptomKind, at date: Date) {
+            guard date >= periodStart, date <= now else { return }
+            let level = kind.levels.count > 1 && rng.uniform() < 0.3 ? kind.levels[1] : kind.levels[0]
+            symptoms.append(SymptomEntry(onset: date, loggedAt: date, kind: kind, level: level))
+        }
+        for meal in (meals + recentMeals).sorted(by: { $0.date < $1.date }) {
+            guard let profile = meal.ingredientProfile, profile.contains(.milk), !profile.isFree(from: .lactoseFree) else { continue }
+            if rng.uniform() < 0.6 {
+                symptom(.diarrhoea, at: meal.date.addingTimeInterval((4 + rng.uniform() * 4) * 3600))
+            }
+        }
+        let background: [(SymptomKind, Double)] = [(.bloating, 0.25), (.gas, 0.2), (.abdominalPain, 0.08), (.diarrhoea, 0.04)]
+        for day in 0...digestionTrackingDays {
+            for (kind, rate) in background where rng.uniform() < rate {
+                symptom(kind, at: cal.startOfDay(for: daysAgo(day)).addingTimeInterval((8 + rng.uniform() * 14) * 3600))
+            }
+        }
+        return DigestionMock(period: DigestionTrackingPeriod(start: periodStart), meals: meals, symptoms: symptoms)
+    }
+
+    private static func seedDigestion(into context: ModelContext) {
+        let recent = (try? context.fetch(FetchDescriptor<NutritionEntry>())) ?? []
+        let mock = digestionMock(recentMeals: recent)
+        context.insert(mock.period)
+        for meal in mock.meals { context.insert(meal) }
+        for symptom in mock.symptoms { context.insert(symptom) }
     }
 }
 #endif

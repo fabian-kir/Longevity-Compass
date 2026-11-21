@@ -31,6 +31,9 @@ struct DigestionOnboardingView: View {
                     Text("Talk to your doctor before changing your diet based on these results.")
                         .font(.subheadline.weight(.semibold))
                 }
+                Section {
+                    NavigationLink("How this works") { DigestionHowItWorksView() }
+                }
             }
             .navigationTitle("Digestion Insights")
             .navigationBarTitleDisplayMode(.inline)

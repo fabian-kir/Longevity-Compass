@@ -331,7 +331,14 @@ The same summaries exist per symptom kind; `mainKind` is the kind with the large
 excess. Chart data per feature: the hourly lag curve (median and 90 % band of the rate ratio), and
 per lag hour the observed exposure–symptom pairs next to the pairs expected if this food had no
 effect. `confoundedWith` lists other foods whose hourly exposure series correlates with this one
-at 0.9 or more. The app should say that these foods cannot be told apart.
+at 0.9 or more. The app says that these foods cannot be told apart ("Can't tell apart from: …").
+
+In the app (`DigestionPresentation`), the top chart of a food's detail page shows one dot per
+exposure–symptom pair, stacked per lag hour so the stack height reads as pairs per hour; dot size
+shows the symptom level and colour the symptom kind. Behind the dots, a grey band shows
+`expectedPairsNull`, smoothed with a centred 5-hour moving average for display only. The bottom
+chart shows the lag curve (median rate ratio, 90 % band, dashed line at 1 = no effect). Both share
+the 0–96 h axis. The delay ("median about 6 h") is shown only for early signals and clear patterns.
 
 Levels (`PatternLevel`), checked in this order:
 

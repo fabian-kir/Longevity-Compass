@@ -1,15 +1,20 @@
+import DigestionInsightsEngine
 import SwiftUI
 import SwiftData
 
-/// Hub for Digestion Insights: status, results (unit 5), symptom log.
+/// Hub for Digestion Insights: status, results, symptom log, export.
 struct DigestionInsightsView: View {
     @Environment(AppServices.self) private var services
     @Query(sort: \SymptomEntry.onset, order: .reverse) private var symptoms: [SymptomEntry]
     @Query(sort: \DigestionTrackingPeriod.start, order: .reverse) private var periods: [DigestionTrackingPeriod]
 
     @State private var editing: SymptomEntry?
+    @State private var showsNotEnoughData = false
+    /// Input built from today's data; for the report's day count.
+    @State private var currentInput: AnalysisInput?
 
     private var activePeriod: DigestionTrackingPeriod? { periods.first { $0.end == nil } }
+    private var analysis: DigestionAnalysisService { services.digestion }
 
     private var symptomsByDay: [(day: Date, entries: [SymptomEntry])] {
         let cal = Calendar.current
@@ -30,13 +35,10 @@ struct DigestionInsightsView: View {
                     Text("Tracking is off. Turn it on in Settings › Data.")
                         .foregroundStyle(.secondary)
                 }
+                NavigationLink("How this works") { DigestionHowItWorksView() }
             }
 
-            // Unit 5: result sections go here, between "Status" and "Symptom log".
-            Section("Results") {
-                Text("Results appear once there is enough data. Analysis runs overnight while your iPhone charges.")
-                    .foregroundStyle(.secondary)
-            }
+            resultSections
 
             Section("Symptom log") {
                 if symptoms.isEmpty {
@@ -60,13 +62,142 @@ struct DigestionInsightsView: View {
                     }
                 }
             }
+
+            Section {
+                Text(DigestionPresentation.disclaimer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .navigationTitle("Digestion Insights")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) { exportMenu }
+        }
         .sheet(item: $editing) { entry in
             LogSymptomSheet(existing: entry)
         }
+        .task(id: symptoms.count) {
+            currentInput = analysis.buildInput()
+        }
     }
+
+    // MARK: - Results
+
+    @ViewBuilder
+    private var resultSections: some View {
+        if let result = analysis.lastGoodResult {
+            let sections = DigestionPresentation.sections(for: result)
+            Section {
+                if let line = DigestionPresentation.lastRunLine(latest: analysis.latestRun, lastGood: analysis.lastGoodRun) {
+                    Text(line).font(.footnote).foregroundStyle(.secondary)
+                }
+                if sections.allSatisfy({ $0.level == .notEnoughData }) {
+                    Text("Nothing to show yet. Keep logging meals and symptoms; patterns need weeks to months of data.")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Results")
+            }
+            ForEach(sections) { section in
+                if section.startsCollapsed {
+                    Section {
+                        DisclosureGroup("\(section.title) (\(section.rows.count))", isExpanded: $showsNotEnoughData) {
+                            ForEach(section.rows) { resultRow($0, result: result) }
+                        }
+                    }
+                } else {
+                    Section(section.title) {
+                        ForEach(section.rows) { resultRow($0, result: result) }
+                    }
+                }
+            }
+        } else {
+            Section("Results") {
+                if let line = DigestionPresentation.lastRunLine(latest: analysis.latestRun, lastGood: nil) {
+                    Text(line).font(.footnote).foregroundStyle(.secondary)
+                }
+                Text("Results appear once there is enough data. Analysis runs overnight while your iPhone charges.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func resultRow(_ row: DigestionPresentation.Row, result: AnalysisResult) -> some View {
+        NavigationLink {
+            if let feature = result.features.first(where: { $0.featureID == row.featureID }) {
+                DigestionFeatureDetailView(feature: feature, input: analysis.lastGoodInput)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(row.name)
+                        Text(row.kindLabel).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let confidence = row.confidenceText {
+                        Text(confidence).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
+                HStack(spacing: 8) {
+                    DigestionLevelBadge(level: row.level)
+                    if let lag = row.lagText {
+                        Text(lag).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if let confounded = row.confoundedText {
+                    Text(confounded).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    // MARK: - Export (B15)
+
+    private var exportMenu: some View {
+        Menu {
+            ShareLink(
+                item: DigestionReportDocument(report: report),
+                preview: SharePreview("Digestion Insights report")
+            ) {
+                Label("Doctor report (PDF)", systemImage: "doc.richtext")
+            }
+            if let export = analysisExport {
+                ShareLink(
+                    item: DigestionAnalysisDataFile(export: export),
+                    preview: SharePreview("Digestion Insights analysis data")
+                ) {
+                    Label("Analysis data (JSON)", systemImage: "curlybraces")
+                }
+            }
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+        }
+    }
+
+    private var report: DigestionPresentation.Report {
+        DigestionPresentation.report(
+            periods: periods,
+            symptoms: symptoms,
+            currentInput: currentInput,
+            result: analysis.lastGoodResult,
+            resultDate: analysis.lastGoodRun.map { $0.finishedAt ?? $0.startedAt },
+            now: .now
+        )
+    }
+
+    private var analysisExport: DigestionAnalysisExport? {
+        guard let input = analysis.lastGoodInput, let result = analysis.lastGoodResult else { return nil }
+        return DigestionAnalysisExport(
+            exportedAt: .now,
+            note: "Exact input and result of the last good Digestion Insights run. Run DigestionAnalysis.run(input) with the same engine build to reproduce the result.",
+            input: input,
+            result: result
+        )
+    }
+
+    // MARK: - Symptom log
 
     private func row(_ entry: SymptomEntry) -> some View {
         HStack {
