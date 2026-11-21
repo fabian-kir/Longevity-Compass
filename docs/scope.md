@@ -43,6 +43,18 @@ Camera-first meal logging with hybrid local/cloud AI.
 - **Manual edit / detail view** — review and adjust any logged entry, including the portion (nutrients rescale); view fingerprint breakdown.
 - **Permission-denied fallback** — clear message with Settings deep-link when camera access is refused.
 - **Empty state** — "Snap your first meal to get started."
+- **Digestion Insights menu** (only while digestion tracking is on) — toolbar menu with "Log symptom…" (kind, level, onset: now, 1 h ago, 3 h ago or earlier) and "Digestion Insights".
+- **Ingredient profile on meals** — EU allergens, traces, ingredients matched to the Open Food Facts taxonomy, free-from labels and alcohol, from Open Food Facts or the meal photo; detected allergens and free-from marks can be corrected.
+
+## Digestion Insights (opt-in, reachable from Nutrition and Settings)
+
+Pattern matching between logged symptoms and logged meals. Off by default; method in [digestion-insights-methodology.md](digestion-insights-methodology.md).
+
+- **Onboarding sheet** — what it does and can't do, what it needs from the user, talk to your doctor before changing your diet; "Start tracking" opens a tracking period.
+- **Hub screen** — tracking status (since when, logged days), results per ingredient, symptom log (swipe to delete, tap to edit).
+- **Results** — level per ingredient (not enough data, inconclusive, early signal, clear pattern, no link found), effect size with interval, typical delay, main symptom kind, foods that cannot be told apart, rate-ratio-by-delay chart and observed-versus-expected pairs chart. Shown only from converged runs; the last good result stays visible with its date.
+- **"How this works" page** — the method in plain language.
+- **Export** — doctor report (PDF) and analysis data (JSON, exact engine input and result for reproduction).
 
 ## Bloodwork tab
 
@@ -70,6 +82,7 @@ Guided Norwegian 4×4 interval training on iPhone and Apple Watch.
 ## Secondary screens (reachable from tabs)
 
 - **Data export view** (Settings) — Apple Health sync status, OpenRouter API key (Keychain-stored), nutrition & exercise-icon cost tracking, notification scheduler, JSON export, delete-all-data option.
+- **Digestion Insights section** (Settings) — "Track digestion" toggle (onboarding on, confirmation before turning off), link to the hub, "Run analysis now" with progress, and the last run's diagnostics (date, duration, attempts, status, R̂, effective sample size, divergences).
 
 ---
 
@@ -79,6 +92,7 @@ Guided Norwegian 4×4 interval training on iPhone and Apple Watch.
 - **`PriorityEngine`** — impact × friction × status × trend scoring across 12 health domains.
 - **`NotificationManager`** — quiet-hours-aware reminders driven by per-domain status (urgent → daily, good-with-baseline → quarterly, etc.).
 - **`IntervalEngine`** — deterministic N4x4 timeline, HR target line, dead-band coaching and cross-device failover decision.
+- **`DigestionInsightsEngine`** (package `Packages/DigestionInsights`) — Bayesian distributed-lag Poisson model of hourly symptom counts against meal exposures (0–96 h), fitted on device with its own NUTS sampler, nightly while charging; convergence-gated levels with thresholds calibrated by a simulation study.
 
 ---
 
@@ -90,3 +104,4 @@ Guided Norwegian 4×4 interval training on iPhone and Apple Watch.
   completed workouts are also written to Apple Health.
 - No on-device LLM (Foundation Models) — deferred until capable hardware is available.
 - No AI gram-estimation from text descriptions.
+- Digestion Insights: no diagnosis and no mechanism claims (no "intolerance", "FODMAP" or allergy wording); no suggestions to cut out foods or change diet; no effects that build up over more than 96 hours; no logging from widgets, Control Centre, Siri or Apple Watch yet; no amount-based (portion-size) exposure yet; no reminders, check-ins or notifications; nothing about symptoms on main screens.
