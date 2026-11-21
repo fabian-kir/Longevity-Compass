@@ -54,6 +54,10 @@ final class NutritionEntry {
     /// and any entry the user logged without saving the source image.
     var imageFileName: String?
 
+    /// JSON-encoded `IngredientProfile`. Nil means unknown: the meal adds no
+    /// Digestion Insights exposures but still marks the day as observed.
+    var ingredientProfileJSON: String?
+
     init(
         id: UUID = UUID(),
         date: Date = .now,
@@ -78,7 +82,8 @@ final class NutritionEntry {
         outputTokens: Int? = nil,
         costUSD: Double? = nil,
         fingerprintJSON: String? = nil,
-        imageFileName: String? = nil
+        imageFileName: String? = nil,
+        ingredientProfile: IngredientProfile? = nil
     ) {
         self.id = id
         self.date = date
@@ -104,6 +109,7 @@ final class NutritionEntry {
         self.costUSD = costUSD
         self.fingerprintJSON = fingerprintJSON
         self.imageFileName = imageFileName
+        self.ingredientProfileJSON = Self.encode(ingredientProfile)
     }
 
     var source: NutritionSource { NutritionSource(rawValue: sourceRaw) ?? .photo }
@@ -116,6 +122,20 @@ final class NutritionEntry {
         guard let json = fingerprintJSON,
               let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(MealFingerprint.self, from: data)
+    }
+
+    var ingredientProfile: IngredientProfile? {
+        get {
+            guard let json = ingredientProfileJSON,
+                  let data = json.data(using: .utf8) else { return nil }
+            return try? JSONDecoder().decode(IngredientProfile.self, from: data)
+        }
+        set { ingredientProfileJSON = Self.encode(newValue) }
+    }
+
+    private static func encode(_ profile: IngredientProfile?) -> String? {
+        guard let profile, let data = try? JSONEncoder().encode(profile) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }
 

@@ -177,6 +177,16 @@ struct PostCaptureSheet: View {
                         .font(.subheadline)
                 }
             }
+            if fp.allergens != nil || fp.ingredients != nil {
+                Section {
+                    detectedRow("Allergens", EUAllergen.parse(fp.allergens ?? []).map(\.label))
+                    detectedRow("Ingredients", fp.ingredients ?? [])
+                } header: {
+                    Text("Allergens & ingredients")
+                } footer: {
+                    Text("AI can be wrong. Check the meal later if you cooked it.")
+                }
+            }
             if let notes = fp.aiNotes, !notes.isEmpty {
                 Section("AI notes") { Text(notes).font(.footnote) }
             }
@@ -216,6 +226,15 @@ struct PostCaptureSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isSaving)
             }
+        }
+    }
+
+    private func detectedRow(_ title: String, _ values: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(values.isEmpty ? "None detected" : values.joined(separator: ", "))
+                .font(.subheadline)
+                .foregroundStyle(values.isEmpty ? .secondary : .primary)
         }
     }
 

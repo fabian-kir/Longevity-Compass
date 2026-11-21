@@ -165,7 +165,7 @@ struct ProductConfirmView: View {
     @Environment(\.dismiss) private var dismiss
 
     let loggedAt: Date
-    /// Search results lack serving data; barcode lookups already have it.
+    /// Search results lack serving and ingredient data; barcode lookups already have it.
     let fetchesServingDetails: Bool
     let onSaved: (String) -> Void
 
@@ -176,6 +176,7 @@ struct ProductConfirmView: View {
     @State private var portionMode: PortionMode
     @State private var hasEditedPortion = false
     @State private var isSaving = false
+    @State private var detailsTask: Task<OpenFoodFactsProduct?, Never>?
 
     init(
         product: OpenFoodFactsProduct,
@@ -297,15 +298,31 @@ struct ProductConfirmView: View {
         .task { await loadServingDetails() }
     }
 
-    /// Search results carry no serving or pack data, so fetch the full product
-    /// once. The portion follows the new serving unless the user already changed it.
+    private var needsFullProduct: Bool {
+        fetchesServingDetails && (
+            (product.servingSizeGrams == nil && product.packageGrams == nil)
+            || product.ingredientProfile == nil
+        )
+    }
+
+    /// Search results carry no serving, pack or ingredient data, so fetch the
+    /// full product once; saving awaits the same fetch. The portion follows the
+    /// new serving unless the user already changed it.
     private func loadServingDetails() async {
-        guard fetchesServingDetails,
-              product.servingSizeGrams == nil, product.packageGrams == nil,
-              let full = try? await OpenFoodFactsClient.lookup(barcode: product.barcode),
+        guard needsFullProduct else { return }
+        let barcode = product.barcode
+        let task = detailsTask ?? Task { try? await OpenFoodFactsClient.lookup(barcode: barcode) }
+        detailsTask = task
+        guard let full = await task.value else { return }
+        if product.ingredientProfile == nil {
+            product.ingredientProfile = full.ingredientProfile
+        }
+        guard product.servingSizeGrams == nil, product.packageGrams == nil,
               full.servingSizeGrams != nil || full.packageGrams != nil
         else { return }
+        let profile = product.ingredientProfile
         product = full
+        product.ingredientProfile = full.ingredientProfile ?? profile
         if let serving = full.servingSizeGrams, !hasEditedPortion {
             portionGrams = serving
             portionMode = .servings
@@ -333,6 +350,8 @@ struct ProductConfirmView: View {
         guard !isSaving else { return }
         isSaving = true
         Task {
+            // A failed lookup saves the entry without an ingredient profile.
+            if product.ingredientProfile == nil { await loadServingDetails() }
             let scaled = product.scaled(toGrams: portionGrams)
             let entry = NutritionEntry(
                 date: loggedAt,
@@ -350,7 +369,8 @@ struct ProductConfirmView: View {
                 sodiumMilligrams: scaled.sodiumMg,
                 ultraProcessedScore: product.ultraProcessedScore,
                 modelUsed: "openfoodfacts",
-                costUSD: 0
+                costUSD: 0,
+                ingredientProfile: product.ingredientProfile
             )
             await services.recordNutritionEntry(entry)
             onSaved(product.name ?? "product")
