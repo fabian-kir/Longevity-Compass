@@ -201,7 +201,7 @@ enum PosteriorSummary {
                 for (d, pointer) in pointers.enumerated() {
                     output.chains[pointer.chain].draws.withUnsafeBufferPointer { draws in
                         let q = draws.baseAddress! + pointer.index * layout.dimension
-                        let tau = exp(q[layout.logTauGlobal] + q[layout.logLambda + feature])
+                        let tau = model.sharedSlab(q, feature: feature).scale
                         let sigma = model.kindScale(q, feature: feature, tauGlobal: exp(q[layout.logTauGlobal]), sigmaKind: exp(q[layout.logSigmaKind]))
                         for j in 0..<k { zRow[j] = q[layout.zShared + feature * k + j] }
                         vDSP_mmulD(zRow, 1, factorT, 1, &cz, 1, 1, vDSP_Length(k), vDSP_Length(k))

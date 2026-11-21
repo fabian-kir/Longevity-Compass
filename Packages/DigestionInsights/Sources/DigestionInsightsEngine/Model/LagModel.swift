@@ -203,14 +203,27 @@ public struct LagModel: LogDensityTarget {
 
     // MARK: - Effects from parameters
 
-    /// Scale of d_fs = scale · C z_fs (`ModelPriors.kindDeviationScaling`).
+    /// Scale of d_fs = scale · C z_fs (`ModelPriors.kindDeviationScaling`),
+    /// after the slab (`ModelPriors.slab`), with ρ = ∂ log scale / ∂ log raw scale.
+    @inline(__always)
+    func kindSlab(_ q: UnsafePointer<Double>, feature: Int, tauGlobal: Double, sigmaKind: Double) -> (scale: Double, rho: Double) {
+        switch priors.kindDeviationScaling {
+        case .absolute: return priors.slab(sigmaKind)
+        case .local: return priors.slab(exp(q[layout.logLambda + feature]) * sigmaKind)
+        case .feature: return priors.slab(tauGlobal * exp(q[layout.logLambda + feature]) * sigmaKind)
+        }
+    }
+
     @inline(__always)
     func kindScale(_ q: UnsafePointer<Double>, feature: Int, tauGlobal: Double, sigmaKind: Double) -> Double {
-        switch priors.kindDeviationScaling {
-        case .absolute: return sigmaKind
-        case .local: return exp(q[layout.logLambda + feature]) * sigmaKind
-        case .feature: return tauGlobal * exp(q[layout.logLambda + feature]) * sigmaKind
-        }
+        kindSlab(q, feature: feature, tauGlobal: tauGlobal, sigmaKind: sigmaKind).scale
+    }
+
+    /// Scale of b_f = scale · C z_f: τ_g λ_f after the slab, with
+    /// ρ = ∂ log scale / ∂ log(τ_g λ_f).
+    @inline(__always)
+    func sharedSlab(_ q: UnsafePointer<Double>, feature: Int) -> (scale: Double, rho: Double) {
+        priors.slab(exp(q[layout.logTauGlobal] + q[layout.logLambda + feature]))
     }
 
     /// Fills `ws.shared` (b, F × K), `ws.kind` (d, F·S × K), `ws.drift` (δ)
@@ -227,7 +240,7 @@ public struct LagModel: LogDensityTarget {
                 // b[f, ·] = τ_f · C z_f, as rows: Z (F × K) · Cᵀ.
                 vDSP_mmulD(q + layout.zShared, 1, ct.baseAddress!, 1, ws.shared.p, 1, vDSP_Length(f), vDSP_Length(k), vDSP_Length(k))
                 for feature in 0..<f {
-                    var tau = tauGlobal * exp(q[layout.logLambda + feature])
+                    var tau = sharedSlab(q, feature: feature).scale
                     vDSP_vsmulD(ws.shared.p + feature * k, 1, &tau, ws.shared.p + feature * k, 1, vDSP_Length(k))
                 }
                 vDSP_mmulD(q + layout.zKind, 1, ct.baseAddress!, 1, ws.kind.p, 1, vDSP_Length(f * s), vDSP_Length(k), vDSP_Length(k))
@@ -380,6 +393,9 @@ public struct LagModel: LogDensityTarget {
                     ws.gradShared.p[feature * k + basis] = shared
                     lambdaChain += shared * ws.shared.p[feature * k + basis]
                 }
+                // With a slab, ∂ scale / ∂ log raw scale = ρ · scale.
+                lambdaChain *= sharedSlab(q, feature: feature).rho
+                kindChain *= kindSlab(q, feature: feature, tauGlobal: tauGlobal, sigmaKind: sigmaKind).rho
                 sigmaKindChain += kindChain
                 // Deviations scaled by λ_f (and τ_g) feed those gradients too.
                 switch priors.kindDeviationScaling {
@@ -401,7 +417,7 @@ public struct LagModel: LogDensityTarget {
                 // ∂/∂z_f = τ_f Cᵀ ∂b_f − z_f; as rows: ∂B (F × K) · C.
                 vDSP_mmulD(ws.gradShared.p, 1, c.baseAddress!, 1, ws.temp.p, 1, vDSP_Length(f), vDSP_Length(k), vDSP_Length(k))
                 for feature in 0..<f {
-                    let tau = tauGlobal * exp(q[layout.logLambda + feature])
+                    let tau = sharedSlab(q, feature: feature).scale
                     for basis in 0..<k {
                         let index = layout.zShared + feature * k + basis
                         g[index] = tau * ws.temp.p[feature * k + basis] - q[index]

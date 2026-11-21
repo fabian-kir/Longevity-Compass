@@ -1,10 +1,12 @@
 import XCTest
 @testable import DigestionInsightsEngine
 
-/// Level rules (B9) on handcrafted summaries, with placeholder thresholds.
+/// Level rules (B9) on handcrafted summaries. The rule tests use fixed,
+/// distinct thresholds (unit 3's placeholders) so that clear, early and half
+/// conditions can be told apart; the calibrated defaults are checked separately.
 final class ClassificationTests: XCTestCase {
 
-    private let config = AnalysisConfig(seed: 0)
+    private let config = AnalysisConfig(seed: 0, thresholds: Thresholds(earlyProb: 0.90, clearProb: 0.98, halfProb: 0.90))
 
     private func summary(probRaises: Double, averageRR: Interval = Interval(median: 1, lower: 0.9, upper: 1.1), peak: Double = 1.1) -> EffectSummary {
         EffectSummary(
@@ -27,10 +29,12 @@ final class ClassificationTests: XCTestCase {
         )
     }
 
-    func testPlaceholderThresholds() {
-        XCTAssertEqual(Thresholds.default.earlyProb, 0.90)
-        XCTAssertEqual(Thresholds.default.clearProb, 0.98)
-        XCTAssertEqual(Thresholds.default.halfProb, 0.90)
+    /// Calibrated by unit 4 (Simulation/results.md); `digestion-sim report`
+    /// also fails when these differ from results.json.
+    func testCalibratedDefaultThresholds() {
+        XCTAssertEqual(Thresholds.default.earlyProb, 0.80)
+        XCTAssertEqual(Thresholds.default.clearProb, 0.80)
+        XCTAssertEqual(Thresholds.default.halfProb, 0.80)
         XCTAssertEqual(Thresholds.default.noLinkMinExposures, 15)
         XCTAssertEqual(Thresholds.default.noLinkLower, 0.8)
         XCTAssertEqual(Thresholds.default.noLinkUpper, 1.25)

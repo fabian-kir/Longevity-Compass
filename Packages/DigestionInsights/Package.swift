@@ -24,9 +24,26 @@ let package = Package(
                 .unsafeFlags(["-Xcc", "-DACCELERATE_NEW_LAPACK"]),
             ]
         ),
+        // Simulation study (synthetic users, SBC, recovery, calibration).
+        // Not part of the library product; the app never links it.
+        .target(
+            name: "DigestionSimulation",
+            dependencies: ["DigestionInsightsEngine"],
+            path: "Simulation/Sources/DigestionSimulation"
+        ),
+        .executableTarget(
+            name: "digestion-sim",
+            dependencies: ["DigestionSimulation"],
+            path: "Simulation/Sources/digestion-sim"
+        ),
         .testTarget(
             name: "DigestionInsightsEngineTests",
             dependencies: ["DigestionInsightsEngine"]
+        ),
+        .testTarget(
+            name: "DigestionSimulationTests",
+            dependencies: ["DigestionSimulation"],
+            path: "Simulation/Tests/DigestionSimulationTests"
         ),
     ]
 )

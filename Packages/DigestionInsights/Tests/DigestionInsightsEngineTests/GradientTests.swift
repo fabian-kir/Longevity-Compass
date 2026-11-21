@@ -48,6 +48,30 @@ final class GradientTests: XCTestCase {
         assertGradientMatches(model, randomPosition(model, seed: 4))
     }
 
+    /// Unit 4: slab on every effect scale (regularised horseshoe), each kind-deviation scaling.
+    func testGradientMatchesFiniteDifferencesWithSlab() {
+        for scaling in [KindDeviationScaling.local, .feature, .absolute] {
+            let (model, _) = smallModel(priors: ModelPriors(kindDeviationScaling: scaling, slabScale: 0.7))
+            for seed in [5, 6] as [UInt64] {
+                var q = randomPosition(model, seed: seed)
+                // Push some scales past the slab so ρ is far from 1.
+                q[model.layout.logTauGlobal] += 1.5
+                q[model.layout.logSigmaKind] += 1.5
+                assertGradientMatches(model, q)
+            }
+        }
+    }
+
+    func testSlabCapsScaleAndReportsLogDerivative() {
+        let priors = ModelPriors(slabScale: 2)
+        XCTAssertEqual(ModelPriors(slabScale: 0).slab(5).scale, 5)
+        XCTAssertEqual(priors.slab(0.01).scale, 0.01, accuracy: 1e-6)
+        XCTAssertEqual(priors.slab(1e6).scale, 2, accuracy: 1e-6)
+        let raw = 1.3, h = 1e-6
+        let numeric = (log(priors.slab(raw * exp(h)).scale) - log(priors.slab(raw * exp(-h)).scale)) / (2 * h)
+        XCTAssertEqual(priors.slab(raw).rho, numeric, accuracy: 1e-8)
+    }
+
     func testGradientMatchesFiniteDifferencesFullFit() {
         let (model, _) = smallModel()
         XCTAssertEqual(model.layout.features, 3)
@@ -85,16 +109,20 @@ final class GradientTests: XCTestCase {
         let tauG = exp(q[layout.logTauGlobal])
         let sigmaD = exp(q[layout.logSigmaKind])
         let sigmaDrift = exp(q[layout.logSigmaDrift])
+        // Regularised-horseshoe slab (unit 4): s ↦ c s / √(c² + s²).
+        let slab = priors.slabScale
+        XCTAssertEqual(slab, 1, "test expects the default slab")
+        func capped(_ scale: Double) -> Double { slab * scale / (slab * slab + scale * scale).squareRoot() }
         let b: [[Double]] = (0..<f).map { fi in
-            let tau = tauG * exp(q[layout.logLambda + fi])
+            let tau = capped(tauG * exp(q[layout.logLambda + fi]))
             return lowerTimes(c, Array(q[(layout.zShared + fi * k)..<(layout.zShared + (fi + 1) * k)]), k).map { tau * $0 }
         }
-        // Kind deviations scaled by the local scale: d_fs = λ_f σ_d C z_fs.
+        // Kind deviations scaled by the local scale: d_fs = slab(λ_f σ_d) C z_fs.
         let d: [[[Double]]] = (0..<f).map { fi in
-            let tau = exp(q[layout.logLambda + fi])
+            let scale = capped(exp(q[layout.logLambda + fi]) * sigmaD)
             return (0..<s).map { si in
                 let start = layout.zKind + (fi * s + si) * k
-                return lowerTimes(c, Array(q[start..<(start + k)]), k).map { tau * sigmaD * $0 }
+                return lowerTimes(c, Array(q[start..<(start + k)]), k).map { scale * $0 }
             }
         }
         // Cross-basis columns centred over the rows.

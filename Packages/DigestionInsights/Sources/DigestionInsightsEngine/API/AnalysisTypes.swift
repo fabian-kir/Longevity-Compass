@@ -43,8 +43,7 @@ public struct ObservationWindow: Codable, Sendable, Equatable, Hashable {
     }
 }
 
-/// Decision thresholds for pattern levels (B9). Placeholder values until
-/// unit 4 calibrates them by simulation.
+/// Decision thresholds for pattern levels (B9).
 public struct Thresholds: Codable, Sendable, Equatable {
     public var earlyProb: Double
     public var clearProb: Double
@@ -54,9 +53,9 @@ public struct Thresholds: Codable, Sendable, Equatable {
     public var noLinkUpper: Double
 
     public init(
-        earlyProb: Double = 0.90,
-        clearProb: Double = 0.98,
-        halfProb: Double = 0.90,
+        earlyProb: Double = 0.80,
+        clearProb: Double = 0.80,
+        halfProb: Double = 0.80,
         noLinkMinExposures: Int = 15,
         noLinkLower: Double = 0.8,
         noLinkUpper: Double = 1.25
@@ -69,7 +68,14 @@ public struct Thresholds: Codable, Sendable, Equatable {
         self.noLinkUpper = noLinkUpper
     }
 
-    /// Placeholders (B9). Unit 4 replaces them with calibrated values.
+    /// Calibrated by simulation (unit 4): see
+    /// Packages/DigestionInsights/Simulation/results.md (§ Calibrated
+    /// thresholds) and results.json. earlyProb is the smallest value on the
+    /// grid 0.80…0.999 with at most 5 % of null analyses showing a false
+    /// early signal; halfProb = earlyProb; clearProb the smallest value
+    /// ≥ earlyProb with at most 1 % false clear patterns. Both targets were
+    /// already met at the grid floor 0.80, so the floor decides all three.
+    /// `digestion-sim report` fails if these differ from results.json.
     public static let `default` = Thresholds()
 }
 
@@ -77,8 +83,9 @@ public struct Thresholds: Codable, Sendable, Equatable {
 /// Defaults differ from the B9 draft where the draft failed in testing:
 /// `lagRidge` 1 (draft 1e-3), `lagDecayHours` 24 (draft: none),
 /// `localDistribution` half-Cauchy (draft half-normal), `kindDeviationScaling`
-/// `.local` with `kindDeviationScale` 1 (draft `.absolute`, 0.3). Setting
-/// those four back restores the draft, for simulation-based comparison.
+/// `.local` with `kindDeviationScale` 1 (draft `.absolute`, 0.3), and (unit 4)
+/// `slabScale` 1 (draft: none). Setting those five back restores the draft,
+/// for simulation-based comparison.
 public struct ModelPriors: Codable, Sendable, Equatable {
     /// κ in C = chol((ωP + κI)⁻¹), P = second-difference penalty on the lag
     /// spline coefficients. κ = 1 gives flat lag curves prior SD τ_f.
@@ -103,6 +110,15 @@ public struct ModelPriors: Codable, Sendable, Equatable {
     public var timeOfDaySD: Double
     /// Drift spline: δ = σ_drift · C_drift · u, σ_drift ~ HalfNormal(driftScale)
     public var driftScale: Double
+    /// Slab c of a regularised horseshoe with fixed slab (Piironen & Vehtari
+    /// 2017): every effect scale s = τ_g λ_f (and the kind-deviation scale)
+    /// becomes c s / √(c² + s²), so it can never exceed c. 0 switches the slab
+    /// off (unit 3 behaviour). Default 1: lag-curve coefficients on the
+    /// log rate-ratio scale stay within about ±2 (×0.14 … ×7.4) a priori.
+    /// Added by unit 4: without it, heavy half-Cauchy
+    /// tails let lag curves become steep where few symptoms constrain them,
+    /// and NUTS diverged in nearly every simulated run (results.md).
+    public var slabScale: Double
 
     public init(
         lagRidge: Double = 1.0,
@@ -115,7 +131,8 @@ public struct ModelPriors: Codable, Sendable, Equatable {
         kindDeviationScaling: KindDeviationScaling = .local,
         interceptSD: Double = 2.0,
         timeOfDaySD: Double = 1.0,
-        driftScale: Double = 0.3
+        driftScale: Double = 0.3,
+        slabScale: Double = 1
     ) {
         self.lagRidge = lagRidge
         self.lagSmoothing = lagSmoothing
@@ -128,9 +145,19 @@ public struct ModelPriors: Codable, Sendable, Equatable {
         self.interceptSD = interceptSD
         self.timeOfDaySD = timeOfDaySD
         self.driftScale = driftScale
+        self.slabScale = slabScale
     }
 
     public static let `default` = ModelPriors()
+
+    /// Effect scale after the slab and ρ = ∂ log(result) / ∂ log(raw).
+    @inline(__always)
+    public func slab(_ raw: Double) -> (scale: Double, rho: Double) {
+        guard slabScale > 0 else { return (raw, 1) }
+        let c2 = slabScale * slabScale
+        let denominator = c2 + raw * raw
+        return (slabScale * raw / denominator.squareRoot(), c2 / denominator)
+    }
 }
 
 /// Distribution of a positive scale parameter.
