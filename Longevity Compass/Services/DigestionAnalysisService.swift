@@ -37,7 +37,7 @@ final class DigestionAnalysisService {
     private(set) var lastGoodResult: AnalysisResult?
     private(set) var latestDiagnostics: RunDiagnostics?
 
-    private var runTask: Task<Void, Never>?
+    private var runTask: Task<DigestionRunStatus?, Never>?
 
     init(store: LocalDataStore, engine: DigestionAnalysisEngine = LiveDigestionEngine(), now: @escaping () -> Date = { .now }) {
         self.store = store
@@ -82,10 +82,16 @@ final class DigestionAnalysisService {
 
     // MARK: - Running
 
-    /// Foreground run ("Run analysis now"). No-op while a run is in progress.
-    func start() {
-        guard !isRunning else { return }
-        runTask = Task { await self.run() }
+    /// Starts a run ("Run analysis now" and the nightly task) and keeps its
+    /// task, so `cancel()` stops whichever run is active. Nil while a run is
+    /// in progress.
+    @discardableResult
+    func start() -> Task<DigestionRunStatus?, Never>? {
+        guard !isRunning else { return nil }
+        isRunning = true // claimed now, so a second tap cannot start another run
+        let task = Task { await self.perform() }
+        runTask = task
+        return task
     }
 
     func cancel() {
@@ -99,6 +105,11 @@ final class DigestionAnalysisService {
     func run() async -> DigestionRunStatus? {
         guard !isRunning else { return nil }
         isRunning = true
+        return await perform()
+    }
+
+    /// The run itself; the caller has set `isRunning`.
+    private func perform() async -> DigestionRunStatus? {
         progress = 0
         defer {
             isRunning = false
@@ -224,7 +235,12 @@ enum DigestionBackgroundTask {
             return
         }
         let service = services.digestion
-        let work = Task { await service.run() }
+        guard let work = service.start() else {
+            // A foreground run is already going; the next night tries again.
+            schedule()
+            task.setTaskCompleted(success: true)
+            return
+        }
         task.expirationHandler = { work.cancel() }
         Task {
             let status = await work.value

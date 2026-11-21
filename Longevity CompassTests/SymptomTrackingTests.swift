@@ -73,6 +73,18 @@ final class SymptomTrackingTests: XCTestCase {
         XCTAssertEqual(SymptomOnsetChoice.earlier.date(now: now, periodStart: start, custom: custom), custom)
     }
 
+    func testEditKeepsOnsetInItsOwnPeriod() {
+        let t0 = Date(timeIntervalSince1970: 1_767_225_600)
+        let old = DigestionTrackingPeriod(start: t0, end: t0.addingTimeInterval(5 * 86_400))
+        let active = DigestionTrackingPeriod(start: t0.addingTimeInterval(10 * 86_400))
+        let onset = t0.addingTimeInterval(2 * 86_400)
+        let now = t0.addingTimeInterval(11 * 86_400)
+        let bound = SymptomOnsetChoice.lowerBound(editing: onset, periods: [active, old], activeStart: active.start)
+        XCTAssertEqual(bound, old.start)
+        XCTAssertEqual(SymptomOnsetChoice.earlier.date(now: now, periodStart: bound, custom: onset), onset, "Severity edit keeps the onset")
+        XCTAssertEqual(SymptomOnsetChoice.lowerBound(editing: nil, periods: [active, old], activeStart: active.start), active.start)
+    }
+
     func testOnsetClampsToPeriodStartAndNow() {
         let now = Date(timeIntervalSince1970: 2_000_000)
         let start = now.addingTimeInterval(-1800)

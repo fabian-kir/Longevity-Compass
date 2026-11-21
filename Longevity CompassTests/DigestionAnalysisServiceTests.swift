@@ -16,6 +16,7 @@ private final class FakeEngine: DigestionAnalysisEngine, @unchecked Sendable {
     }
 
     func run(_ input: AnalysisInput, progress: (@Sendable (Double) -> Void)?) async throws -> AnalysisResult {
+        try Task.checkCancellation() // like the real engine
         let next: AnalysisStatus? = lock.withLock {
             inputs.append(input)
             return script.isEmpty ? .ok : script.removeFirst()
@@ -137,6 +138,18 @@ final class DigestionAnalysisServiceTests: XCTestCase {
         XCTAssertEqual(engine.inputs.last?.config.warmup, 2000)
         XCTAssertEqual(service.latestRun?.status, .ok)
         XCTAssertEqual(store.fetchAnalysisRuns().count, 1)
+    }
+
+    /// The nightly task starts runs through `start()`, so Settings' stop
+    /// button and "Delete all local data" reach them through `cancel()`.
+    func testCancelStopsRunStartedThroughService() async throws {
+        let engine = FakeEngine([.ok])
+        let (service, _) = try makeService(engine)
+        let task = try XCTUnwrap(service.start())
+        XCTAssertNil(service.start(), "No second run while one is active")
+        service.cancel()
+        _ = await task.value
+        XCTAssertEqual(service.latestRun?.status, .cancelled)
     }
 
     func testNextRunDateIsNextTwoAM() {

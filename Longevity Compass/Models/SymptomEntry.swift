@@ -149,4 +149,15 @@ enum SymptomOnsetChoice: String, CaseIterable, Identifiable {
     static func clamp(_ date: Date, periodStart: Date, now: Date) -> Date {
         min(max(date, periodStart), now)
     }
+
+    /// Earliest allowed onset. Editing keeps an entry in the period it was
+    /// logged in, so a severity change never moves an older symptom into the
+    /// current period; new entries use the active period's start.
+    static func lowerBound(editing onset: Date?, periods: [DigestionTrackingPeriod], activeStart: Date?) -> Date {
+        if let onset {
+            let holding = periods.first { $0.start <= onset && onset <= ($0.end ?? .distantFuture) }
+            return holding?.start ?? onset
+        }
+        return activeStart ?? .distantPast
+    }
 }

@@ -25,7 +25,11 @@ struct LogSymptomSheet: View {
     }
 
     private var periodStart: Date {
-        services.store.activeTrackingPeriod()?.start ?? .distantPast
+        SymptomOnsetChoice.lowerBound(
+            editing: existing?.onset,
+            periods: services.store.fetchTrackingPeriods(),
+            activeStart: services.store.activeTrackingPeriod()?.start
+        )
     }
 
     var body: some View {
