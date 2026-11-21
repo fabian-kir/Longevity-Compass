@@ -18,6 +18,8 @@ struct Longevity_CompassApp: App {
             N4x4WorkoutLog.self,
             BloodworkPanel.self,
             BloodworkMarker.self,
+            SymptomEntry.self,
+            DigestionTrackingPeriod.self,
         ])
         var inMemory = false
         #if DEBUG

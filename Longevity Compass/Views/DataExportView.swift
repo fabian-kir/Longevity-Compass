@@ -15,6 +15,9 @@ struct DataExportView: View {
     @State private var scheduled: [NotificationManager.ScheduledNotification] = []
     @State private var scheduledLoaded = false
 
+    @State private var showDigestionOnboarding = false
+    @State private var showStopDigestionConfirm = false
+
     var body: some View {
         Form {
             Section("Privacy") {
@@ -201,6 +204,25 @@ struct DataExportView: View {
                 Text("Barcode and product search data © Open Food Facts contributors, available under the Open Database License (ODbL).")
             }
 
+            Section {
+                Toggle("Track digestion", isOn: Binding(
+                    get: { services.isTrackingDigestion },
+                    set: { on in
+                        if on { showDigestionOnboarding = true }
+                        else { showStopDigestionConfirm = true }
+                    }
+                ))
+                if services.isTrackingDigestion {
+                    NavigationLink("Open Digestion Insights") {
+                        DigestionInsightsView()
+                    }
+                }
+            } header: {
+                Text("Digestion Insights")
+            } footer: {
+                Text("Optional. Looks for ingredients your symptoms tend to follow. Symptom data stays on this iPhone.")
+            }
+
             Section("Export") {
                 Button {
                     do {
@@ -230,6 +252,15 @@ struct DataExportView: View {
         }
         .navigationTitle("Data")
         .task { await reloadScheduled() }
+        .sheet(isPresented: $showDigestionOnboarding) {
+            DigestionOnboardingView { services.startDigestionTracking() }
+        }
+        .confirmationDialog("Stop tracking digestion?", isPresented: $showStopDigestionConfirm, titleVisibility: .visible) {
+            Button("Stop tracking", role: .destructive) { services.stopDigestionTracking() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your logged symptoms stay on this iPhone. Days until you start again are not analysed.")
+        }
         .alert("Delete everything?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 Task { await services.deleteAllLocalData() }

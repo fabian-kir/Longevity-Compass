@@ -42,12 +42,16 @@ final class AppServices {
     private(set) var bioAge: BioAgeEstimate?
     private(set) var isRefreshing: Bool = false
     private(set) var hasBootstrapped: Bool = false
+    /// True while a Digestion Insights tracking period is active. Toolbar and Settings observe this.
+    private(set) var isTrackingDigestion: Bool = false
 
     /// Cross-view navigation hint. Views observe this and update their TabView selection.
     var selectedTab: AppTab = .focus
 
     init(context: ModelContext) {
-        self.store = LocalDataStore(context: context)
+        let store = LocalDataStore(context: context)
+        self.store = store
+        self.isTrackingDigestion = store.activeTrackingPeriod() != nil
         let healthKit = HealthKitManager()
         self.healthKit = healthKit
         self.notifications = NotificationManager()
@@ -186,8 +190,29 @@ final class AppServices {
         await refreshAfterEdit()
     }
 
+    // MARK: - Digestion Insights
+
+    func startDigestionTracking(at start: Date = .now) {
+        store.startTracking(at: start)
+        isTrackingDigestion = true
+    }
+
+    func stopDigestionTracking(at end: Date = .now) {
+        store.stopTracking(at: end)
+        isTrackingDigestion = false
+    }
+
+    func recordSymptom(_ entry: SymptomEntry) {
+        store.insertSymptom(entry)
+    }
+
+    func deleteSymptom(_ entry: SymptomEntry) {
+        store.deleteSymptom(entry)
+    }
+
     func deleteAllLocalData() async {
         store.deleteAllLocalData()
+        isTrackingDigestion = false
         MealImageStore.wipeAll()
         notifications.cancelAll()
         await refresh()

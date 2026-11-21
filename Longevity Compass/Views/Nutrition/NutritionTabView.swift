@@ -16,6 +16,7 @@ struct NutritionTabView: View {
     @State private var libraryImage: UIImage?
     @State private var detectedProduct: DetectedProduct?
     @State private var isResolvingBarcode = false
+    @State private var showLogSymptom = false
 
     private struct CapturedImage: Identifiable {
         let id = UUID()
@@ -40,6 +41,24 @@ struct NutritionTabView: View {
         .navigationTitle("Nutrition")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if services.isTrackingDigestion {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            showLogSymptom = true
+                        } label: {
+                            Label("Log symptom…", systemImage: "plus")
+                        }
+                        NavigationLink {
+                            DigestionInsightsView()
+                        } label: {
+                            Label("Digestion Insights", systemImage: "chart.xyaxis.line")
+                        }
+                    } label: {
+                        Image(systemName: "note.text.badge.plus")
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     NutritionHistoryView()
@@ -55,6 +74,9 @@ struct NutritionTabView: View {
                     Image(systemName: "magnifyingglass")
                 }
             }
+        }
+        .sheet(isPresented: $showLogSymptom) {
+            LogSymptomSheet()
         }
         .sheet(item: $captured, onDismiss: resumeBarcodeDetection) { item in
             PostCaptureSheet(image: item.image, capturedAt: item.date) { outcome in

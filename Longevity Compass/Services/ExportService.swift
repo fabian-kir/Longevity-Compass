@@ -7,6 +7,22 @@ struct ExportPayload: Encodable {
     let snapshots: [SnapshotDTO]
     let priorityHistory: [PriorityDTO]
     let bloodworkPanels: [BloodworkPanelDTO]
+    let symptomEntries: [SymptomEntryDTO]
+    let trackingPeriods: [TrackingPeriodDTO]
+
+    struct SymptomEntryDTO: Encodable {
+        let id: UUID
+        let onset: Date
+        let loggedAt: Date
+        let kind: String
+        let level: String
+    }
+
+    struct TrackingPeriodDTO: Encodable {
+        let id: UUID
+        let start: Date
+        let end: Date?
+    }
 
     struct ManualEntryDTO: Encodable {
         let id: UUID
@@ -116,6 +132,18 @@ enum ExportService {
                 }
             )
         }
+        let symptoms = store.fetchAllSymptoms().map {
+            ExportPayload.SymptomEntryDTO(
+                id: $0.id,
+                onset: $0.onset,
+                loggedAt: $0.loggedAt,
+                kind: $0.kindRaw,
+                level: $0.levelRaw
+            )
+        }
+        let periods = store.fetchTrackingPeriods().map {
+            ExportPayload.TrackingPeriodDTO(id: $0.id, start: $0.start, end: $0.end)
+        }
         let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
         return ExportPayload(
             exportedAt: .now,
@@ -123,7 +151,9 @@ enum ExportService {
             manualEntries: entries,
             snapshots: snaps,
             priorityHistory: history,
-            bloodworkPanels: bloodwork
+            bloodworkPanels: bloodwork,
+            symptomEntries: symptoms,
+            trackingPeriods: periods
         )
     }
 
